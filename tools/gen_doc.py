@@ -32,6 +32,9 @@ PAPEL_MODULO = {
         "níveis de autonomia, tipos de task, especialistas, checks do "
         "doctor e marcas DLP — mais normalizadores tolerantes "
         "(Postel's Law)"),
+    "dossie.py": ("🗂️", "o dossiê de task (v6.8.0): PLANO + EVIDÊNCIA + "
+        "ENTREGA por task em data_dir/dossies/ — revisão por artefatos "
+        "(modelo Antigravity, nativo e local-first)"),
     "fluxo.py": ("⚡", "o fluxo adaptativo em 3 níveis (v6.6.0): conversa "
         "→ resposta direta; tarefa → ciclo clássico; complexa → etapas "
         "focadas com contexto acumulado (padrão Plandex, nativo e leve)"),

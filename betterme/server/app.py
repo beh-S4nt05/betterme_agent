@@ -278,6 +278,14 @@ self.addEventListener("fetch", (e) => {
         from ..orchestrator import list_tasks
         return jsonify({"ok": True, "tasks": list_tasks(cfg)})
 
+    @app.get("/api/orchestrator/dossie/<tid>")
+    @protected
+    def orchestrator_dossie(tid):
+        """v6.8.0: dossiê da task (plano + evidência + entrega)."""
+        from ..dossie import ler
+        texto = ler(cfg, tid)
+        return jsonify({"ok": bool(texto), "tid": tid, "dossie": texto})
+
     # --------------------------------- saúde do pipeline (v3.10)
     @app.get("/api/orchestrator/stats")
     @protected

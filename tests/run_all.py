@@ -8182,6 +8182,146 @@ def T199_skill_disciplina_agente():
     assert sk["source"] == "builtin" and sk["enabled"]
 
 
+@case
+def T200_dossie_artefatos_da_task():
+    """v6.8.0 (modelo Antigravity nativo): cada task produz um DOSSIÊ
+    revisável em data_dir/dossies/T000N.md — PLANO (objetivo, passos,
+    critérios, skills), EVIDÊNCIA (cada ferramenta executada com hora)
+    e ENTREGA (veredito, status, texto auditável). Cancelamento também
+    fecha o dossiê; aprovação do plano deixa nota."""
+    from betterme import orchestrator as orc
+    from betterme import dossie as DOS
+
+    cfg = fresh(creation_approval=False)
+    _plan_orig, _review_orig = orc.plan, orc.review
+    orc.plan = lambda cfg, m, h=None: {
+        "rota": "executar", "tipo": "leitura",
+        "objetivo": "verificar e reportar",
+        "passos": ["verificar disco", "verificar memória"],
+        "criterios": ["evidência real na resposta"]}
+    orc.review = lambda *a, **k: {"veredito": "ok"}
+
+    class AgEv:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            if on_event:
+                on_event({"type": "tool_start",
+                          "message": "🔧 run_command command=df -h"})
+                on_event({"type": "tool_start",
+                          "message": "🔧 read_file path=/etc/hostname"})
+            return "disco 70% usado, memória livre — evidência real"
+
+    try:
+        evs = []
+        orc.run_pipeline(AgEv(), cfg, "verifique disco e memória",
+                         [], on_event=evs.append)
+        arq = DOS.caminho(cfg, "T0001")
+        assert arq.is_file(), arq
+        texto = DOS.ler(cfg, "T0001")
+        # ── PLANO
+        assert "## PLANO" in texto and "verificar e reportar" in texto
+        assert "1. verificar disco" in texto and "2. verificar memória" in texto
+        assert "evidência real" in texto and "pedido original" in texto
+        # ── EVIDÊNCIA (ferramentas executadas, com hora)
+        assert "## EVIDÊNCIA" in texto and "🔧 run_command" in texto
+        assert "🔧 read_file" in texto
+        # ── ENTREGA (veredito + texto auditável)
+        assert "## ENTREGA" in texto and "aprovada" in texto
+        assert "evidência real" in texto and "1 execução" in texto
+        assert "disco 70%" in texto
+        assert str(arq).startswith(str(cfg.data_dir))     # local-first
+        # ── segunda task → dossiê próprio (T0002)
+        orc.run_pipeline(AgEv(), cfg, "verifique de novo", [],
+                         on_event=lambda e: None)
+        assert DOS.caminho(cfg, "T0002").is_file()
+        assert "T0002" in DOS.ler(cfg, "T0002")
+        # ── task sem dossiê (id inexistente) → "" (não quebra)
+        assert DOS.ler(cfg, "T9999") == ""
+    finally:
+        orc.plan = _plan_orig
+        orc.review = _review_orig
+
+    # ── portão de criação: aprovação e edição deixam nota no dossiê
+    cfg2 = fresh()               # creation_approval padrão: True
+    orc.plan = lambda cfg, m, h=None: {
+        "rota": "executar", "tipo": "criacao", "objetivo": "app de teste",
+        "passos": ["criar arquivo", "testar"], "criterios": []}
+    _ra_orig = orc.request_approval
+    orc.request_approval = lambda *a, **k: ("aprovar", None)
+
+    class AgCria:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            return "app criado e testado — saída real"
+
+    try:
+        orc.run_pipeline(AgCria(), cfg2, "crie um app de teste", [],
+                         on_event=lambda e: None)
+        t2 = DOS.ler(cfg2, "T0001")
+        assert "✅ plano aprovado pelo operador" in t2, t2[:400]
+        assert "## ENTREGA" in t2
+    finally:
+        orc.plan = _plan_orig
+        orc.request_approval = _ra_orig
+
+
+@case
+def T201_dossie_cli_e_gui():
+    """v6.8.0: o dossiê é consumível — GUI (GET /api/orchestrator/
+    dossie/<tid>) e CLI (`betterme dossie T000N`, com fallback que
+    lista as tasks recentes quando o id não tem dossiê)."""
+    import io
+    import contextlib
+    from betterme import orchestrator as orc
+    from betterme.cli import main as cli_main
+    from betterme.server.app import create_app
+
+    cfg = fresh(creation_approval=False)
+    _plan_orig, _review_orig = orc.plan, orc.review
+    orc.plan = lambda cfg, m, h=None: {
+        "rota": "executar", "tipo": "leitura", "objetivo": "verificar",
+        "passos": ["df -h"], "criterios": ["evidência real"]}
+    orc.review = lambda *a, **k: {"veredito": "ok"}
+
+    class AgEv:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            if on_event:
+                on_event({"type": "tool_start",
+                          "message": "🔧 run_command command=df -h"})
+            return "disco 70% — evidência real"
+
+    try:
+        orc.run_pipeline(AgEv(), cfg, "verifique o disco", [],
+                         on_event=lambda e: None)
+        # ── GUI
+        c = create_app(cfg).test_client()
+        r = c.get("/api/orchestrator/dossie/T0001")
+        d = r.get_json()
+        assert r.status_code == 200 and d["ok"] is True
+        assert "## PLANO" in d["dossie"] and "## EVIDÊNCIA" in d["dossie"]
+        r2 = c.get("/api/orchestrator/dossie/T9999")
+        assert r2.get_json()["ok"] is False       # sem dossiê: ok False
+        # ── CLI
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            cli_main(["--data-dir", str(cfg.data_dir), "--mock",
+                      "dossie", "T0001"])
+        out = buf.getvalue()
+        assert "## PLANO" in out and "## ENTREGA" in out
+        buf2 = io.StringIO()
+        with contextlib.redirect_stdout(buf2):
+            cli_main(["--data-dir", str(cfg.data_dir), "--mock",
+                      "dossie", "T9999"])
+        assert "sem dossiê" in buf2.getvalue()
+    finally:
+        orc.plan = _plan_orig
+        orc.review = _review_orig
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

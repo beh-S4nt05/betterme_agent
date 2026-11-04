@@ -1,5 +1,37 @@
 # Changelog
 
+## v6.8.0 — 🗂️ DOSSIÊ DE TASK: REVISÃO POR ARTEFATOS (modelo Antigravity)
+
+Pedido do operador: "a forma com que o Antigravity gerencia as tarefas
+e execuções de criação… acho que se aproxima mais do que eu quero". O
+essencial do modelo do Antigravity (Google) — a unidade de revisão é o
+ARTEFATO, não o chat — adaptado nativo e local-first:
+
+- **Toda task agora tem um dossiê** em `data_dir/dossies/T000N.md`:
+  - **PLANO** — objetivo, tipo, passos, critérios que o revisor vai
+    cobrar, skills aplicadas e o pedido original (gravado na CRIAÇÃO
+    da task, antes do portão);
+  - **EVIDÊNCIA** — cada ferramenta executada pelo executor
+    (`🔧 run_command command=df -h · 14:32:05`), append com hora;
+    erros também;
+  - **ENTREGA** — veredito do revisor (com problema, se reprovada),
+    status, nº de execuções, duração e o texto final auditável.
+- **Notas de processo**: aprovação/edição do plano e cancelamentos
+  (nos 2 portões) ficam registrados no dossiê — a auditoria completa
+  da decisão, não só o resultado.
+- **Consumo**: `betterme dossie T0012` (CLI, com fallback que lista
+  tasks recentes) e `GET /api/orchestrator/dossie/<tid>` (GUI).
+- **Best-effort por lei**: dossiê NUNCA quebra o pipeline (append
+  falho = dossiê incompleto, task intacta); tasks antigas sem dossiê
+  retornam vazio sem erro.
+- Complementa o que já existia: portão de criação já mostrava os
+  passos do plano para aprovar ANTES de executar (revisão de plano,
+  outro pilar do Antigravity); spec-driven grava SPEC/PLANO/TASKS no
+  PROJETO — o dossiê é o artefato do LADO DO AGENTE.
+- T200 (artefatos completos + cancelamento + nota de aprovação +
+  isolamento por task) · T201 (CLI + GUI + id inexistente) —
+  **201/201**.
+
 ## v6.7.0 — ✦ SKILLS spec-driven + disciplina-agente
 
 Pedido do operador: adicionar os repositórios `github/spec-kit` e

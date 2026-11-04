@@ -174,6 +174,7 @@ def _fast(cfg, system: str, user: str, ntok: int = 200,
 
 
 from .extrair import json_de as _extract_json  # v6.4.0: DRY
+from . import dossie as _dossie
 from . import fluxo as _flx
 from .contratos import (TIPO_CRIACAO, TIPO_LEITURA,  # SSOT
                         TIPOS_TASK)
@@ -914,6 +915,12 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
         ev({"type": "note",
             "message": f"🔁 task {tid} RETOMADA após restart — plano já aprovado pelo operador"})
     activity.log(cfg, "chat", f"🎯 task {tid} ({tipo}) — {objetivo[:80]}")
+    try:                          # v6.8.0: dossiê (artefato da task)
+        _dossie.abrir_plano(cfg, tid, message=message, objetivo=objetivo,
+                            tipo=tipo, passos=passos, criterios=criterios,
+                            skills=[s["name"] for s in sks])
+    except Exception:  # noqa: BLE001
+        pass
 
     # ── v3.15.0 (PR#1): pasta do projeto declarada no pedido ──
     from .tools import ToolError, task_scope, validar_escopo_projeto
@@ -1003,6 +1010,12 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
                          "skills": [s["name"] for s in sks],
                          "aprovacao": "cancelada"}, tid)
             final = f"⛔ task {tid} {motivo}."
+            try:
+                _dossie.fechar(cfg, tid, veredito="—", problema=motivo,
+                               status="cancelada", execucoes=0,
+                               dur=round(time.time() - t0, 1), entrega="")
+            except Exception:  # noqa: BLE001
+                pass
             ev({"type": "note", "message": f"⛔ {final}"})
             ev({"type": "done", "message": final})
             return final
@@ -1013,9 +1026,18 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
             plano_editado = True          # v3.10: a edição vira experiência
             ev({"type": "note",
                 "message": "✏️ plano editado pelo operador — seguindo o plano editado"})
+            try:
+                _dossie.nota(cfg, tid, "✏️ plano editado pelo operador: "
+                             + " | ".join(passos))
+            except Exception:  # noqa: BLE001
+                pass
         else:
             aprovacao = "aprovada"
             ev({"type": "note", "message": "✅ plano aprovado pelo operador"})
+            try:
+                _dossie.nota(cfg, tid, "✅ plano aprovado pelo operador")
+            except Exception:  # noqa: BLE001
+                pass
 
     ev({"type": "brain", "stage": "⚡ executor",
         "data": {"prompt_injetado": _plano_txt()[:700]}})
@@ -1028,6 +1050,11 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
         if e.get("type") == "done":
             caixa["done"] = e.get("message") or ""
             return
+        if e.get("type") in ("tool_start", "error"):  # v6.8.0: evidência
+            try:
+                _dossie.evidencia(cfg, tid, e)
+            except Exception:  # noqa: BLE001
+                pass
         ev(e)
 
     def _run_executor(msgs: list[dict]) -> str:
@@ -1305,6 +1332,14 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
                          "skills": [s["name"] for s in sks],
                          "aprovacao": f"{aprovacao}+cancelada"}, tid)
             final = f"⛔ task {tid} cancelada na entrega — nenhum resultado entregue."
+            try:
+                _dossie.fechar(cfg, tid, veredito=veredito,
+                               problema="cancelada na entrega",
+                               status="cancelada", execucoes=execucoes,
+                               dur=round(time.time() - t0, 1), entrega="",
+                               entregue="cancelada")
+            except Exception:  # noqa: BLE001
+                pass
             ev({"type": "note", "message": final})
             ev({"type": "done", "message": final})
             return final
@@ -1345,6 +1380,13 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
     if edit_snip:
         entry["entrega_editada"] = edit_snip
     record(cfg, entry, tid)
+    try:                          # v6.8.0: fecha o dossiê (artefato final)
+        _dossie.fechar(cfg, tid, veredito=veredito, problema=problema,
+                       status=status, execucoes=execucoes, dur=dur,
+                       entrega=(caixa["done"] or resultado),
+                       entregue=entregue)
+    except Exception:  # noqa: BLE001
+        pass
     # v4.0.0 (M6.5): loop de aprendizado — rascunho em staging, aprovação
     # SEMPRE do operador (nem AUTÔNOMO auto-aprova o próprio aprendizado)
     try:

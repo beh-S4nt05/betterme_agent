@@ -488,6 +488,22 @@ def cmd_config(args) -> None:
         subprocess.run([os.environ.get("EDITOR", "nano"), str(cfg.path)])
 
 
+def cmd_dossie(args) -> None:
+    """v6.8.0: mostra o dossiê de uma task — plano, evidência, entrega."""
+    from .dossie import ler
+    from .orchestrator import list_tasks
+
+    cfg = _cfg(args)
+    texto = ler(cfg, args.tid)
+    if texto:
+        _p(texto)
+        return
+    _p(f"sem dossiê para {args.tid} — tasks recentes:")
+    for t in list_tasks(cfg, limit=5):
+        _p(f"  {t.get('id')} · {t.get('status')} · "
+           f"{str(t.get('objetivo'))[:70]}")
+
+
 def cmd_provider(args) -> None:
     """v3.17.0: provedores LLM externos GRATUITOS (memória nunca sai)."""
     import getpass as _gp
@@ -1027,6 +1043,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("model", nargs="?", help="modelo para 'pull' (padrão: o da configuração)")
     p.set_defaults(fn=cmd_ollama)
 
+    p = sub.add_parser("dossie",
+                       help="dossiê da task: plano, evidência e entrega")
+    p.add_argument("tid", help="id da task (ex.: T0012)")
+    p.set_defaults(fn=cmd_dossie)
     p = sub.add_parser("tasks", help="lista tarefas da fila e resultados")
     p.set_defaults(fn=cmd_tasks)
 

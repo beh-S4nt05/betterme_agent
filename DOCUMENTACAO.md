@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 6.7.0** · gerado em 04/11/2026 · este documento é extraído do
+**Versão 6.8.0** · gerado em 04/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -124,6 +124,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 | `betterme server` | sobe a GUI web de controle |
 | `betterme agent` | controla o agente (ligar/desligar) |
 | `betterme ollama` | controla o servidor Ollama |
+| `betterme dossie` | dossiê da task: plano, evidência e entrega |
 | `betterme tasks` | lista tarefas da fila e resultados |
 | `betterme schedule` | tarefas agendadas (⏰) |
 | `betterme config` | configuração |
@@ -133,7 +134,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v6.7.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v6.8.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -141,6 +142,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v6.8.0** | 🗂️ DOSSIÊ DE TASK: REVISÃO POR ARTEFATOS (modelo Antigravity) |
 | **v6.7.0** | ✦ SKILLS spec-driven + disciplina-agente |
 | **v6.6.1** | 🔧 5º ACHADO DE CAMPO: TOOL CALL EM TEXTO + ESCOPO PERDIDO |
 | **v6.6.0** | ⚡ FLUXO LEVE: ORQUESTRAÇÃO ADAPTATIVA EM 3 NÍVEIS |
@@ -372,7 +374,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 
 ### betterme/server/app.py — 🌐 a API REST + GUI web (Flask/waitress): todos os endpoints, streaming do chat, aprovações, painel e páginas
 
-**85 endpoints HTTP:**
+**86 endpoints HTTP:**
 
 | Método e rota | O que faz |
 |---|---|
@@ -383,6 +385,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `GET /sw.js` | service_worker |
 | `GET /icon-<int:size>.png` | pwa_icon |
 | `GET /api/orchestrator/tasks` | orchestrator_tasks |
+| `GET /api/orchestrator/dossie/<tid>` | v6.8.0: dossiê da task (plano + evidência + entrega). |
 | `GET /api/orchestrator/stats` | Funil do pipeline a partir das tasks registradas: aprovação na 1ª tentativa, refações, edições do operador, skills mais… |
 | `POST /api/chat/command` | Comandos slash do chat da GUI (mesmos do terminal, e /goal). |
 | `GET /api/approvals/pending` | v3.11: pendências que sobreviveram a restart + retomadas. |
@@ -498,6 +501,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `cmd_schedule(args)` | — |
 | `cmd_tasks(args)` | — |
 | `cmd_config(args)` | — |
+| `cmd_dossie(args)` | v6.8.0: mostra o dossiê de uma task — plano, evidência, entrega. |
 | `cmd_provider(args)` | v3.17.0: provedores LLM externos GRATUITOS (memória nunca sai). |
 | `cmd_varredura(args)` | v4.0.0: varre segredos/dados pessoais — 1 se houver crítico. |
 | `cmd_init(args)` | v4.0.0: cria HERMES.md de partida no projeto. |
@@ -942,6 +946,18 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `nivel_valido(txt)` | Nível canônico de autonomia — aceita 'Autônomo', 'PADRÃO'… None se não for um nível válido. |
 | `especialista_de(txt)` | Nome canônico de especialista — aceita 'Segurança', 'REVISOR'… None se não existir. |
 | `acao_de(args, padrao)` | Ação de um subcomando CLI: leitura tolerante e uniforme (falta o atributo ou vazio → padrão; sempre strip+lower). |
+
+### betterme/dossie.py — 🗂️ o dossiê de task (v6.8.0): PLANO + EVIDÊNCIA + ENTREGA por task em data_dir/dossies/ — revisão por artefatos (modelo Antigravity, nativo e local-first)
+
+| Função | O que faz |
+|---|---|
+| `caminho(cfg, tid)` | Arquivo do dossiê (data_dir/dossies/T000N.md). |
+| `_append(cfg, tid, texto)` | — |
+| `abrir_plano(cfg, tid, message=?, objetivo=?, tipo=?, passos=?, criterios=?, skills=?)` | Cria o dossiê com o PLANO da task (na criação, antes do portão). |
+| `nota(cfg, tid, texto)` | Linha de andamento do processo (aprovação, edição, cancelamento). |
+| `evidencia(cfg, tid, evento)` | Anexa UMA linha de evidência (tool_start/error do executor). |
+| `fechar(cfg, tid, veredito=?, problema=?, status=?, execucoes=?, dur=?, entrega=?, entregue=?)` | Fecha o dossiê com a seção ENTREGA (veredito + texto auditável). |
+| `ler(cfg, tid)` | Dossiê completo ("" se a task não tiver — tasks antigas, p.ex.). |
 
 ### betterme/fluxo.py — ⚡ o fluxo adaptativo em 3 níveis (v6.6.0): conversa → resposta direta; tarefa → ciclo clássico; complexa → etapas focadas com contexto acumulado (padrão Plandex, nativo e leve)
 
