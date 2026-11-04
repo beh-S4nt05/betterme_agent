@@ -112,6 +112,11 @@ gratuitos keyless (requer Node 23+ e onboarding 1× no dashboard).
 **Valide tudo com `betterme provider test`** — 1 completion real por
 provedor, com latência e veredito.
 
+Peça **"engenharia reversa de X"** e o agente segue o método REA
+(rótulos *visto/inferido/desconhecido*, entrega com evidência, mapa,
+limites e desconhecidos) — o estudo completo do n8n está em
+`docs/ENGENHARIA-REVERSA-N8N.md`.
+
 No chat (GUI e terminal) use **@ e /**: `revise @src/app.py e o
 @README.md` anexa o conteúdo REAL dos arquivos ao pedido; `/prazo 15`
 liga o modo prazo (contagem + revisão apertada + estado do roteador

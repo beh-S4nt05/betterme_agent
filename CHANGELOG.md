@@ -1,5 +1,31 @@
 # Changelog
 
+## v7.1.0 — 🔬 ENGENHARIA REVERSA: método REA nativo + ER completa do n8n
+
+Pedido do operador: "faça uma engenharia reversa completa do N8N
+usando o repositório inematds/rea-engenharia-reversa e aplique de
+maneira nativa". Feito nos dois sentidos:
+
+- **✦ skill `engenharia-reversa`** (47 skills builtin): o método REA
+  (INEMA, MIT, creditado) virou comportamento nativo do agente — 5
+  passos (UMA função por vez · ferramenta pelo tipo de alvo · resumo
+  primeiro · **visto/inferido/desconhecido** · reconstruir e testar),
+  formato de entrega *evidência · mapa · limites · desconhecidos*,
+  cuidados legais (licença, sandbox, versão), e a seção Verificação
+  delegando os rótulos ao 🔍 revisor. Dispara em "engenharia reversa",
+  "como funciona por dentro", "desmontar", "reimplementar"…
+- **docs/ENGENHARIA-REVERSA-N8N.md**: a ER completa do n8n seguindo o
+  método — função única estudada (como o n8n executa um workflow),
+  evidência ancorada no campo real do projeto (PR#11: installer SUL,
+  API com X-N8N-API-KEY, templates tpl-eco/tpl-gat aceitos pelo
+  motor), mapa do grafo/execução/modos/segurança tudo rotulado, 4
+  desconhecidos declarados COM o comando que os verificaria, e a
+  reconstrução-testada (o motor de etapas v6.6.0 reimplementa o
+  padrão; nota fair-code da licença).
+- T205 (skill: disparos, método, delegação, builtin) · T206 (artefato:
+  4 seções REA, rótulos, ancoragem de campo, desconhecidos com
+  verificação) — **206/206**.
+
 ## v7.0.0 — 🚀 AGENTE COMPLETO: @menções, /comandos e modo prazo
 
 Versão MAIN construída sobre a pesquisa "pontos-chave de cada client

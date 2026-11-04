@@ -8528,6 +8528,79 @@ def T204_prazo_modo():
             orc.SESSION_PRAZO.clear()
 
 
+@case
+def T205_skill_engenharia_reversa():
+    """v7.1.0: skill engenharia-reversa (método REA do INEMA, MIT,
+    creditado) — 5 passos com rótulos visto/inferido/desconhecido,
+    formato evidência·mapa·limites·desconhecidos, cuidados legais, e
+    a seção Verificação delegando critérios ao revisor."""
+    import tempfile
+    from betterme.config import Config
+    from betterme.orchestrator import skills_for, _skill_criterios
+
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="t205-"), mock=True)
+    # ── dispara em pedidos de ER / entendimento interno
+    for pedido in ("faça engenharia reversa do n8n",
+                   "como funciona esse aplicativo por dentro",
+                   "desmonte o formato desse arquivo",
+                   "quero reimplementar o comportamento desse sistema"):
+        nomes = [s["name"] for s in skills_for(cfg, pedido)]
+        assert "engenharia-reversa" in nomes, (pedido, nomes)
+    # ── não vaza para pedidos comuns
+    for pedido in ("oi, tudo bem?", "crie um app de calculadora",
+                   "verifique o uso de disco"):
+        nomes = [s["name"] for s in skills_for(cfg, pedido)]
+        assert "engenharia-reversa" not in nomes, (pedido, nomes)
+    # ── método completo no manual
+    md = Path("skills/engenharia-reversa/SKILL.md").read_text(encoding="utf-8")
+    for trecho in ("UMA função por vez", "Ferramenta pelo tipo de alvo",
+                   "Resumo primeiro", "visto", "inferido", "desconhecido",
+                   "Reconstruir e testar",
+                   "evidência · mapa · limites · desconhecidos",
+                   "rea-engenharia-reversa", "MIT", "## Verificação"):
+        assert trecho in md, trecho
+    # ── delegação: Verificação vira critérios do revisor
+    sks = skills_for(cfg, "faça engenharia reversa do protocolo")
+    crit = _skill_criterios(sks)
+    assert len(crit) >= 3 and all("engenharia-reversa" in c for c in crit)
+    # ── builtin e habilitada
+    from betterme.skills import SkillLoader
+    sk = [s for s in SkillLoader(cfg).scan()
+          if s["name"] == "engenharia-reversa"][0]
+    assert sk["source"] == "builtin" and sk["enabled"]
+
+
+@case
+def T206_er_n8n_artefato():
+    """v7.1.0: a ER completa do n8n existe como artefato seguindo o
+    método REA — evidência · mapa · limites · desconhecidos, rótulos
+    visto/inferido, função única, reconstrução testada e crédito MIT;
+    ancorada no trabalho de campo real (PR#11: SUL, API, templates)."""
+    doc = Path("docs/ENGENHARIA-REVERSA-N8N.md").read_text(encoding="utf-8")
+    # ── as 4 seções do formato REA
+    for sec in ("## 2. Evidência", "## 3. Mapa", "## 5. Limites",
+                "## 6. Desconhecidos declarados",
+                "## 7. Reconstrução e teste"):
+        assert sec in doc, sec
+    # ── rótulos de honestidade epistêmica presentes
+    for rot in ("[visto]", "[inferido", "[desconhecido]"):
+        assert rot in doc, rot
+    # ── método: uma função, resumo primeiro, reconstruir
+    for trecho in ("UMA função", "Resumo primeiro", "Reconstrução e teste",
+                   "método REA", "rea-engenharia-reversa", "MIT"):
+        assert trecho in doc, trecho
+    # ── ancorado no campo real do projeto
+    for campo in ("PR#11", "X-N8N-API-KEY", "tpl-eco", "N8N_PASSOAPASSO",
+                  "fair-code"):
+        assert campo in doc, campo
+    # ── honestidade: limites e desconhecidos não vazios
+    idx_lim = doc.index("## 5. Limites")
+    idx_des = doc.index("## 6. Desconhecidos declarados")
+    idx_rec = doc.index("## 7. Reconstrução")
+    assert len(doc[idx_lim:idx_des].strip()) > 200      # limites reais
+    assert doc[idx_des:idx_rec].count("verificaria") >= 3  # como verificar
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())
