@@ -1,5 +1,26 @@
 # Changelog
 
+## v7.1.2 — 🧹 ESTILO ANTIGO REMOVIDO DE VERDADE (auditoria do frontend)
+
+Pergunta do operador: "removeu o estilo antigo?". Auditoria completa do
+CSS do Painel (2670 linhas, 1 único sistema visual) com METODOLOGIA
+CORRIGIDA — a varredura estática apontava 5 classes "órfãs", mas a
+inspeção do JS revelou que 3 eram falsos positivos (montadas por
+concatenação/template literal: `.msg.user` via `bubble("user",…)`,
+`.msg.bot.waiting` via `bubble(…,"waiting")`, `.notif.unread` via
+`class="notif${n.read?"":" unread"}"`):
+
+- **Removidas (mortas confirmadas por busca direta — 1 ocorrência
+  cada, a própria regra)**: `.logbox .t` e `.adv-label`.
+- **Preservadas por evidência**: as 3 "vivas por concatenação" acima +
+  `.agent`/`.ollama` que nem existem como regra CSS (eram propriedades
+  JS capturadas pelo extrator).
+- Resposta às outras duas perguntas da auditoria: o frontend do repo
+  são EXATAMENTE 2 templates ativos (index.html = Painel PWA;
+  fluxos.html = aba n8n) — nenhum HTML velho esquecido; e a integração
+  n8n (PR#11) está viva e foi o CAMPO estudado pela ER da v7.1.0 (a ER
+  documentou/rotulou o que o código já fazia — nada a "reaplicar").
+
 ## v7.1.1 — 🔧 INTEGRALIZAÇÃO: suíte portável ao artefato (zip)
 
 Validação integral da aplicação (bateria completa: gates, CLI inteira,
