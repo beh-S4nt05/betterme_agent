@@ -88,6 +88,10 @@ REGISTRY: dict[str, dict] = {
 def _secrets_dir(cfg) -> Path:
     d = Path(cfg.data_dir) / "secrets"
     d.mkdir(parents=True, exist_ok=True)
+    try:
+        d.chmod(0o700)        # v7.3.0: o padrão documentado, de verdade
+    except OSError:
+        pass
     return d
 
 

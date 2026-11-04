@@ -67,6 +67,55 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "financas_lancar",
+            "description": (
+                "Registra um gasto ou entrada no livro-caixa local de "
+                "finanças. Use quando o operador disser 'gastei X', "
+                "'paguei X', 'recebi X', 'comprei X' com valor em "
+                "reais. NUNCA invente valor, data ou lançamento."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "valor": {"type": "string",
+                              "description": "valor em reais: 35 ou 35,50"},
+                    "descricao": {"type": "string",
+                                  "description": "o que foi (ex: almoço)"},
+                    "tipo": {"type": "string",
+                             "enum": ["saida", "entrada"]},
+                    "categoria": {"type": "string",
+                                  "description": "opcional — sem isso, "
+                                                 "infere da descrição"},
+                    "conta": {"type": "string",
+                              "description": "bb, bradesco, sumup, manual…"}
+                },
+                "required": ["valor", "descricao", "tipo"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "financas_painel",
+            "description": (
+                "Mostra o painel financeiro do mês: entradas, saídas, "
+                "saldo, gastos por categoria e faturas a vencer. Os "
+                "cálculos são da ferramenta (Decimal) — nunca some na "
+                "mão; use o painel para responder."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mes": {"type": "string",
+                            "description": "AAAA-MM (padrão: mês atual)"}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "gerente_codigo",
             "description": (
                 "Delega uma task de CÓDIGO ao GERENTE DE CÓDIGO (Claude "
@@ -1017,7 +1066,27 @@ def grafo_query(args: dict, cfg) -> str:
     return grafo.query_text(cfg, termo)
 
 
+def financas_lancar(args: dict, cfg) -> str:
+    from . import financas as F
+    r = F.lancar(cfg, args["valor"], args["descricao"],
+                 categoria=args.get("categoria", ""),
+                 tipo=args.get("tipo", "saida"),
+                 conta=args.get("conta", "manual"))
+    if r.get("duplicado"):
+        return f"ℹ já lançado antes (id {r['id']}) — nada duplicado"
+    return (f"✔ {r['tipo']} R$ {str(r['valor']).replace('.', ',')} — "
+            f"{r['descricao']} [{r['categoria']}|{r['conta']}] "
+            f"(id {r['id']})")
+
+
+def financas_painel(args: dict, cfg) -> str:
+    from . import financas as F
+    return F.painel(cfg, args.get("mes") or None)
+
+
 EXECUTORS = {
+    "financas_lancar": financas_lancar,
+    "financas_painel": financas_painel,
     "run_command": run_command,
     "git_run": git_run,
     "knowledge_search": knowledge_search,

@@ -8766,6 +8766,229 @@ def T209_mencoes_x_d2_falso_positivo():
     assert M.expandir(None, "mail breno@site.com") == ""
 
 
+@case
+def T210_financas_csv_formatos_e_dedup():
+    """v7.3.0: extrato CSV → livro-caixa. Formatos por FAMÍLIA de
+    coluna: 'Valor' assinado (BB) · 'Crédito'/'Débito' separados
+    (Bradesco) · header inglês com vírgula (SumUp). Reimportar NÃO
+    duplica (id estável); --so-saidas ignora entradas (SumUp+API)."""
+    import tempfile
+    from decimal import Decimal
+    from betterme import financas as F
+
+    cfg = fresh()
+    d = Path(tempfile.mkdtemp(prefix="t210-"))
+
+    bb = d / "bb.csv"
+    bb.write_text(
+        "Data;Dependencia Origem;Histórico;Data Balancete;"
+        "Número do documento;Valor\n"
+        "01/11/2026;;MERCADO DO BAIRRO;;;-123,45\n"
+        "02/11/2026;;PIX RECEBIDO JOAO;;;250,00\n", encoding="utf-8")
+    r1 = F.importar_csv(cfg, str(bb), conta="bb")
+    assert r1["novos"] == 2 and r1["duplicados"] == 0, r1
+    r2 = F.importar_csv(cfg, str(bb), conta="bb")
+    assert r2["novos"] == 0 and r2["duplicados"] == 2, r2
+
+    brad = d / "bradesco.csv"
+    brad.write_text(
+        "Data;Histórico;Docto.;Crédito (R$);Débito (R$);Saldo (R$);\n"
+        "02/11/2026;PGTO CONTA LUZ;;;-145,90;1.000,00;\n"
+        "03/11/2026;DEPOSITO SALARIO;;2.500,00;;3.500,00;\n",
+        encoding="utf-8")
+    r3 = F.importar_csv(cfg, str(brad), conta="bradesco")
+    assert r3["novos"] == 2, r3
+    lanc = F._todos(cfg)
+    tipos = {(l["conta"], l["tipo"]) for l in lanc}
+    assert ("bb", "saida") in tipos and ("bb", "entrada") in tipos
+    assert ("bradesco", "saida") in tipos and ("bradesco", "entrada") in tipos
+    mercado = [l for l in lanc if "MERCADO" in l["descricao"]]
+    assert mercado and Decimal(mercado[0]["valor"]) == Decimal("123.45")
+
+    su = d / "sumup.csv"
+    su.write_text("Date,Description,Amount\n"
+                  "2026-11-01,Coffee Shop,-45.50\n"
+                  "2026-11-02,Market,-10.00\n", encoding="utf-8")
+    F.lancar(cfg, "100", "venda sumup", tipo="entrada",
+             conta="sumup-vendas", fonte="sumup")
+    r4 = F.importar_csv(cfg, str(su), conta="sumup")
+    assert r4["novos"] == 2 and "aviso" in r4, r4
+    cfg2 = fresh()
+    r5 = F.importar_csv(cfg2, str(su), conta="sumup", so_saidas=True)
+    assert r5["novos"] == 2 and not any(
+        l["tipo"] == "entrada" for l in F._todos(cfg2))
+
+
+@case
+def T211_financas_lancar_categorias_e_ids():
+    """v7.3.0: registro manual — categoria inferida por palavra-chave,
+    valor 'R$ 1.234,56' → Decimal, entrada/saida, id aleatório (o
+    MESMO gasto 2× no dia é legítimo — sem dedup indevido), arquivo
+    no data_dir (nunca no cwd/repo)."""
+    from decimal import Decimal
+    from betterme import financas as F
+
+    cfg = fresh()
+    assert F.categorizar("ifood pedido") == "alimentacao"
+    assert F.categorizar("posto shell combustivel") == "transporte"
+    assert F.categorizar("netflix mensal") == "lazer"
+    assert F.categorizar("xyz desconhecido") == "outros"
+
+    r = F.lancar(cfg, "R$ 1.234,56", "mercado do bairro")
+    assert r["novo"] and r["tipo"] == "saida"
+    assert Decimal(r["valor"]) == Decimal("1234.56")
+    assert r["categoria"] == "mercado" and r["conta"] == "manual"
+
+    e = F.lancar(cfg, "500", "recebi consultoria", tipo="entrada")
+    assert e["categoria"] == "entrada"
+
+    a = F.lancar(cfg, "35", "almoço")
+    b = F.lancar(cfg, "35", "almoço")
+    assert a["id"] != b["id"]            # manual repete legitimamente
+    assert len(F._todos(cfg)) == 4
+    assert (Path(cfg.data_dir) / "financas" /
+            "lancamentos.jsonl").exists()
+    assert not Path("financas").exists()  # nada no cwd
+
+
+@case
+def T212_financas_painel_somas_e_faturas():
+    """v7.3.0: painel — somas em Decimal (não float), filtro do mês,
+    faturas a vencer com dias restantes ('HOJE' no dia, vencida some),
+    top categorias de saída."""
+    from datetime import date
+    from betterme import financas as F
+
+    cfg = fresh()
+    hoje = date(2026, 11, 4)
+    F.lancar(cfg, "100", "salario", tipo="entrada", quando="2026-11-01")
+    F.lancar(cfg, "50,5", "extra", tipo="entrada", quando="2026-11-02")
+    F.lancar(cfg, "30", "ifood", quando="2026-11-01")
+    F.lancar(cfg, "20", "uber", quando="2026-11-02")
+    F.lancar(cfg, "10", "padaria", quando="2026-11-03")
+    F.lancar(cfg, "999", "outro mes", quando="2026-10-15")
+
+    txt = F.painel(cfg, _hoje=hoje)
+    assert "R$ 150,50" in txt and "R$ 60,00" in txt, txt
+    assert "+ R$ 90,50" in txt
+    assert "alimentacao R$ 40,00" in txt        # 2 top categorias
+    assert "999" not in txt                      # outro mês fora
+
+    F.fatura(cfg, "1850", "15/11/2026", "bradesco")
+    F.fatura(cfg, "230", "04/11/2026", "luz")
+    F.fatura(cfg, "99", "03/11/2026", "vencida")
+    txt = F.painel(cfg, _hoje=hoje)
+    assert "bradesco R$ 1.850,00 — 15/11 (em 11 dias)" in txt, txt
+    assert "luz R$ 230,00 — 04/11 (🔴 HOJE)" in txt
+    assert "vencida" not in txt
+
+
+@case
+def T213_financas_sumup_sync_mock():
+    """v7.3.0: sync SumUp com HTTP falso — só venda SUCCESSFUL vira
+    entrada (falhou/cancelou nunca tocou a conta); 2ª sync não
+    duplica; repasses são informativos, não lançados; chave em
+    secrets/ 600 e ausente do retorno."""
+    import stat
+    from betterme import financas as F
+    from betterme.llm_providers import api_key
+
+    cfg = fresh()
+    txs = [
+        {"id": "tx1", "amount": "100.00", "timestamp":
+         "2026-11-01T10:00:00Z", "payment_status": "SUCCESSFUL",
+         "payment_type": "POS"},
+        {"id": "tx2", "amount": "55.50", "timestamp":
+         "2026-11-01T11:00:00Z", "payment_status": "FAILED",
+         "payment_type": "ECOM"},
+        {"id": "tx3", "amount": "77.00", "timestamp":
+         "2026-11-02T09:00:00Z", "payment_status": "CANCELLED",
+         "payment_type": "POS"},
+    ]
+
+    def _get(caminho, key):
+        assert key == "sup3rs3cr3t"           # chave chega ao header
+        if "transactions" in caminho:
+            return txs
+        return [{"id": "p1"}, {"id": "p2"}]   # payouts (info)
+
+    msg = F.setup_sumup(cfg, "sup3rs3cr3t")
+    assert "secrets" in msg and "600" in msg
+    assert api_key(cfg, "sumup") == "sup3rs3cr3t"
+    kp = Path(cfg.data_dir) / "secrets"
+    perms = stat.S_IMODE(kp.stat().st_mode)
+    assert perms == 0o700, oct(perms)
+
+    r = F.sync_sumup(cfg, _get=_get)
+    assert r["novas_entradas"] == 1 and r["transacoes_lidas"] == 3
+    assert r["repasses_informativos"] == 2
+    assert "sup3rs3cr3t" not in str(r)
+    lanc = F._todos(cfg)
+    assert len(lanc) == 1 and lanc[0]["conta"] == "sumup-vendas"
+    assert lanc[0]["tipo"] == "entrada"
+
+    r2 = F.sync_sumup(cfg, _get=_get)
+    assert r2["novas_entradas"] == 0 and len(F._todos(cfg)) == 1
+
+
+@case
+def T214_skill_financas_valida_e_gatilhos():
+    """v7.3.0: skill 'financas' (48ª) — frontmatter com gatilhos do
+    dia a dia, corpo ensina as tools, e a auditoria de skills não
+    acusa nada nela."""
+    from betterme.skills_audit import audit_skills
+
+    sk = Path("skills/financas/SKILL.md")
+    assert sk.exists()
+    txt = sk.read_text(encoding="utf-8")
+    fm = txt.split("---")[1]
+    assert "name: financas" in fm
+    for gatilho in ("gastei", "recebi", "extrato", "fatura",
+                    "finan"):
+        assert gatilho in fm.lower(), gatilho
+    assert "financas_lancar" in txt and "financas_painel" in txt
+    assert "--so-saidas" in txt
+    problemas = [p for p in audit_skills([sk.parent])
+                 if "financas" in str(p)]
+    assert problemas == [], problemas
+
+
+@case
+def T215_tools_e_cmd_financas():
+    """v7.3.0: tools financas_lancar/financas_painel registradas e
+    executáveis pelo agente; comando CLI 'financas lancar/mes' grava e
+    lê o livro-caixa (argparse → cmd)."""
+    import types
+    from betterme import financas as F
+    from betterme.tools import (EXECUTORS, TOOL_NAMES,
+                                financas_lancar, financas_painel)
+
+    assert "financas_lancar" in TOOL_NAMES
+    assert "financas_painel" in TOOL_NAMES
+    assert EXECUTORS["financas_lancar"] is financas_lancar
+    assert EXECUTORS["financas_painel"] is financas_painel
+
+    cfg = fresh()
+    out = financas_lancar({"valor": "35", "descricao": "almoço",
+                           "tipo": "saida"}, cfg)
+    assert out.startswith("✔") and "almoço" in out
+    financas_lancar({"valor": "500", "descricao": "consultoria",
+                     "tipo": "entrada"}, cfg)
+    painel = financas_painel({}, cfg)
+    assert "Finanças" in painel and "R$ 535,00" not in painel  # não soma
+    assert "R$ 500,00" in painel and "R$ 35,00" in painel
+
+    args = types.SimpleNamespace(
+        acao="lancar", a1="10", a2="teste cli", a3=None,
+        tipo="entrada", categoria="", conta="", so_saidas=False)
+    F.cmd(args, cfg)
+    args2 = types.SimpleNamespace(
+        acao="mes", a1="2099-01", a2=None, a3=None, tipo="saida",
+        categoria="", conta="", so_saidas=False)
+    F.cmd(args2, cfg)                     # mês vazio não quebra
+    assert any(l["descricao"] == "teste cli" for l in F._todos(cfg))
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

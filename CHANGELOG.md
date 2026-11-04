@@ -1,5 +1,39 @@
 # Changelog
 
+## v7.3.0 — 💰 FINANÇAS: CONTROLE DE GASTOS (PEDIDO DO OPERADOR)
+
+Livro-caixa local para PF e PJ, com os meios que existem de verdade
+(pedido: DDA, limite/fatura de cartão, saldos, gastos e entradas —
+bancos BB, Bradesco PF e SumUp):
+
+- **Módulo `financas.py`**: lançamentos com Decimal (LLM nunca
+  calcula), categorização por palavra-chave, dedup por id estável
+  (importar/sincronizar 2× não duplica), faturas a vencer com dias
+  restantes (🔴 HOJE no dia) e painel do mês consolidado.
+- **Extratos CSV** por FAMÍLIA de coluna (BB: Valor assinado ·
+  Bradesco: Crédito/Débito separados · SumUp: header inglês) —
+  delimitador `;`/`,`/tab, datas dd/mm/aaaa e aaaa-mm-dd, moeda
+  `R$ 1.234,56`. Formato desconhecido devolve as colunas lidas.
+- **SumUp via API de titular**: `sumup setup <key>` (secrets/ 600) +
+  `sumup sync` — vendas `SUCCESSFUL` viram entradas; falhadas/
+  canceladas ignoradas (nunca tocaram a conta); repasses
+  informativos (lançar os dois dobraria). Aviso de dupla contagem
+  quando extrato CSV + sync convivem (`--so-saidas`).
+- **Tools do agente**: `financas_lancar` / `financas_painel` —
+  "gastei 35 no almoço" no chat (ou WhatsApp) registra na hora.
+- **Skill `financas`** (48ª): gatilhos do dia a dia + regras duras
+  (nunca inventar valor; cálculo é da ferramenta; dados nunca no
+  repo; cérebro local para dados bancários).
+- **Correção de segurança**: `_secrets_dir` agora cumpre o padrão
+  documentado de verdade (dir 700, além do arquivo 600) — vale para
+  TODAS as chaves (provedores, Telegram, SumUp).
+- Honestidade: limite de cartão e DDA do BB não têm via limpa para
+  titular — registro manual ou agregador MCP (Belvo MCP: grátis,
+  leitura, canal regulado). BB tem API de extrato (v7.3.1).
+- T210 (CSV × 3 formatos + dedup) · T211 (lançar/categorias) · T212
+  (painel Decimal + faturas) · T213 (sync SumUp mock + segredo 700) ·
+  T214 (skill válida) · T215 (tools + CLI) — **215/215**.
+
 ## v7.2.1 — 🔓 6º ACHADO DE CAMPO: @menções × D2 (falso positivo)
 
 A bateria de uso real (U2, ao vivo) expôs um conflito estrutural: o

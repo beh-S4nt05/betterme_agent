@@ -92,6 +92,12 @@ def cmd_agent(args) -> None:
     (_ok if result["ok"] else _fail)(result["msg"])
 
 
+def cmd_financas(args) -> None:
+    """💰 Finanças — livro-caixa local (v7.3.0)."""
+    from .financas import cmd as _fcmd
+    _fcmd(args, _cfg(args))
+
+
 def cmd_email(args) -> None:
     """Configura contas de e-mail para o servidor MCP (credenciais locais)."""
     from .emailcfg import _imap_login, load, setup_interactive, status
@@ -1003,6 +1009,24 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("novo_modo", nargs="?", default=None,
                    help="[com 'modo'] 'envio' libera o envio; 'leitura' volta a somente ver")
     p.set_defaults(fn=cmd_email)
+
+    p = sub.add_parser("financas",
+                       help="💰 livro-caixa: gastos, entradas, extratos, "
+                            "faturas e painel do mês (v7.3.0)")
+    p.add_argument("acao", nargs="?", default="painel",
+                   help="painel|lancar|importar|fatura|sumup|mes")
+    p.add_argument("a1", nargs="?", default=None,
+                   help="[lancar] valor · [importar] arquivo · [fatura] valor · [sumup] setup|sync|status")
+    p.add_argument("a2", nargs="?", default=None,
+                   help="[lancar] descrição · [fatura] vencimento · [sumup] chave")
+    p.add_argument("a3", nargs="?", default=None,
+                   help="[fatura] conta/cartão")
+    p.add_argument("--tipo", default="saida", help="entrada|saida (lancar)")
+    p.add_argument("--categoria", default="", help="força a categoria")
+    p.add_argument("--conta", default="", help="bb, bradesco, sumup…")
+    p.add_argument("--so-saidas", action="store_true",
+                   help="importar só as saídas (SumUp já sincronizado por API)")
+    p.set_defaults(fn=cmd_financas)
 
     p = sub.add_parser("agenda", help="agenda Google Calendar — somente leitura (MCP agenda_*)")
     p.add_argument("agenda_action", nargs="?", default="status",
