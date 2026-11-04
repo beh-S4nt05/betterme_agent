@@ -1,5 +1,40 @@
 # Changelog
 
+## v6.7.0 — ✦ SKILLS spec-driven + disciplina-agente
+
+Pedido do operador: adicionar os repositórios `github/spec-kit` e
+`asgeirtj/system_prompts_leaks` como skills e usá-los em cada tarefa.
+
+- **`spec-driven`** (adaptação nativa do [spec-kit](https://github.com/github/spec-kit)
+  da GitHub, MIT, com crédito no manual): desenvolvimento guiado por
+  especificação — SPEC com RFs numerados e critério de aceite
+  verificável → PLANO técnico sobre os arquivos REAIS → TASKS.md
+  (checklist em ordem de dependência) → implementar riscando →
+  verificação ponta a ponta. Projeto multi-arquivo grava os artefatos
+  no diretório; task pequena monta o fluxo INLINE (sem burocracia de
+  processo para 5 minutos de trabalho).
+- **`disciplina-agente`** (padrões dos agentes de código de produção —
+  Claude Code, Codex, Cursor — consolidados a partir de documentação
+  pública, **texto nosso**: prompts vazados de ferramentas
+  proprietárias NÃO são copiados, o repo é MIT público): as 7 regras —
+  ferramenta é para USAR (reforça o portão estrutural da v6.6.1),
+  explorar antes de editar, mudança cirúrgica, zero placeholder,
+  convenção do projeto, auto-verificar colando saída real, progresso
+  visível.
+- **Integração total com o pipeline existente**: gatilhos por
+  pontuação (flexões incluídas — "corrija/corrigir", "implemente/
+  implementar"); a seção `## Verificação` de cada skill vira critérios
+  que o 🔍 revisor cobra na entrega (delegação v3.15.0); máximo de 2
+  skills por task (orçamento de prompt).
+- **Achado de design pego pela suíte**: o 1º rascunho do gatilho de
+  disciplina-agente casava "verifique o disco" (pergunta simples de
+  sistema) e os critérios da skill matavam a FAST LANE da v6.2.0 —
+  toda tarefa simples pagaria +1 revisão. Gatilho disciplinado para
+  EDIÇÃO DE CÓDIGO; T199 agora guarda essa fronteira para sempre.
+- T198 (spec-driven: disparos, fluxo, crédito, delegação) · T199
+  (disciplina: 7 regras, proveniência sem texto vazado, guarda de fast
+  lane) — **199/199**.
+
 ## v6.6.1 — 🔧 5º ACHADO DE CAMPO: TOOL CALL EM TEXTO + ESCOPO PERDIDO
 
 Log real do operador (v6.6.0, modelo local): "crie um app TypeScript em

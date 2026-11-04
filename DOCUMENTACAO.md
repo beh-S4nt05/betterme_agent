@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 6.6.1** · gerado em 26/10/2026 · este documento é extraído do
+**Versão 6.7.0** · gerado em 04/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -133,7 +133,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v6.6.1)
+## 3. Modificações — o que foi feito (v1.0.0 → v6.7.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -141,6 +141,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v6.7.0** | ✦ SKILLS spec-driven + disciplina-agente |
 | **v6.6.1** | 🔧 5º ACHADO DE CAMPO: TOOL CALL EM TEXTO + ESCOPO PERDIDO |
 | **v6.6.0** | ⚡ FLUXO LEVE: ORQUESTRAÇÃO ADAPTATIVA EM 3 NÍVEIS |
 | **v6.5.0** | 🔀 PROVEDORES 100% VERIFICÁVEIS + OMNIROUTE (gateway keyless) |

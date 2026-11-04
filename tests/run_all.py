@@ -8099,6 +8099,89 @@ def T197_escopo_sticky_sessao():
         _sh.rmtree(proj, ignore_errors=True)
 
 
+@case
+def T198_skill_spec_driven():
+    """v6.7.0: skill spec-driven (adaptação nativa do spec-kit da
+    GitHub, MIT) — dispara em pedidos de projeto/código multi-arquivo,
+    traz o fluxo SPEC→PLANO→TASKS→implementar→verificar e alimenta o
+    revisor com critérios da seção Verificação."""
+    import tempfile
+    from betterme.config import Config
+    from betterme.orchestrator import skills_for, _skill_criterios
+
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="t198-"), mock=True)
+    # ── dispara nos pedidos típicos de projeto/criação
+    for pedido in ("Crie um aplicativo em TypeScript com POO",
+                   "implemente a funcionalidade de login",
+                   "refatore o módulo de conexão do projeto",
+                   "crie um site portfólio com html e css"):
+        nomes = [s["name"] for s in skills_for(cfg, pedido)]
+        assert "spec-driven" in nomes, (pedido, nomes)
+    # ── não vaza para conversa trivial (score < 2)
+    assert "spec-driven" not in [s["name"] for s in skills_for(cfg, "oi")]
+    # ── conteúdo: fluxo SDD completo + crédito ao spec-kit (MIT)
+    md = Path("skills/spec-driven/SKILL.md").read_text(encoding="utf-8")
+    for trecho in ("SPEC.md", "PLANO.md", "TASKS.md", "critério de aceite",
+                   "github/spec-kit", "MIT", "fora de escopo",
+                   "## Verificação"):
+        assert trecho in md, trecho
+    # ── delegação: a seção Verificação vira critérios do revisor
+    sks = skills_for(cfg, "crie um projeto de app com funcionalidade")
+    crit = _skill_criterios(sks)
+    assert len(crit) >= 3 and all("spec-driven" in c for c in crit)
+    # ── registrado no catálogo builtin (44+1 skills, source builtin)
+    from betterme.skills import SkillLoader
+    nomes_cat = [s["name"] for s in SkillLoader(cfg).scan()]
+    assert "spec-driven" in nomes_cat
+    sk = [s for s in SkillLoader(cfg).scan() if s["name"] == "spec-driven"][0]
+    assert sk["source"] == "builtin" and sk["enabled"]
+
+
+@case
+def T199_skill_disciplina_agente():
+    """v6.7.0: skill disciplina-agente (padrões de agentes de código de
+    produção — texto PRÓPRIO, sem copiar prompts vazados de ferramentas
+    proprietárias) — dispara em correção/verificação/trabalho técnico e
+    codifica as 7 regras (ferramenta de verdade, explorar antes, mudança
+    cirúrgica, zero placeholder, convenção, auto-verificar, progresso)."""
+    import tempfile
+    from betterme.config import Config
+    from betterme.orchestrator import skills_for, _skill_criterios
+
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="t199-"), mock=True)
+    # ── dispara em correção/edição de CÓDIGO (flexões: corrija, rode…)
+    for pedido in ("corrija o bug no arquivo src/app.py",
+                   "verifique o resultado do teste no arquivo",
+                   "rode o teste unitário do módulo",
+                   "edite o arquivo de configuração"):
+        nomes = [s["name"] for s in skills_for(cfg, pedido)]
+        assert "disciplina-agente" in nomes, (pedido, nomes)
+    # ── pergunta simples de SISTEMA não casa: fast lane (v6.2.0)
+    # preservada — critérios de skill não podem taxar tarefa simples
+    for pedido in ("verifique o uso de disco e memória",
+                   "liste os processos que consomem cpu"):
+        nomes = [s["name"] for s in skills_for(cfg, pedido)]
+        assert "disciplina-agente" not in nomes, (pedido, nomes)
+    # ── as 7 regras estão no manual
+    md = Path("skills/disciplina-agente/SKILL.md").read_text(encoding="utf-8")
+    for trecho in ("Ferramenta é para USAR", "Explore antes de editar",
+                   "Mudança cirúrgica", "Zero placeholder",
+                   "convenção do projeto", "Auto-verifique",
+                   "Progresso visível", "## Verificação"):
+        assert trecho in md, trecho
+    # ── proveniência honesta: texto próprio, sem prompt vazado
+    assert "texto nosso" in md and "sem copiar" in md
+    # ── delegação para o revisor
+    sks = skills_for(cfg, "corrija o erro e verifique o resultado")
+    crit = _skill_criterios(sks)
+    assert len(crit) >= 3, crit
+    # ── builtin e habilitada
+    from betterme.skills import SkillLoader
+    sk = [s for s in SkillLoader(cfg).scan()
+          if s["name"] == "disciplina-agente"][0]
+    assert sk["source"] == "builtin" and sk["enabled"]
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())
