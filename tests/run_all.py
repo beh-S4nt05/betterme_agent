@@ -8322,6 +8322,212 @@ def T201_dossie_cli_e_gui():
         orc.review = _review_orig
 
 
+@case
+def T202_mencoes_arroba():
+    """v7.0.0 (padrão Cursor/OpenCode): @caminho no pedido anexa o
+    conteúdo REAL lido do disco (arquivo → conteúdo; pasta → árvore);
+    e-mail não é menção; orçamento (6 menções/25 KB); binário protegido;
+    no pipeline o anexo entra no pedido do executor com nota 📎."""
+    import tempfile
+    from betterme.config import Config
+    from betterme import mencoes as M
+    from betterme import orchestrator as orc
+
+    d = Path(tempfile.mkdtemp(prefix="t202-"))
+    cfg = Config(data_dir=d, mock=True)
+    (d / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    (d / "nota.md").write_text("# título\nconteúdo da nota", encoding="utf-8")
+    (d / "docs").mkdir()
+    (d / "docs" / "a.md").write_text("# A", encoding="utf-8")
+    (d / "docs" / "b.md").write_text("# B", encoding="utf-8")
+    (d / "img.png").write_bytes(b"\x89PNG\x0d\x0a\x1a\x0a\x00\x00")
+
+    # ── arquivo: conteúdo real no bloco
+    b1 = M.expandir(cfg, f"revise @{d}/app.py")
+    assert "ANEXOS" in b1 and "print('hello')" in b1
+    # ── pasta: árvore com os arquivos
+    b2 = M.expandir(cfg, f"estrutura @{d}/docs")
+    assert "a.md" in b2 and "b.md" in b2
+    # ── binário: protegido (não vaza lixo no prompt)
+    b3 = M.expandir(cfg, f"veja @{d}/img.png")
+    assert "binário" in b3
+    # ── e-mail NÃO é menção; texto comum não gera bloco
+    assert M.expandir(cfg, "meu email é breno@site.com") == ""
+    assert M.expandir(cfg, "só uma conversa normal") == ""
+    # ── não encontrado sozinho é ignorado (chat segue)
+    assert M.expandir(cfg, "olhe @naoexiste.txt") == ""
+    # ── não encontrado COM outro válido vira nota
+    b4 = M.expandir(cfg, f"revise @{d}/app.py e @{d}/naoexiste.txt")
+    assert "não encontrados" in b4 and "print('hello')" in b4
+    # ── orçamento: 7 menções → 6 anexadas
+    for i in range(8):
+        (d / f"m{i}.txt").write_text(f"conteudo {i}", encoding="utf-8")
+    b5 = M.expandir(cfg, " ".join(f"@{d}/m{i}.txt" for i in range(8)))
+    assert b5.count("— arquivo") == 6, b5.count("— arquivo")
+    # ── pipeline: o anexo chega ao executor + nota no fluxo
+    _plan_o = orc.plan
+    orc.plan = lambda cfg, m, h=None: {"rota": "executar", "tipo": "leitura",
+                                       "objetivo": "revisar", "passos": [],
+                                       "criterios": []}
+    cap = []
+
+    class AgM:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            cap.append(msgs[-1]["content"])
+            return "analisado — evidência real"
+
+    try:
+        evs = []
+        orc.run_pipeline(AgM(), cfg, f"revise @{d}/nota.md", [],
+                         on_event=evs.append)
+        assert any("conteúdo da nota" in c for c in cap), cap[0][:200]
+        notas = [str(e.get("message", "")) for e in evs
+                 if e.get("type") == "note"]
+        assert any("@menções" in n for n in notas)
+    finally:
+        orc.plan = _plan_o
+
+
+@case
+def T203_comandos_dispatcher():
+    """v7.0.0 (padrão Claude Code): dispatcher único de /comandos —
+    /dossie (artefato da task), /prazo (modo prazo), /ajuda (lista
+    completa com @), responde com ZERO tokens; GUI (/api/chat/command)
+    e TUI usam o mesmo módulo; comando desconhecido → None (segue)."""
+    import tempfile
+    from betterme.config import Config
+    from betterme import comandos as C
+    from betterme import orchestrator as orc
+
+    d = Path(tempfile.mkdtemp(prefix="t203-"))
+    cfg = Config(data_dir=d, mock=True)
+    # ── /ajuda: lista completa (inclui @ e os históricos)
+    aj = C.executar(cfg, "/ajuda", "", "s")
+    for trecho in ("/dossie", "/prazo", "/goal", "@arquivo.md", "/tasks"):
+        assert trecho in aj, trecho
+    # ── /prazo: define, consulta e limpa
+    out = C.executar(cfg, "/prazo", "15", "s1")
+    assert "15 min" in out and "provider" in out
+    assert 800 < orc.prazo_restante("s1") <= 900
+    assert "min restantes" in C.executar(cfg, "/prazo", "", "s1")
+    C.executar(cfg, "/prazo", "off", "s1")
+    assert orc.prazo_restante("s1") == 0
+    assert "nenhum prazo ativo" in C.executar(cfg, "/prazo", "", "s1")
+    # ── /dossie sem tasks: orientação honesta
+    outd = C.executar(cfg, "/dossie", "", "s")
+    assert "nenhuma task" in outd
+    # ── desconhecido: None (o chat segue o fluxo normal)
+    assert C.executar(cfg, "/xxxdesconhecido", "", "s") is None
+    # ── GUI: /api/chat/command passa pelo dispatcher
+    from betterme.server.app import create_app
+    c = create_app(cfg).test_client()
+    r = c.post("/api/chat/command",
+               json={"text": "/prazo 10", "session_id": "g1"})
+    assert r.status_code == 200
+    assert "10 min" in r.get_json()["output"]
+    assert orc.prazo_restante("g1") > 500
+    orc.set_prazo("g1", 0)
+    r2 = c.post("/api/chat/command", json={"text": "/ajuda"})
+    assert "@arquivo.md" in r2.get_json()["output"]
+    # ── /dossie com task real: devolve o artefato
+    _plan_o, _rev_o = orc.plan, orc.review
+    orc.plan = lambda cfg, m, h=None: {
+        "rota": "executar", "tipo": "leitura", "objetivo": "verificar",
+        "passos": ["df -h"], "criterios": ["evidência real"]}
+    orc.review = lambda *a, **k: {"veredito": "ok"}
+
+    class AgEv:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            return "disco 70% — evidência real"
+
+    try:
+        orc.run_pipeline(AgEv(), cfg, "verifique o disco", [],
+                         on_event=lambda e: None)
+        out2 = C.executar(cfg, "/dossie", "T0001", "s")
+        assert "## PLANO" in out2 and "## ENTREGA" in out2
+        out3 = C.executar(cfg, "/dossie", "T9999", "s")
+        assert "sem dossiê" in out3 and "T0001" in out3
+    finally:
+        orc.plan = _plan_o
+        orc.review = _rev_o
+
+
+@case
+def T204_prazo_modo():
+    """v7.0.0 ⏱ modo prazo (objetivo do operador: prazos curtos sem ser
+    limitado pelo hardware): set_prazo/prazo_restante por sessão com
+    expiração; no pipeline emite nota com o estado do roteador (nuvem
+    quando há provider) e, abaixo de 10 min, revisão apertada — reprovação
+    NÃO refaz (entrega com ressalva honesta); sem prazo, refaz normal."""
+    import tempfile
+    from betterme.config import Config
+    from betterme import orchestrator as orc
+
+    d = Path(tempfile.mkdtemp(prefix="t204-"))
+    cfg = Config(data_dir=d, mock=True)
+    # ── estado: define/consulta/expira/limpa
+    orc.set_prazo("sA", 1)
+    assert 0 < orc.prazo_restante("sA") <= 60
+    assert orc.prazo_restante("sB") == 0.0
+    with orc._PRAZO_LOCK:                 # força expiração
+        orc.SESSION_PRAZO["sA"] = 1.0
+    assert orc.prazo_restante("sA") == 0.0
+    assert "sA" not in orc.SESSION_PRAZO
+    orc.set_prazo("sC", 5)
+    orc.set_prazo("sC", 0)                # limpa
+    assert "sC" not in orc.SESSION_PRAZO
+
+    _plan_o, _rev_o = orc.plan, orc.review
+    orc.plan = lambda cfg, m, h=None: {
+        "rota": "executar", "tipo": "leitura", "objetivo": "verificar",
+        "passos": [], "criterios": ["evidência completa"]}
+    orc.review = lambda *a, **k: {"veredito": "reprovado",
+                                  "problema": "falta evidência"}
+
+    corridas = []
+
+    class Ag:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            corridas.append(1)
+            return "entrega sem evidência"
+
+    try:
+        # ── prazo APERTADO (<10 min): 1 execução, sem refazer
+        evs = []
+        orc.set_prazo("sP", 2)
+        final = orc.run_pipeline(Ag(), cfg, "verifique tudo", [],
+                                 on_event=evs.append, session_id="sP")
+        orc.set_prazo("sP", 0)
+        notas = [str(e.get("message", "")) for e in evs
+                 if e.get("type") == "note"]
+        assert any("prazo ativo" in n for n in notas), notas[:5]
+        assert any("provider" in n for n in notas)   # estado do roteador
+        assert len(corridas) == 1, corridas
+        assert any("ressalva" in n for n in notas)   # nota honesta
+        assert "reprovada" in final                    # selo na entrega
+        # ── SEM prazo: comportamento clássico (refaz)
+        corridas.clear()
+        evs2 = []
+        final2 = orc.run_pipeline(Ag(), cfg, "verifique tudo", [],
+                                  on_event=evs2.append, session_id="sP")
+        notas2 = [str(e.get("message", "")) for e in evs2
+                  if e.get("type") == "note"]
+        assert not any("prazo ativo" in n for n in notas2)
+        assert len(corridas) == 2, corridas       # reprovou → refez
+        assert "reprovada" in final2              # 2ª também reprovou
+    finally:
+        orc.plan = _plan_o
+        orc.review = _rev_o
+        with orc._PRAZO_LOCK:
+            orc.SESSION_PRAZO.clear()
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

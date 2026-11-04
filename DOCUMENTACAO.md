@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 6.8.0** · gerado em 04/11/2026 · este documento é extraído do
+**Versão 7.0.0** · gerado em 04/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -134,7 +134,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v6.8.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v7.0.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -142,6 +142,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v7.0.0** | 🚀 AGENTE COMPLETO: @menções, /comandos e modo prazo |
 | **v6.8.0** | 🗂️ DOSSIÊ DE TASK: REVISÃO POR ARTEFATOS (modelo Antigravity) |
 | **v6.7.0** | ✦ SKILLS spec-driven + disciplina-agente |
 | **v6.6.1** | 🔧 5º ACHADO DE CAMPO: TOOL CALL EM TEXTO + ESCOPO PERDIDO |
@@ -345,6 +346,8 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `pop_pending(cfg, tid)` | — |
 | `request_approval(tid, timeout, check, cfg, meta)` | Bloqueia até o operador decidir (ou esgotar o tempo). Devolve (ação, edição): aprovar\|editar\|cancelar\|refazer\|entregar … |
 | `approve(tid, action, edit)` | Registra a decisão do operador (chamado pelo endpoint da GUI). |
+| `set_prazo(session_id, minutos)` | — |
+| `prazo_restante(session_id)` | Segundos restantes do prazo da sessão (0 = sem prazo). |
 | `_pergunta_caminho(message, goal, session_id)` | — |
 | `_pedir_caminho(ev, message, goal, session_id)` | Emite os eventos e devolve a pergunta (uso nos 2 caminhos de rota). |
 | `_quer_projeto_sem_caminho(cfg, message, resume_plan)` | v3.15.1: task de código/projeto para INICIAR, sem pasta no pedido. |
@@ -946,6 +949,21 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `nivel_valido(txt)` | Nível canônico de autonomia — aceita 'Autônomo', 'PADRÃO'… None se não for um nível válido. |
 | `especialista_de(txt)` | Nome canônico de especialista — aceita 'Segurança', 'REVISOR'… None se não existir. |
 | `acao_de(args, padrao)` | Ação de um subcomando CLI: leitura tolerante e uniforme (falta o atributo ou vazio → padrão; sempre strip+lower). |
+
+### betterme/mencoes.py — 📎 as @menções (v7.0.0): @arquivo/@pasta no pedido → o Betterme lê o disco e anexa o conteúdo REAL (padrão Cursor/OpenCode, com orçamento anti-estouro)
+
+| Função | O que faz |
+|---|---|
+| `_resolver(token)` | — |
+| `_ler_arquivo(p)` | — |
+| `_listar_pasta(p)` | — |
+| `expandir(cfg, texto)` | Bloco de anexos para a mensagem ("" se não há menções válidas). |
+
+### betterme/comandos.py — ⌘ o dispatcher único de /comandos do chat (v7.0.0): /dossie, /prazo, /ajuda — zero tokens, GUI e TUI
+
+| Função | O que faz |
+|---|---|
+| `executar(cfg, cmd, args, session_id)` | Responde o comando (str) ou devolve None se não for deste módulo. |
 
 ### betterme/dossie.py — 🗂️ o dossiê de task (v6.8.0): PLANO + EVIDÊNCIA + ENTREGA por task em data_dir/dossies/ — revisão por artefatos (modelo Antigravity, nativo e local-first)
 

@@ -1,5 +1,41 @@
 # Changelog
 
+## v7.0.0 — 🚀 AGENTE COMPLETO: @menções, /comandos e modo prazo
+
+Versão MAIN construída sobre a pesquisa "pontos-chave de cada client
+de agente de IA" (docs/COMPARATIVO-AGENTES.md — Claude Code, Codex,
+Cursor, Cline, Aider, OpenCode, Goose, Gemini CLI, Antigravity,
+Plandex, spec-kit). Três lacunas restantes, fechadas:
+
+- **📎 @menções** (`mencoes.py`, padrão Cursor/OpenCode): `@arquivo`,
+  `@pasta/`, `@/caminho`, `@~/arquivo` no meio do pedido — o Betterme
+  lê o conteúdo REAL do disco e anexa ao pedido da task (o modelo vê
+  sem gastar ferramentas). E-mail não é menção; binário protegido;
+  orçamento: 6 menções · 10 KB/arquivo · 25 KB total; pasta vira
+  árvore. Funciona na GUI e no terminal.
+- **⌘ /comandos com dispatcher único** (`comandos.py`, padrão Claude
+  Code): `/dossie <tid>` (artefato da task), `/prazo <min>` (modo
+  prazo), `/ajuda` completa com a doc de @ — respondidos com ZERO
+  tokens; GUI (/api/chat/command) e TUI usam o mesmo módulo; comando
+  desconhecido segue o fluxo normal.
+- **⏱ modo prazo** (objetivo do operador: "prazos curtos, sem ser
+  limitado pelo hardware"): `/prazo 15` define a sessão; o pipeline
+  emite a contagem e o ESTADO DO ROTEADOR (nuvem em uso / chave
+  guardada desligada / sugestão `provider guia`); abaixo de 10 min a
+  revisão fica APERTADA — reprovação não refaz (entrega com ressalva
+  honesta). `/prazo off` restaura.
+- **docs/COMPARATIVO-AGENTES.md**: a pesquisa completa — cada client,
+  seus pontos-chave e onde cada um vive no Betterme (✅ já existia /
+  🆕 v7.0.0 / ➖ fora de escopo com motivo), mais o objetivo do
+  operador traduzido em arquitetura.
+- Bug pego no desenvolvimento: o regex de menção tratava `~` como
+  obrigatório (nenhuma menção casava) — corrigido com teste
+  imediato.
+- T202 (@menções: arquivo/pasta/binário/e-mail/orçamento/pipeline) ·
+  T203 (dispatcher: /ajuda //prazo //dossie/GUI/desconhecido) · T204
+  (prazo: estado/expiração/revisão apertada/sem-prazo-refaz) —
+  **204/204**.
+
 ## v6.8.0 — 🗂️ DOSSIÊ DE TASK: REVISÃO POR ARTEFATOS (modelo Antigravity)
 
 Pedido do operador: "a forma com que o Antigravity gerencia as tarefas

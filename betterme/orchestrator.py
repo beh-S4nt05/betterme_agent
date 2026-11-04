@@ -176,6 +176,7 @@ def _fast(cfg, system: str, user: str, ntok: int = 200,
 from .extrair import json_de as _extract_json  # v6.4.0: DRY
 from . import dossie as _dossie
 from . import fluxo as _flx
+from . import mencoes as _menc
 from .contratos import (TIPO_CRIACAO, TIPO_LEITURA,  # SSOT
                         TIPOS_TASK)
 
@@ -711,6 +712,36 @@ _PEND_PROJ_TTL = 600.0          # 10 min para responder o caminho
 _ULTIMO_PROJ_LOCK = _threading.Lock()
 _ULTIMO_PROJETO: dict[str, dict] = {}
 _ULTIMO_PROJ_TTL = 1800.0       # 30 min de memória do workspace
+
+# v7.0.0 ⏱ prazo por sessão (/prazo <min> no chat): o operador não é
+# limitado pelo hardware — prazo curto aperta a revisão e o roteador
+# sobe para a nuvem quando há provider guardado
+_PRAZO_LOCK = _threading.Lock()
+SESSION_PRAZO: dict[str, float] = {}
+
+
+def set_prazo(session_id: str, minutos: float) -> None:
+    sid = (session_id or "default").strip() or "default"
+    with _PRAZO_LOCK:
+        if minutos and float(minutos) > 0:
+            SESSION_PRAZO[sid] = time.time() + float(minutos) * 60.0
+        else:
+            SESSION_PRAZO.pop(sid, None)
+
+
+def prazo_restante(session_id: str) -> float:
+    """Segundos restantes do prazo da sessão (0 = sem prazo)."""
+    sid = (session_id or "default").strip() or "default"
+    with _PRAZO_LOCK:
+        fim = SESSION_PRAZO.get(sid)
+    if not fim:
+        return 0.0
+    rest = fim - time.time()
+    if rest <= 0:
+        with _PRAZO_LOCK:
+            SESSION_PRAZO.pop(sid, None)
+        return 0.0
+    return rest
 _MISSAO_RE = re.compile(
     r"(?i)^\s*(missão|missao|modo\s+miss[ãa]o)\s*[:\-—]\s*")
 _CANCELA_RE = re.compile(
@@ -834,6 +865,41 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
                 # assunto mudou: pendência expira na hora (sem pegadinha)
                 with _PEND_PROJ_LOCK:
                     _PEND_PROJETO.pop(session_id, None)
+
+    # ── v7.0.0 📎 @menções: anexos REAIS lidos do disco entram no
+    # pedido (padrão Cursor/OpenCode) — o modelo vê o conteúdo sem
+    # gastar ferramentas; @ mantém a mensagem como task (não conversa)
+    anexo_menc = _menc.expandir(cfg, message)
+    if anexo_menc:
+        message = message + anexo_menc
+        ev({"type": "note",
+            "message": "📎 @menções: conteúdo real anexado ao pedido "
+                       "(lido do disco; e-mail não é menção)"})
+        activity.log(cfg, "chat", "📎 @menções expandidas para a task")
+
+    # ── v7.0.0 ⏱ prazo da sessão: revisão apertada + estado do roteador
+    prazo_rest = prazo_restante(session_id)
+    if prazo_rest > 0 and not _cancelado():
+        nuvem = ""
+        try:
+            from .llm_providers import melhor_provedor as _mp
+            _prov = _mp(cfg)
+            if (_prov and getattr(cfg, "auto_provider", True)
+                    and str(getattr(cfg, "llm_provider", "local")) == "local"):
+                nuvem = f" · cérebro na nuvem: {_prov}"
+            elif _prov:
+                nuvem = (f" · chave de {_prov} guardada — betterme provider "
+                         f"set {_prov} sobe o roteador")
+            else:
+                nuvem = (" · sem provider online — betterme provider guia "
+                         "guarda uma chave grátis")
+        except Exception:  # noqa: BLE001
+            pass
+        ev({"type": "note",
+            "message": f"⏱ prazo ativo: {int(prazo_rest // 60)} min "
+                       f"restantes{nuvem}"})
+        if prazo_rest < 600:
+            max_tentativas = 1      # apertado: sem refazer (ressalva honesta)
 
     # ── v6.6.0 ⚡ FLUXO LEVE nível 0: conversa pura → resposta direta.
     # O planner custava 1 ida inteira ao modelo antes de qualquer "oi";

@@ -32,6 +32,11 @@ PAPEL_MODULO = {
         "níveis de autonomia, tipos de task, especialistas, checks do "
         "doctor e marcas DLP — mais normalizadores tolerantes "
         "(Postel's Law)"),
+    "mencoes.py": ("📎", "as @menções (v7.0.0): @arquivo/@pasta no pedido "
+        "→ o Betterme lê o disco e anexa o conteúdo REAL (padrão "
+        "Cursor/OpenCode, com orçamento anti-estouro)"),
+    "comandos.py": ("⌘", "o dispatcher único de /comandos do chat "
+        "(v7.0.0): /dossie, /prazo, /ajuda — zero tokens, GUI e TUI"),
     "dossie.py": ("🗂️", "o dossiê de task (v6.8.0): PLANO + EVIDÊNCIA + "
         "ENTREGA por task em data_dir/dossies/ — revisão por artefatos "
         "(modelo Antigravity, nativo e local-first)"),

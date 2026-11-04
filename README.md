@@ -112,6 +112,12 @@ gratuitos keyless (requer Node 23+ e onboarding 1× no dashboard).
 **Valide tudo com `betterme provider test`** — 1 completion real por
 provedor, com latência e veredito.
 
+No chat (GUI e terminal) use **@ e /**: `revise @src/app.py e o
+@README.md` anexa o conteúdo REAL dos arquivos ao pedido; `/prazo 15`
+liga o modo prazo (contagem + revisão apertada + estado do roteador
+nuvem/local); `/dossie T0012` abre o artefato da task; `/ajuda`
+lista tudo.
+
 ## ⚙ Automações com n8n (v6.3+)
 
 `betterme fluxos setup|start` sobe um n8n **local** (grátis, uso

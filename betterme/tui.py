@@ -84,6 +84,28 @@ def run_chat(cfg: Config) -> None:
         if low == "/tools":
             _emit(f"disponíveis: {tool_summary()}")
             continue
+        # v7.0.0: comandos do dispatcher único (/dossie, /prazo, /ajuda…)
+        if user_input.startswith("/"):
+            partes_in = user_input.split(None, 1)
+            try:
+                from .comandos import executar as _cmd_exec
+                _out = _cmd_exec(cfg, partes_in[0].lower(),
+                                 partes_in[1].strip() if len(partes_in) > 1 else "",
+                                 "cli")
+                if _out is not None:
+                    _emit(_out)
+                    continue
+            except Exception:  # noqa: BLE001
+                pass
+        # v7.0.0 📎: @menções vira anexo real no terminal também
+        try:
+            from . import mencoes as _menc
+            _anexo = _menc.expandir(cfg, user_input)
+            if _anexo:
+                user_input = user_input + _anexo
+                _emit("📎 @menções: conteúdo real anexado ao pedido")
+        except Exception:  # noqa: BLE001
+            pass
 
         history.append({"role": "user", "content": user_input})
         print()

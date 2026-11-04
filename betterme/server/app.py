@@ -339,6 +339,15 @@ self.addEventListener("fetch", (e) => {
         cmd = partes[0].lower()
         args = partes[1].strip() if len(partes) > 1 else ""
         from .. import orchestrator as orc
+        # v7.0.0: dispatcher único — /dossie, /prazo e /ajuda completa
+        # (zero tokens; comandos históricos seguem abaixo)
+        try:
+            from ..comandos import executar as _cmd_exec
+            _out = _cmd_exec(cfg, cmd, args, session_id or "gui")
+            if _out is not None:
+                return jsonify({"ok": True, "output": _out})
+        except Exception:  # noqa: BLE001
+            pass
         if cmd in ("/goal", "/objetivo"):
             if args:
                 orc.set_goal(session_id, args, cfg)
