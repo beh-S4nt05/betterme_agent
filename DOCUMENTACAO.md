@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 7.1.3** · gerado em 04/11/2026 · este documento é extraído do
+**Versão 7.2.0** · gerado em 04/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -134,7 +134,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v7.1.3)
+## 3. Modificações — o que foi feito (v1.0.0 → v7.2.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -142,6 +142,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v7.2.0** | 🛡️ BATERIA DE USO REAL: 2 DEFESAS QUE FALTAVAM |
 | **v7.1.3** | 📖 README EM DIA (regra permanente do operador) |
 | **v7.1.2** | 🧹 ESTILO ANTIGO REMOVIDO DE VERDADE (auditoria do frontend) |
 | **v7.1.1** | 🔧 INTEGRALIZAÇÃO: suíte portável ao artefato (zip) |
@@ -989,6 +990,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `decompor(msg, passos)` | Quebra a task em etapas FOCADAS. Fonte preferida: os passos que o próprio planner devolveu; senão heurística estrutural… |
 | `consolidar(etapas)` | Junta os resultados das etapas num relatório único com rastro (o que saiu de cada parte) — é isso que o revisor avalia. |
 | `tem_tool_call_texto(texto)` | v6.6.1 (achado de campo T0013): o modelo imprimiu a chamada de ferramenta ({"function": "write_file", "arguments": {...… |
+| `entrega_vazia(texto)` | v7.2.0 (achado da bateria de uso real): o executor devolveu resposta sem conteúdo (só pontuação/whitespace) e o revisor… |
 
 ### betterme/extrair.py — 🧾 o extrator ÚNICO de JSON da resposta de modelos (chaves balanceadas com consciência de strings) — usado por orquestrador, especialistas, revisor e arena
 

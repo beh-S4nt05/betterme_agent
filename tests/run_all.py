@@ -8623,6 +8623,113 @@ def T206_er_n8n_artefato():
     assert doc[idx_des:idx_rec].count("verificaria") >= 3  # como verificar
 
 
+@case
+def T207_portao_entrega_vazia():
+    """v7.2.0 (achado da bateria de uso real): executor devolveu
+    resposta VAZIA e o revisor APROVOU. Agora o portão estrutural
+    reprova entrega essencialmente vazia (só pontuação/whitespace)
+    ANTES da revisão — 0 tokens — e a nota é específica de vazia."""
+    from betterme import fluxo as FL
+    from betterme import orchestrator as orc
+
+    # ── detector
+    for txt in ("", "   ", "  |  |  —  ", "``````", "....."):
+        assert FL.entrega_vazia(txt), repr(txt)
+    for txt in ("disco 70% — evidência real", "arquivo criado, saída: 120",
+                "entrega completa"):
+        assert not FL.entrega_vazia(txt), repr(txt)
+    # resposta de task precisa de SUBSTÂNCIA: "ok" solto é entrega vazia
+    assert FL.entrega_vazia("ok")
+    # ── pipeline: 1ª execução vazia → portão reprova (sem revisão),
+    # refaz; 2ª com conteúdo → revisão única aprova
+    cfg = fresh(creation_approval=False)
+    _plan_o, _rev_o = orc.plan, orc.review
+    orc.plan = lambda cfg, m, h=None: {
+        "rota": "executar", "tipo": "leitura", "objetivo": "relatar",
+        "passos": [], "criterios": ["evidência real"]}
+    corridas, reviews = [], []
+
+    class AgVazio:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            corridas.append(1)
+            return "" if len(corridas) == 1 else "relatório real — saída colada"
+
+    def _rev(*a, **k):
+        reviews.append(1)
+        return {"veredito": "ok"}
+
+    orc.review = _rev
+    try:
+        evs = []
+        final = orc.run_pipeline(AgVazio(), cfg, "faça o relatório", [],
+                                 on_event=evs.append)
+        notas = [str(e.get("message", "")) for e in evs
+                 if e.get("type") == "note"]
+        assert any("entrega vazia" in n for n in notas), notas
+        assert len(corridas) == 2            # reprovou a vazia e refez
+        assert len(reviews) == 1             # revisão SÓ na entrega boa
+        assert "relatório real" in final
+    finally:
+        orc.plan = _plan_o
+        orc.review = _rev_o
+
+
+@case
+def T208_retry_429_provedor():
+    """v7.2.0 (achado da bateria de uso real): provedor com rate limit
+    (llm7 anônimo: 429 com retry_after) derrubava a chamada na 1ª
+    recusa → fallback local assumia SEM necessidade. Agora o
+    _stream tenta até 3× com backoff respeitando o retry_after do
+    provedor (teto 20 s); erro definitivo (401/400) segue direto."""
+    from betterme import llm_providers as LP
+
+    cfg = fresh()
+    ext = LP.ExternalClient(cfg, "llm7", "teste")
+    chamadas = []
+
+    class _Resp:
+        def __init__(self, status, texto):
+            self.status_code = status
+            self.text = texto
+
+        def iter_lines(self, decode_unicode=False):
+            yield 'data: {"choices":[{"delta":{"content":"ok"}}]}'
+            yield "data: [DONE]"
+
+    def _post(url, json=None, headers=None, stream=None, timeout=None):
+        chamadas.append(1)
+        if len(chamadas) == 1:
+            return _Resp(429, '{"error":{"retry_after": 0.05}}')
+        return _Resp(200, "")
+
+    _post_orig = LP.requests.post
+    _sleep_orig = LP.time.sleep
+    LP.requests.post = _post
+    LP.time.sleep = lambda s: None          # teste não espera de verdade
+    try:
+        saida = list(ext._stream({"model": "x", "messages": [], "stream": True}))
+        assert len(chamadas) == 2           # 429 → retry → sucesso
+        assert any("ok" in str(l) for l in saida)
+        # erro definitivo NÃO refaz
+        chamadas.clear()
+
+        def _post2(url, json=None, headers=None, stream=None, timeout=None):
+            chamadas.append(1)
+            return _Resp(401, '{"error":"chave inválida"}')
+        LP.requests.post = _post2
+        try:
+            list(ext._stream({"model": "x", "messages": [], "stream": True}))
+            raise AssertionError("devia ter levantado OllamaError")
+        except LP.OllamaError as exc:
+            assert "401" in str(exc)
+        assert len(chamadas) == 1           # 401: sem retry
+    finally:
+        LP.requests.post = _post_orig
+        LP.time.sleep = _sleep_orig
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

@@ -1180,15 +1180,24 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
             # como TEXTO não é entrega (achado T0013: o modelo escreveu
             # o JSON do write_file, nada rodou e o revisor aprovou) —
             # reprova ANTES de gastar a revisão com o modelo
-            if _flx.tem_tool_call_texto(resultado):
+            if (_flx.tem_tool_call_texto(resultado)
+                    or _flx.entrega_vazia(resultado)):
                 verd = "reprovado"
-                prob = ("a resposta contém uma chamada de ferramenta "
-                        "impressa como TEXTO — nada foi executado. CHAME "
-                        "a ferramenta de verdade (write_file, run_command, "
-                        "…) e traga a evidência real do que rodou.")
-                ev({"type": "note",
-                    "message": "🚫 portão estrutural: ferramenta impressa "
-                               "como texto (não executada) — refazendo"})
+                if _flx.entrega_vazia(resultado):   # v7.2.0: vazia
+                    prob = ("a resposta está VAZIA — nada foi entregue. "
+                            "Produza a entrega com a evidência real do "
+                            "que foi feito.")
+                    ev({"type": "note",
+                        "message": "🚫 portão estrutural: entrega vazia "
+                                   "— refazendo"})
+                else:                                # tool call em texto
+                    prob = ("a resposta contém uma chamada de ferramenta "
+                            "impressa como TEXTO — nada foi executado. CHAME "
+                            "a ferramenta de verdade (write_file, run_command, "
+                            "…) e traga a evidência real do que rodou.")
+                    ev({"type": "note",
+                        "message": "🚫 portão estrutural: ferramenta impressa "
+                                   "como texto (não executada) — refazendo"})
             else:
                 ver = review(cfg, objetivo, criterios, resultado)
                 verd, prob = (ver.get("veredito", "ok"),
@@ -1270,14 +1279,22 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
                 break
             # v6.6.1: mesmo portão estrutural do _ciclo (defesa em
             # profundidade — o consolidado também não pode ser JSON cru)
-            if _flx.tem_tool_call_texto(resultado):
+            if (_flx.tem_tool_call_texto(resultado)
+                    or _flx.entrega_vazia(resultado)):
                 verd = "reprovado"
-                prob = ("a resposta contém chamada de ferramenta impressa "
-                        "como TEXTO — nada foi executado. CHAME a "
-                        "ferramenta de verdade e traga a evidência real.")
-                ev({"type": "note",
-                    "message": "🚫 portão estrutural: ferramenta impressa "
-                               "como texto (não executada) — refazendo"})
+                if _flx.entrega_vazia(resultado):   # v7.2.0: vazia
+                    prob = ("a resposta está VAZIA — nada foi entregue. "
+                            "Produza a entrega com a evidência real.")
+                    ev({"type": "note",
+                        "message": "🚫 portão estrutural: entrega vazia "
+                                   "— refazendo"})
+                else:                                # tool call em texto
+                    prob = ("a resposta contém chamada de ferramenta impressa "
+                            "como TEXTO — nada foi executado. CHAME a "
+                            "ferramenta de verdade e traga a evidência real.")
+                    ev({"type": "note",
+                        "message": "🚫 portão estrutural: ferramenta impressa "
+                                   "como texto (não executada) — refazendo"})
             else:
                 ver = review(cfg, objetivo, criterios, resultado)
                 verd = ver.get("veredito", "ok")

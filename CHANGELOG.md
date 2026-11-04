@@ -1,5 +1,31 @@
 # Changelog
 
+## v7.2.0 — 🛡️ BATERIA DE USO REAL: 2 DEFESAS QUE FALTAVAM
+
+Bateria de casos de uso do dia a dia (programação, documentos, textos)
+com cérebro REAL (llm7 via HTTPS + Ollama local de prova) achou 2
+burcos — ambos fechados com teste:
+
+- **Portão de entrega vazia** (`fluxo.entrega_vazia` + `_ciclo`/
+  `_ciclo_etapas`): o executor devolveu resposta sem conteúdo (só
+  pontuação/whitespace) e o revisor APROVOU (visto ao vivo: dossiê
+  com entrega vazia e veredito "ok"). Agora entrega essencialmente
+  vazia é reprovada ANTES da revisão (0 tokens), com nota própria
+  ("🚫 portão estrutural: entrega vazia — refazendo"); resposta de
+  task exige substância ("ok" solto é vazio).
+- **Retry com backoff em 429/5xx** (`ExternalClient._stream`):
+  provedores com rate limit (llm7 anônimo: rajada) derrubavam a
+  chamada na 1ª recusa e o fallback local assumia sem necessidade.
+  Agora: até 3 tentativas respeitando o `retry_after` do provedor
+  (teto 20 s); erros definitivos (400/401) seguem direto.
+- **Validado ao vivo na bateria**: modelo real imprimindo tool call
+  como texto foi pego 2× pelo portão (v6.6.1) e a entrega saiu com
+  RESSALVA honesta — o padrão do 5º achado de campo, agora defendido
+  em produção; llm7 anônimo bateu cota diária do IP e o pipeline
+  seguiu sem crash (retry → fallback).
+- T207 (portão vazia: detector + pipeline sem gastar revisão) · T208
+  (retry: 429→sucesso na 2ª chamada, 401 sem retry) — **208/208**.
+
 ## v7.1.3 — 📖 README EM DIA (regra permanente do operador)
 
 Diretrize nova do operador: **"Sempre atualize o README"** — em toda

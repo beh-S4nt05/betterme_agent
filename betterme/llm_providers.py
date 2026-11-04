@@ -213,12 +213,29 @@ class ExternalClient:
             yield from self._transport(self.base + "/chat/completions",
                                        payload, headers)
             return
-        r = requests.post(self.base + "/chat/completions", json=payload,
-                          headers=headers, stream=True, timeout=180)
-        if r.status_code != 200:
+        # v7.2.0 (bateria de uso real): RETRY com backoff em 429/5xx —
+        # provedores com rate limit (llm7 anônimo: rajada) derrubavam a
+        # chamada na 1ª recusa e o fallback local assumia. Agora: até 2
+        # retries respeitando o retry_after do provedor (teto 20 s).
+        for tentativa in range(3):
+            r = requests.post(self.base + "/chat/completions", json=payload,
+                              headers=headers, stream=True, timeout=180)
+            if r.status_code == 200:
+                yield from r.iter_lines(decode_unicode=True)
+                return
+            if r.status_code in (429, 500, 502, 503, 504) and tentativa < 2:
+                espera = 5.0
+                try:
+                    import json as _json
+                    corpo = _json.loads(r.text or "{}")
+                    espera = min(float(corpo.get("error", {})
+                                       .get("retry_after") or 5.0), 20.0)
+                except (ValueError, TypeError, AttributeError):
+                    pass
+                time.sleep(espera)
+                continue
             trecho = (r.text or "")[:200]
             raise OllamaError(f"{self.provedor} HTTP {r.status_code}: {trecho}")
-        yield from r.iter_lines(decode_unicode=True)
 
     def chat_stream(self, model, messages, tools=None, options=None,
                     cancel=None, keep_alive=None):

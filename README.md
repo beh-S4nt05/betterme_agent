@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v7.1.3** · 206 testes · CHANGELOG com todo o histórico.
+**v7.2.0** · 208 testes · CHANGELOG com todo o histórico.
 
 ```
                         ┌─────────────────────────────┐
@@ -110,7 +110,9 @@ cada chave grátis em 2 min) e **`betterme omniroute setup && betterme
 omniroute start`** — gateway local open-source que roteia para pools
 gratuitos keyless (requer Node 23+ e onboarding 1× no dashboard).
 **Valide tudo com `betterme provider test`** — 1 completion real por
-provedor, com latência e veredito.
+provedor, com latência e veredito. Provedores com rate limit têm
+**retry automático com backoff** (v7.2.0) — rajadas de 429/5xx não
+derrubam mais a tarefa para o fallback local.
 
 Peça **"engenharia reversa de X"** e o agente segue o método REA
 (rótulos *visto/inferido/desconhecido*, entrega com evidência, mapa,
@@ -485,6 +487,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.1.3) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.2.0) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

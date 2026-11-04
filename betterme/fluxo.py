@@ -128,3 +128,15 @@ def tem_tool_call_texto(texto: str) -> bool:
     tokens) para reprovar ANTES da revisão."""
     t = (texto or "")[:4000]
     return bool(_TOOLCALL_RE.search(t) and _TOOLARGS_RE.search(t))
+
+
+# ── v7.2.0: portão estrutural — entrega essencialmente VAZIA ──
+_VAZIA_RE = re.compile("[\\s│|─\\-_*#>`\".,;:!?\\[\\](){}']+")
+
+
+def entrega_vazia(texto: str) -> bool:
+    """v7.2.0 (achado da bateria de uso real): o executor devolveu
+    resposta sem conteúdo (só pontuação/whitespace) e o revisor
+    APROVOU. Entrega vazia não é entrega — reprova antes da revisão
+    (0 tokens), igual ao portão de tool call em texto."""
+    return len(_VAZIA_RE.sub("", texto or "")) < 5
