@@ -1,5 +1,26 @@
 # Changelog
 
+## v7.2.1 — 🔓 6º ACHADO DE CAMPO: @menções × D2 (falso positivo)
+
+A bateria de uso real (U2, ao vivo) expôs um conflito estrutural: o
+anexo de @menção era embrulhado em cercas de código — e a varredura
+mascara qualquer bloco cercado como "[CÓDIGO LOCAL]" →
+`payload_sensivel` dava True → **TODO pedido com @menção caía no
+cérebro local**, mesmo anexando texto puro (ata, .md). O oposto do
+objetivo do operador (@ para contexto + provedor remoto para
+velocidade).
+
+- **Correção cirúrgica** (`mencoes.py`): arquivo de **código/config**
+  continua com cercas (a D2 mantém a análise local — lei preservada,
+  e o DLP mascara no transporte); arquivo de **texto puro** (.txt,
+  .md, .csv, .log…) é anexado com INDENTAÇÃO — não dispara D2/DLP e
+  pode usar o cérebro externo.
+- Provado ao vivo: com o fix, o U2 foi ao llm7 de verdade (o novo
+  motivo de fallback passou a ser apenas a cota diária real do IP
+  anônimo do sandbox — 429 "Retry after 89483 s", ambiental).
+- T209 (texto não-sensível · código sensível · pasta com cercas ·
+  regressão de e-mail) — **209/209**.
+
 ## v7.2.0 — 🛡️ BATERIA DE USO REAL: 2 DEFESAS QUE FALTAVAM
 
 Bateria de casos de uso do dia a dia (programação, documentos, textos)

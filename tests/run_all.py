@@ -8730,6 +8730,42 @@ def T208_retry_429_provedor():
         LP.time.sleep = _sleep_orig
 
 
+@case
+def T209_mencoes_x_d2_falso_positivo():
+    """v7.2.1 (6º achado de campo, bateria de uso real): @menção de
+    arquivo de TEXTO era embrulhada em cercas de código → a varredura
+    mascarava o bloco → payload_sensivel True → TODO pedido com @
+    caía no cérebro local (D2 falsa). Agora: texto puro é anexado com
+    INDENTAÇÃO (pode ir ao externo); código/config continua com cercas
+    (D2 mantém análise local — lei preservada)."""
+    import tempfile
+    from betterme import mencoes as M
+    from betterme.llm_providers import payload_sensivel
+
+    d = Path(tempfile.mkdtemp(prefix="t209-"))
+    (d / "ata.txt").write_text(
+        "Ata — 03/11\nPresentes: Breno, Marcia.\n1. Prazo final 28/11.",
+        encoding="utf-8")
+    (d / "notas.md").write_text("# Notas\nconteúdo textual", encoding="utf-8")
+    (d / "script.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+
+    # ── texto: sem cercas, NÃO sensível → cérebro externo liberado
+    for arq in ("ata.txt", "notas.md"):
+        bloco = M.expandir(None, f"leia @{d}/{arq}")
+        assert bloco and "```" not in bloco, arq
+        assert not payload_sensivel(
+            [{"role": "user", "content": f"leia @{d}/{arq}" + bloco}]), arq
+    # ── código: com cercas, sensível → D2 mantém local (lei)
+    bloco_py = M.expandir(None, f"revise @{d}/script.py")
+    assert "```" in bloco_py
+    assert payload_sensivel(
+        [{"role": "user", "content": f"revise @{d}/script.py" + bloco_py}])
+    # ── pasta: listagem continua com cercas (estrutura, não conteúdo)
+    assert "```" in M.expandir(None, f"estrutura @{d}")
+    # ── e-mail nunca é menção (regressão do T202)
+    assert M.expandir(None, "mail breno@site.com") == ""
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

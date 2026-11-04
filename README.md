@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v7.2.0** · 208 testes · CHANGELOG com todo o histórico.
+**v7.2.1** · 209 testes · CHANGELOG com todo o histórico.
 
 ```
                         ┌─────────────────────────────┐
@@ -141,7 +141,7 @@ focadas** com contexto acumulado e 1 revisão única no consolidado
 - **⏱ Modo prazo** — `/prazo 15` no chat: contagem visível, estado do
   roteador (nuvem/local) e revisão apertada em prazos curtos
   (reprovação entrega com ressalva honesta, sem refazer).
-- **📎 @menções** — `revise @src/app.py e o @README.md`: o conteúdo
+- **📎 @menções** — `revise @src/app.py e o @README.md (código anexado fica no cérebro local — regra D2; texto vai ao externo)`: o conteúdo
   REAL dos arquivos é lido do disco e anexado ao pedido (padrão
   Cursor/OpenCode). `/ajuda` lista todos os comandos.
 - **🔬 Engenharia reversa com método** — peça "engenharia reversa de
@@ -487,6 +487,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.2.0) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.2.1) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

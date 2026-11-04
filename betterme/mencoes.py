@@ -28,6 +28,16 @@ _MAX_BLOCO = 25_000            # chars do bloco total
 _EXT_BINARIO = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pdf",
                 ".zip", ".gz", ".tar", ".mp3", ".mp4", ".wav", ".ogg",
                 ".sqlite", ".db", ".exe", ".dll", ".so", ".pyc", ".lock"}
+# v7.2.1 (6º achado): código/config anexado usa CERCAS — a D2 mantém a
+# análise no local (lei) e o DLP mascara no transporte. Texto puro NÃO
+# usa cercas (indentação): ata/.md/.csv anexados não são "código".
+_EXT_CODIGO = {".py", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".java", ".c",
+               ".h", ".cpp", ".hpp", ".cs", ".go", ".rs", ".rb", ".php",
+               ".sh", ".bash", ".zsh", ".ps1", ".sql", ".vue", ".svelte",
+               ".kt", ".kts", ".swift", ".scala", ".r", ".pl", ".lua",
+               ".hs", ".ex", ".exs", ".clj", ".dart", ".m", ".gradle",
+               ".env", ".ini", ".cfg", ".conf", ".yaml", ".yml", ".tf",
+               ".dockerfile", ".makefile", ".mk"}
 
 
 def _resolver(token: str) -> Path | None:
@@ -106,7 +116,13 @@ def expandir(cfg, texto: str) -> str:
                 usados += len(corpo)
             else:
                 corpo = _ler_arquivo(p)
-                partes.append(f"### @{tok} — arquivo\n```\n{corpo}\n```")
+                if p.suffix.lower() in _EXT_CODIGO:
+                    partes.append(f"### @{tok} — arquivo\n```\n{corpo}\n```")
+                else:   # v7.2.1: texto puro SEM cercas (indentação) —
+                        # não dispara D2/DLP como se fosse código
+                    ind = "\n".join("    " + ln if ln.strip() else ""
+                                    for ln in corpo.splitlines())
+                    partes.append(f"### @{tok} — arquivo (texto)\n{ind}")
                 usados += len(corpo)
         except Exception:  # noqa: BLE001
             nao_encontrados.append(tok)
