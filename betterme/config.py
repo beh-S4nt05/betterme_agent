@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 APP_NAME = "betterme-agent"
-VERSION = "7.1.2"
+VERSION = "7.1.3"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULTS = {

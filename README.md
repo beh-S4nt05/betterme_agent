@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v6.4.2** · 190 testes · CHANGELOG com todo o histórico.
+**v7.1.3** · 206 testes · CHANGELOG com todo o histórico.
 
 ```
                         ┌─────────────────────────────┐
@@ -123,6 +123,33 @@ liga o modo prazo (contagem + revisão apertada + estado do roteador
 nuvem/local); `/dossie T0012` abre o artefato da task; `/ajuda`
 lista tudo.
 
+## 🧩 Orquestração inteligente (v6.6+)
+
+Toda tarefa passa pelo **fluxo adaptativo de 3 níveis**: conversa →
+resposta direta (1 chamada ao cérebro, planejamento pulado); tarefa →
+planner → executor → revisão; **complexa → decomposta em etapas
+focadas** com contexto acumulado e 1 revisão única no consolidado
+(padrão Plandex, nativo).
+
+- **🗂️ Dossiê de task** — cada task produz um artefato auditável em
+  `~/.betterme/dossies/T000N.md`: **PLANO** (aprovado antes de
+  executar) · **EVIDÊNCIA** (cada ferramenta com hora) · **ENTREGA**
+  (veredito do revisor + texto final). Consulta: `betterme dossie
+  T0001` ou `/dossie T0001` no chat (modelo Antigravity).
+- **⏱ Modo prazo** — `/prazo 15` no chat: contagem visível, estado do
+  roteador (nuvem/local) e revisão apertada em prazos curtos
+  (reprovação entrega com ressalva honesta, sem refazer).
+- **📎 @menções** — `revise @src/app.py e o @README.md`: o conteúdo
+  REAL dos arquivos é lido do disco e anexado ao pedido (padrão
+  Cursor/OpenCode). `/ajuda` lista todos os comandos.
+- **🔬 Engenharia reversa com método** — peça "engenharia reversa de
+  X" e o agente segue o método REA (rótulos *visto/inferido/
+  desconhecido*, entrega com evidência·mapa·limites·desconhecidos).
+  O estudo completo do n8n: `docs/ENGENHARIA-REVERSA-N8N.md`.
+- **✦ Skills de processo** — `spec-driven` (SPEC→PLANO→TASKS antes de
+  codar, do spec-kit da GitHub), `disciplina-agente` (as 7 regras dos
+  agentes de código de produção), `engenharia-reversa` (método REA).
+
 ## ⚙ Automações com n8n (v6.3+)
 
 `betterme fluxos setup|start` sobe um n8n **local** (grátis, uso
@@ -145,7 +172,9 @@ prontos: **N8N_PASSOAPASSO.md**.
 | `betterme models` | lista modelos locais |
 | `betterme tasks` | fila de tarefas e resultados |
 | `betterme doctor` | diagnóstico do ambiente (dispositivo, cérebro, n8n…) |
-| `betterme provider list\|set\|off` | chaves grátis e roteador automático |
+| `betterme provider list\|set\|test\|guia\|off` | chaves grátis, roteador e **teste real** de cada provedor |
+| `betterme omniroute status\|setup\|start` | gateway local de LLMs grátis (keyless) |
+| `betterme dossie T0001` | dossiê da task: plano, evidência e entrega |
 | `betterme fluxos setup\|start\|listar` | automações n8n locais |
 | `betterme autonomia [nível]` | cauteloso · padrao · autonomo |
 | `betterme varredura` | caça segredos/dados no projeto (pré-push) |
@@ -367,9 +396,13 @@ Skills são pacotes de instruções que o agente carrega sob demanda: o catálog
 `read_file` só quando a tarefa combina (*progressive disclosure*, formato
 aberto [agentskills.io](https://agentskills.io)).
 
-**Incluídas** (pasta `skills/`): `figma-design` (operar o Figma via MCP),
-`ui-design-system` (paleta, tipografia, grid 8pt, acessibilidade) e
-`app-prototyping` (mapa de telas, fluxos, componentes).
+**Incluídas** (47 na pasta `skills/`), destaques recentes:
+`spec-driven` (desenvolvimento guiado por especificação — SPEC→PLANO→
+TASKS antes de codar), `disciplina-agente` (as 7 regras dos agentes de
+código de produção), `engenharia-reversa` (método REA com rótulos
+visto/inferido/desconhecido), `codigo-verificado` (código que não rodou
+não é entrega) e `tdd`; e as de design: `figma-design`,
+`ui-design-system`, `app-prototyping`.
 
 **Instalar do GitHub** — GUI → aba *Skills* (ex.: `anthropics/skills`,
 subpasta `skills/pdf`) ou via API:
@@ -452,6 +485,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia + gateways · v5.x: vida/skills · v6.x: universal, performance, roteador de cérebro, n8n bidirecional (→ v6.4.2) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.1.3) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

@@ -1,5 +1,19 @@
 # Changelog
 
+## v7.1.3 — 📖 README EM DIA (regra permanente do operador)
+
+Diretrize nova do operador: **"Sempre atualize o README"** — em toda
+release, junto com o CHANGELOG; nunca mais versões atrás. Débito pago:
+
+- Badge: v6.4.2 · 190 testes → **v7.1.3 · 206 testes** (estava 4
+  releases atrasado).
+- Seção nova **"🧩 Orquestração inteligente (v6.6+)"**: fluxo
+  adaptativo de 3 níveis, dossiê de task, modo prazo, @menções e
+  /comandos, engenharia reversa com método REA.
+- Tabela CLI: `provider test|guia`, `omniroute`, `dossie`.
+- Skills: 47 (destaques spec-driven, disciplina-agente,
+  engenharia-reversa) · tabela de branches até v7.x.
+
 ## v7.1.2 — 🧹 ESTILO ANTIGO REMOVIDO DE VERDADE (auditoria do frontend)
 
 Pergunta do operador: "removeu o estilo antigo?". Auditoria completa do
