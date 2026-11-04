@@ -1,5 +1,23 @@
 # Changelog
 
+## v7.1.1 — 🔧 INTEGRALIZAÇÃO: suíte portável ao artefato (zip)
+
+Validação integral da aplicação (bateria completa: gates, CLI inteira,
+servidor/GUI, rede real, instalação do zip do zero) achou 1 defeito:
+T123 e T141 assumiam o layout de dev (`./.venv/bin/betterme`) e
+falhavam com 2 falsos negativos em qualquer instalação fora do repo
+(por exemplo, a partir do zip entregue ao operador).
+
+- Novo helper `_betterme_bin()` na suíte: usa o binário do venv de
+  dev quando existe, senão o interpretador atual (`python -m
+  betterme`) — 9 call sites de subprocess migrados.
+- **A suíte agora roda 206/206 no repo E no artefato instalado**
+  (validado: zip → venv limpo → pip install → 206/206).
+- Achado ambiental (não é bug): o endpoint anônimo llm7 oscilou 429
+  (cota diária compartilhada do IP) durante a validação — o caminho de
+  falha do `provider test` seguiu perfeito (sem crash, relatório
+  honesto "0/1 funcionando de verdade").
+
 ## v7.1.0 — 🔬 ENGENHARIA REVERSA: método REA nativo + ER completa do n8n
 
 Pedido do operador: "faça uma engenharia reversa completa do N8N

@@ -25,6 +25,28 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("BETTERME_MOCK", "1")
 
+
+def _betterme_bin() -> list[str]:
+    """v7.1.1 (integralização): comando do CLI nos SUBPROCESSOS de teste
+    — binário do venv de dev quando existe, senão o interpretador
+    atual (portável: a suíte roda igual numa instalação por zip,
+    fora do layout ./.venv do repo)."""
+    cand = ROOT / ".venv" / "bin" / "betterme"
+    if cand.is_file():
+        return [str(cand)]
+    return [sys.executable, "-m", "betterme"]
+
+
+def _hermes_bin() -> list[str]:
+    """Alias legado `hermes` (console script do pyproject) — resolvido
+    ao lado do binário que o _betterme_bin() escolheu (dev ou install)."""
+    base = Path(_betterme_bin()[0]).parent
+    cand = base / "hermes"
+    if cand.is_file():
+        return [str(cand)]
+    return [sys.executable, "-c",
+            "import sys; from betterme.cli import main; sys.argv[0]='hermes'; main()"]
+
 try:
     import flask  # noqa: F401
 except ImportError:
@@ -1624,7 +1646,7 @@ def T77_hermes_update_offline():
     _sh.rmtree(dest, ignore_errors=True)
     # CLI tem o comando
     import subprocess as _sp
-    r = _sp.run(["./.venv/bin/betterme", "update", "--help"],
+    r = _sp.run([*_betterme_bin(), "update", "--help"],
                 capture_output=True, text=True, timeout=30)
     assert "check" in (r.stdout + r.stderr).lower()
 
@@ -2205,7 +2227,7 @@ def T90_auto_atribuicao_de_papeis():
     assert "autoAssign" in html and "auto-atribuir papéis" in html
     # CLI expõe o subcomando
     import subprocess as _sp
-    rr = _sp.run(["./.venv/bin/betterme", "models", "--help"],
+    rr = _sp.run([*_betterme_bin(), "models", "--help"],
                  capture_output=True, text=True, timeout=30)
     assert "auto" in rr.stdout.lower() and "auto-atribui" in rr.stdout.lower()
 
@@ -2311,7 +2333,7 @@ def T93_memoria_importavel():
                                  "segundo fato", encoding="utf-8")
     # JSON: 3 novos
     import subprocess as _sp
-    r = _sp.run(["./.venv/bin/betterme", "--data-dir", cfg.data_dir,
+    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "fatos.json")],
                 capture_output=True, text=True, timeout=30)
     assert "3 fato(s) importado(s)" in r.stdout + r.stderr, r.stdout + r.stderr
@@ -2319,21 +2341,21 @@ def T93_memoria_importavel():
     textos = {f["text"] for f in ms.list_all()}
     assert textos == set(fatos)
     # de novo: 0 novos, 3 duplicados
-    r = _sp.run(["./.venv/bin/betterme", "--data-dir", cfg.data_dir,
+    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "fatos.json")],
                 capture_output=True, text=True, timeout=30)
     assert "0 fato(s) importado(s)" in r.stdout + r.stderr
     assert "3 duplicado(s)" in r.stdout + r.stderr
     assert len(ms.list_all()) == 3
     # texto por linha: ignora comentário e vazia
-    r = _sp.run(["./.venv/bin/betterme", "--data-dir", cfg.data_dir,
+    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "fatos.txt")],
                 capture_output=True, text=True, timeout=30)
     assert "2 fato(s) importado(s)" in r.stdout + r.stderr
     assert len(ms.list_all()) == 5
     # JSON inválido: erro claro, exit != 0
     (d / "ruim.json").write_text("{fatos:", encoding="utf-8")
-    r = _sp.run(["./.venv/bin/betterme", "--data-dir", cfg.data_dir,
+    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "ruim.json")],
                 capture_output=True, text=True, timeout=30)
     assert r.returncode != 0 and "JSON inválido" in r.stdout + r.stderr
@@ -2555,7 +2577,7 @@ def T99_codigo_verificado_e_selftest():
     assert "não vou repetir" in st._RECUSA[0]
     # 4. CLI expõe o selftest
     import subprocess as _sp
-    r = _sp.run(["./.venv/bin/betterme", "--help"],
+    r = _sp.run([*_betterme_bin(), "--help"],
                 capture_output=True, text=True, timeout=30)
     assert "selftest" in r.stdout.lower()
 
@@ -2616,7 +2638,7 @@ def T101_matriz_de_todos_os_modelos():
     assert any("mock" in s.lower() for s in saida)      # pulou, não mentiu
     # a flag existe no CLI
     import subprocess as _sp
-    r = _sp.run(["./.venv/bin/betterme", "selftest", "--help"],
+    r = _sp.run([*_betterme_bin(), "selftest", "--help"],
                 capture_output=True, text=True, timeout=30)
     assert "--all-models" in r.stdout
     # a matriz formata cabeçalho com os 5 cenários
@@ -3538,7 +3560,7 @@ def T123_memory_list_clear():
     assert "cmd_memory_list" in src and "cmd_memory_clear" in src
     # help do pai menciona os subcomandos
     import subprocess as _sp
-    r = _sp.run(["./.venv/bin/betterme", "memory", "--help"],
+    r = _sp.run([*_betterme_bin(), "memory", "--help"],
                 capture_output=True, text=True, timeout=30, check=False)
     assert "import" in (r.stdout or "") and "list" in (r.stdout or "")
     assert "clear" in (r.stdout or "")
@@ -5445,16 +5467,16 @@ def T141_renome_betterme_migracao_e_identidade():
 
     # pacote e alias de console script
     from betterme.config import VERSION as _VER
-    r = _sp.run([".venv/bin/betterme", "--version"], capture_output=True,
+    r = _sp.run([*_betterme_bin(), "--version"], capture_output=True,
                 text=True, timeout=60)
     assert r.returncode == 0 and _VER in r.stdout
-    r2 = _sp.run([".venv/bin/hermes", "--version"], capture_output=True,
+    r2 = _sp.run([*_hermes_bin(), "--version"], capture_output=True,
                  text=True, timeout=60)
     assert r2.returncode == 0 and _VER in r2.stdout
 
     # env legado continua funcionando (HERMES_MOCK)
     r3 = _sp.run(["bash", "-c",
-                  "HERMES_MOCK=1 .venv/bin/python -c "
+                  f"HERMES_MOCK=1 '{sys.executable}' -c "
                   "'from betterme.config import Config; "
                   "c=Config(data_dir=\"/home/user/.t141-env\"); "
                   "print(1 if c.mock else 0)'"],
