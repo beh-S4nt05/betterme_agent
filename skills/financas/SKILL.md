@@ -55,6 +55,14 @@ reconhecido, a saída mostra as colunas lidas — reporte-as ao operador.
 - Boletos no DDA sem via automática: o operador informa ("boleto da
   luz vence 10/12, R$ 230") → registre como fatura.
 
+## Quem participa do Open Finance
+
+`betterme financas participantes <banco>` responde com a lista
+OFICIAL (cache 24 h) — use antes de prometer acesso automático a
+uma instituição. Papel "detentora de conta" = pode compartilhar
+dados da conta; instituição fora da lista = só via registro manual,
+extrato CSV ou API própria.
+
 ## Responder
 
 Quando o operador perguntar "quanto gastei", "como estão as finanças",

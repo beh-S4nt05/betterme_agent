@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v7.3.0** · 215 testes · CHANGELOG com todo o histórico.
+**v7.4.0** · 217 testes · CHANGELOG com todo o histórico.
 
 ```
                         ┌─────────────────────────────┐
@@ -174,13 +174,23 @@ betterme financas importar bb.csv --conta bb     # extrato CSV do BB,
                                        # não duplica — id estável)
 betterme financas fatura 1850 15/11 bradesco    # vencimento no painel
 betterme financas sumup setup <api-key>         # uma vez (secrets/ 600)
+betterme financas participantes sumup   # quem participa do Open
+                                       # Finance? (lista OFICIAL, com
+                                       # papel da instituição, cache 24 h)
+betterme belvo guia                     # Open Finance só-leitura via
+betterme belvo token <t>                # Belvo MCP (grátis, regulado)
 betterme financas sumup sync           # vendas → entradas (API titular)
 ```
 
 No chat, o agente registra com as tools `financas_lancar` /
 `financas_painel` (números com Decimal — o modelo nunca calcula).
 Extrato do SumUp **+** sync da API dobra entradas → importe com
-`--so-saidas`. Meios por banco: SumUp = API de vendas + extrato CSV ·
+`--so-saidas`. O `belvo status` valida a conexão com handshake MCP REAL
+(`initialize` contra o servidor da Belvo). Nota: o acesso pelo Belvo
+exige conta grátis + consentimento no app do banco (12 meses,
+revogável) — o servidor de autorização deles só aceita aplicações
+registradas, por isso o token vem da jornada do próprio operador.
+Meios por banco: SumUp = API de vendas + extrato CSV ·
 BB = API de extrato (portal do desenvolvedor) · Bradesco PF = extrato
 CSV + e-mail da fatura · limites de cartão/DDA do BB sem via limpa:
 registro manual ou agregador MCP (ex.: Belvo MCP, grátis/leitura).
@@ -513,6 +523,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.3.0) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.4.0) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

@@ -8989,6 +8989,82 @@ def T215_tools_e_cmd_financas():
     assert any(l["descricao"] == "teste cli" for l in F._todos(cfg))
 
 
+@case
+def T216_belvo_token_status_remover():
+    """v7.4.0: conector Belvo MCP — token em secrets/ 600 (nunca em
+    config.yaml/logs), servidor MCP registrado com Bearer no header,
+    status com handshake injetável, remoção limpa e guia honesto."""
+    import stat
+    from betterme import belvo as B
+
+    cfg = fresh()
+    assert B.ler_token(cfg) == ""
+    p = B.salvar_token(cfg, "tok-123", expira_min=60)
+    assert p.exists() and stat.S_IMODE(p.stat().st_mode) == 0o600
+    assert B.ler_token(cfg) == "tok-123"
+    entradas = [e for e in (cfg.mcp_servers or [])
+                if isinstance(e, dict) and e.get("name") == "belvo"]
+    assert len(entradas) == 1
+    assert entradas[0]["url"] == B.MCP_URL
+    assert entradas[0]["headers"]["Authorization"] == "Bearer tok-123"
+
+    probes = []
+
+    def _probe(t):
+        probes.append(t)
+        return True, "belvo-mcp v1.0"
+
+    txt = B.status(cfg, _probe=_probe)
+    assert probes == ["tok-123"]
+    assert "belvo-mcp v1.0" in txt and "registrado ✔" in txt
+
+    msg = B.remover(cfg)
+    assert "removido" in msg
+    assert B.ler_token(cfg) == ""
+    assert not any(isinstance(e, dict) and e.get("name") == "belvo"
+                   for e in (cfg.mcp_servers or []))
+    assert "sem token" in B.status(cfg, _probe=_probe)
+
+    g = B.guia()
+    assert "panorama.belvo.com" in g and "revog" in g.lower()
+    assert "12 meses" in g                     # consentimento regulado
+
+
+@case
+def T217_financas_participantes_oficial():
+    """v7.4.0: consulta da lista OFICIAL de participantes do Open
+    Finance (openfinancebrasil.org.br) — parser data-marca/
+    data-modalidades, cache 24 h (2ª consulta NÃO refaz o download),
+    busca sem acento, papel da instituição e resposta honesta quando
+    NÃO participa."""
+    from betterme import financas as F
+
+    html = ('<a data-marca="Banco do Brasil" data-descricao="x" '
+            'data-modalidades="Instituição detentora de conta <br />'
+            'Instituição transmissora / receptora de dados">'
+            '<div>Banco do Brasil</div>'
+            '<a data-marca="SumUp" data-descricao="y" '
+            'data-modalidades="Instituição detentora de conta ">'
+            '<div>SumUp</div> Atualizado em 21/02/2026')
+    chamadas = []
+
+    def _fetch():
+        chamadas.append(1)
+        return html
+
+    cfg = fresh()
+    t1 = F.participantes(cfg, "sumup", _fetch=_fetch)
+    assert "SumUp" in t1 and "detentora de conta" in t1, t1
+    assert "21/02/2026" in t1
+    t2 = F.participantes(cfg, "banco do brasil", _fetch=_fetch)
+    assert len(chamadas) == 1                 # cache: não baixou de novo
+    assert "Banco do Brasil" in t2 and "transmissora" in t2
+    t3 = F.participantes(cfg, "naoexiste", _fetch=_fetch)
+    assert "NÃO está na lista" in t3
+    t4 = F.participantes(cfg, "", _fetch=_fetch)
+    assert "informe o nome" in t4
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

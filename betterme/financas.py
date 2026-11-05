@@ -368,6 +368,73 @@ def sync_sumup(cfg, _get=None) -> dict:
             "nota": "repasses não são lançados (a venda já entrou)"}
 
 
+# ── Open Finance: lista oficial de participantes ────────────────
+URL_PARTICIPANTES = "https://openfinancebrasil.org.br/quem-participa/"
+_RE_MARCA = re.compile(
+    r'data-marca="([^"]+)"(?s:.{0,2500}?)data-modalidades="([^"]*)"')
+_RE_ATUALIZADO = re.compile(r"Atualizado em\s*([0-9/]+)")
+
+
+def _fetch_participantes() -> str:
+    import requests
+    r = requests.get(URL_PARTICIPANTES, timeout=30)
+    r.raise_for_status()
+    return r.text
+
+
+def participantes(cfg, termo: str, _fetch=None) -> str:
+    """v7.4.0: a instituição X participa do Open Finance? Consulta a
+    lista OFICIAL (openfinancebrasil.org.br) com cache local de 24 h
+    e mostra o PAPEL (detentora de conta, transmissora/receptora,
+    iniciação de pagamentos). Regulatório: participação é obrigatória
+    p/ grandes instituições (S1/S2) e voluntária para as demais."""
+    termo = _norm(termo or "").strip()
+    if not termo:
+        return ("✖ informe o nome: betterme financas participantes "
+                "<banco> (ex.: sumup, bradesco)")
+    cache = _dir(cfg) / "participantes.json"
+    fetch = _fetch or _fetch_participantes
+    dados = None
+    try:
+        dados = json.loads(cache.read_text(encoding="utf-8"))
+        idade = ((datetime.now() - datetime.fromisoformat(
+            dados["quando"])).total_seconds() / 3600)
+        if idade > 24:
+            dados = None
+    except (OSError, ValueError, KeyError):
+        dados = None
+    if dados is None:
+        try:
+            html = fetch()
+        except Exception as exc:  # noqa: BLE001 — sem rede é normal
+            return f"✖ sem rede para buscar a lista oficial ({exc})"
+        pares = [(m, mod.strip()) for m, mod in _RE_MARCA.findall(html)]
+        m_at = _RE_ATUALIZADO.search(html)
+        dados = {"quando": datetime.now().isoformat(timespec="seconds"),
+                 "atualizado_em": m_at.group(1) if m_at else "?",
+                 "total": len(pares), "pares": pares}
+        try:
+            _dir(cfg).mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(dados, ensure_ascii=False),
+                             encoding="utf-8")
+        except OSError:
+            pass
+    achados = [(m, mod) for m, mod in dados["pares"]
+               if termo in _norm(m)]
+    cab = (f"📋 Open Finance Brasil — {dados['total']} participantes "
+           f"(lista oficial, atualizada em {dados['atualizado_em']})")
+    if not achados:
+        return (cab + f"\n✖ '{termo}' NÃO está na lista de "
+                "participantes — confira o nome exato em "
+                "openfinancebrasil.org.br/quem-participa")
+    linhas = [cab]
+    for m, mod in achados[:6]:
+        papeis = " · ".join(p.strip() for p in
+                            re.split(r"<br\s*/?>", mod) if p.strip())
+        linhas.append(f"✔ {m} — {papeis}")
+    return "\n".join(linhas)
+
+
 # ── CLI ────────────────────────────────────────────────────────
 def cmd(args, cfg) -> None:
     a = getattr(args, "acao", "painel")
@@ -402,6 +469,8 @@ def cmd(args, cfg) -> None:
                        conta=args.a3 or "cartao")
             print(f"✔ fatura {f['conta']} R$ {_br(Decimal(f['valor']))} "
                   f"vence {f['vencimento']}")
+        elif a == "participantes":
+            print(participantes(cfg, args.a1 or ""))
         elif a == "sumup":
             sub = args.a1 or "status"
             if sub == "setup":

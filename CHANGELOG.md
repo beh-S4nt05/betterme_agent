@@ -1,5 +1,30 @@
 # Changelog
 
+## v7.4.0 — 🔗 OPEN FINANCE: LISTA OFICIAL + BELVO MCP
+
+O operador trouxe o quadro regulatório (participação obrigatória
+S1/S2, voluntária para as demais, dispensas Res. BCB 295/2023) —
+vira ferramenta:
+
+- **`betterme financas participantes <banco>`**: consulta a lista
+  OFICIAL do Open Finance Brasil (openfinancebrasil.org.br, 323
+  instituições, atualização visível) com parser `data-marca`/
+  `data-modalidades`, cache local de 24 h e busca sem acento —
+  responde SE participa e em QUAL papel (detentora de conta,
+  transmissora/receptora, iniciação de pagamentos). Validado ao
+  vivo: "✔ SumUp — Instituição detentora de conta".
+- **`betterme belvo`** (guia|token|status|remover): conector do
+  Belvo MCP (Open Finance somente leitura, grátis, canal regulado).
+  Token em secrets/belvo.json 600, servidor MCP registrado com
+  Bearer no header, `status` faz handshake REAL (initialize) e
+  remoção limpa. ER honesta do pedido "refazer o sistema da
+  Belvo": o servidor de autorização exige aplicação REGISTRADA
+  (probe real: "Application not found"; sem registration_endpoint)
+  — o client_id é o ativo que não se reproduz; o cliente, sim, é
+  protocolo público e agora é nativo.
+- T216 (token/status/remover + guia) · T217 (lista oficial com
+  cache) — **217/217**.
+
 ## v7.3.0 — 💰 FINANÇAS: CONTROLE DE GASTOS (PEDIDO DO OPERADOR)
 
 Livro-caixa local para PF e PJ, com os meios que existem de verdade

@@ -92,6 +92,12 @@ def cmd_agent(args) -> None:
     (_ok if result["ok"] else _fail)(result["msg"])
 
 
+def cmd_belvo(args) -> None:
+    """🔗 Belvo MCP — Open Finance somente leitura (v7.4.0)."""
+    from .belvo import cmd as _bcmd
+    _bcmd(args, _cfg(args))
+
+
 def cmd_financas(args) -> None:
     """💰 Finanças — livro-caixa local (v7.3.0)."""
     from .financas import cmd as _fcmd
@@ -1010,11 +1016,22 @@ def build_parser() -> argparse.ArgumentParser:
                    help="[com 'modo'] 'envio' libera o envio; 'leitura' volta a somente ver")
     p.set_defaults(fn=cmd_email)
 
+    p = sub.add_parser("belvo",
+                       help="🔗 Belvo MCP — Open Finance somente leitura: "
+                            "guia, token, status, remover (v7.4.0)")
+    p.add_argument("acao", nargs="?", default="guia",
+                   help="guia|token|status|remover")
+    p.add_argument("a1", nargs="?", default=None,
+                   help="[token] o token de acesso")
+    p.add_argument("--expira", type=int, default=None,
+                   help="[token] minutos até expirar (opcional)")
+    p.set_defaults(fn=cmd_belvo)
+
     p = sub.add_parser("financas",
                        help="💰 livro-caixa: gastos, entradas, extratos, "
                             "faturas e painel do mês (v7.3.0)")
     p.add_argument("acao", nargs="?", default="painel",
-                   help="painel|lancar|importar|fatura|sumup|mes")
+                   help="painel|lancar|importar|fatura|sumup|mes|participantes")
     p.add_argument("a1", nargs="?", default=None,
                    help="[lancar] valor · [importar] arquivo · [fatura] valor · [sumup] setup|sync|status")
     p.add_argument("a2", nargs="?", default=None,
