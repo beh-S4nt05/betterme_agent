@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Suíte de testes do Betterme Agent (v3.0).
+"""Suíte de testes do Pluto Agente (v3.0).
 
 Rode com:
     ./.venv/bin/python tests/run_all.py        # no projeto
     python3 tests/run_all.py                    # se as deps estiverem globais
 
-Cada caso usa um diretório temporário PRÓPRIO (nada toca em ~/.betterme).
+Cada caso usa um diretório temporário PRÓPRIO (nada toca em ~/.pluto).
 Cobre: módulos v3.0 (backups, auditoria, métricas, notificações, memória,
 seletor, orçamento, paralelismo, cache, scheduler, supervisor), endpoints
 da API, regressões das v2.x (JSON solto, anti-loop, modo leve do Claude
@@ -24,29 +24,29 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-os.environ.setdefault("BETTERME_MOCK", "1")
+os.environ.setdefault("PLUTO_MOCK", "1")
 
 
-def _betterme_bin() -> list[str]:
+def _pluto_bin() -> list[str]:
     """v7.1.1 (integralização): comando do CLI nos SUBPROCESSOS de teste
     — binário do venv de dev quando existe, senão o interpretador
     atual (portável: a suíte roda igual numa instalação por zip,
     fora do layout ./.venv do repo)."""
-    cand = ROOT / ".venv" / "bin" / "betterme"
+    cand = ROOT / ".venv" / "bin" / "pluto"
     if cand.is_file():
         return [str(cand)]
-    return [sys.executable, "-m", "betterme"]
+    return [sys.executable, "-m", "pluto"]
 
 
 def _hermes_bin() -> list[str]:
     """Alias legado `hermes` (console script do pyproject) — resolvido
-    ao lado do binário que o _betterme_bin() escolheu (dev ou install)."""
-    base = Path(_betterme_bin()[0]).parent
+    ao lado do binário que o _pluto_bin() escolheu (dev ou install)."""
+    base = Path(_pluto_bin()[0]).parent
     cand = base / "hermes"
     if cand.is_file():
         return [str(cand)]
     return [sys.executable, "-c",
-            "import sys; from betterme.cli import main; sys.argv[0]='hermes'; main()"]
+            "import sys; from pluto.cli import main; sys.argv[0]='hermes'; main()"]
 
 try:
     import flask  # noqa: F401
@@ -55,7 +55,7 @@ except ImportError:
     print("    ./.venv/bin/python tests/run_all.py")
     sys.exit(2)
 
-from betterme.config import Config  # noqa: E402
+from pluto.config import Config  # noqa: E402
 
 CASES = []
 PASSED: list[str] = []
@@ -69,7 +69,7 @@ def case(fn):
 
 def fresh(**overrides) -> Config:
     """Config isolada em diretório temporário (anti-contaminação)."""
-    cfg = Config(data_dir=tempfile.mkdtemp(prefix="betterme-t-"), mock=True)
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="pluto-t-"), mock=True)
     for k, v in overrides.items():
         cfg.update({k: v})
     return cfg
@@ -98,8 +98,8 @@ def run_all() -> int:
 
 @case
 def T01_backups_grava_restaura_preserva():
-    from betterme import backups as B
-    from betterme.tools import execute_tool
+    from pluto import backups as B
+    from pluto.tools import execute_tool
 
     cfg = fresh()
     f = cfg.workdir / "relatorio.txt"
@@ -117,7 +117,7 @@ def T01_backups_grava_restaura_preserva():
 
 @case
 def T02_backups_bloqueia_fora_do_workspace():
-    from betterme import backups as B
+    from pluto import backups as B
 
     cfg = fresh()
     outside = Path(tempfile.mkdtemp()) / "alvo.txt"
@@ -135,8 +135,8 @@ def T02_backups_bloqueia_fora_do_workspace():
 
 @case
 def T03_auditoria_registra_e_consulta():
-    from betterme import audit
-    from betterme.tools import execute_tool
+    from pluto import audit
+    from pluto.tools import execute_tool
 
     cfg = fresh()
     execute_tool("list_dir", {"path": "."}, cfg)
@@ -149,10 +149,10 @@ def T03_auditoria_registra_e_consulta():
 
 @case
 def T04_metricas_record_summary_recent():
-    from betterme import metrics
+    from pluto import metrics
 
     cfg = fresh()
-    metrics.record(cfg, "betterme", "modelo-x", 12.0, 240, 20.0, 3)
+    metrics.record(cfg, "pluto", "modelo-x", 12.0, 240, 20.0, 3)
     metrics.record(cfg, "claude", "modelo-x", 8.0, 100, 12.5, 1)
     s = metrics.summary(cfg)
     assert s["n"] == 2 and s["avg_tok_s"] == 16.2 and len(s["spark"]) == 2
@@ -161,7 +161,7 @@ def T04_metricas_record_summary_recent():
 
 @case
 def T05_notificacoes_push_unread_mark():
-    from betterme import notify
+    from pluto import notify
 
     cfg = fresh()
     notify.push(cfg, "task_error", "Falhou", "detalhe")
@@ -174,7 +174,7 @@ def T05_notificacoes_push_unread_mark():
 
 @case
 def T06_memoria_por_relevancia():
-    from betterme.memory import MemoryStore
+    from pluto.memory import MemoryStore
 
     cfg = fresh()
     mem = MemoryStore(cfg)
@@ -192,7 +192,7 @@ def T06_memoria_por_relevancia():
 
 @case
 def T07_seletor_de_ferramentas_mcp():
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh()
     ag = Agent(cfg)
@@ -210,7 +210,7 @@ def T07_seletor_de_ferramentas_mcp():
 
 @case
 def T08_orcamento_corta_cadeia_infinita():
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh(max_tool_calls=3, max_steps=20)
 
@@ -236,7 +236,7 @@ def T08_orcamento_corta_cadeia_infinita():
 
 @case
 def T09_ferramentas_em_paralelo():
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh()
 
@@ -261,8 +261,8 @@ def T09_ferramentas_em_paralelo():
 
 @case
 def T10_cache_do_prompt():
-    from betterme.agent import Agent
-    from betterme.memory import MemoryStore
+    from pluto.agent import Agent
+    from pluto.memory import MemoryStore
 
     cfg = fresh()
 
@@ -292,7 +292,7 @@ def T10_cache_do_prompt():
 
 @case
 def T11_passos_com_duracao():
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh()
 
@@ -315,7 +315,7 @@ def T11_passos_com_duracao():
 
 @case
 def T12_prompt_de_sistema_continua_enxuto():
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh()
     ag = Agent(cfg)
@@ -337,7 +337,7 @@ def T12_prompt_de_sistema_continua_enxuto():
 @case
 def T13_regressao_json_solto_v225():
     """O texto EXATO que o modelo do usuário cuspiu deve virar execução REAL."""
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh()
     texto = ('erton:\n{ "name": "sys_info", "arguments": {}}\n'
@@ -365,7 +365,7 @@ def T13_regressao_json_solto_v225():
 
 @case
 def T14_regressao_anti_loop_v227():
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh()
     call = [{"function": {"name": "list_dir", "arguments": {"path": "."}}}]
@@ -386,7 +386,7 @@ def T14_regressao_anti_loop_v227():
 
 @case
 def T15_regressao_keep_alive_e_options_v221():
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh(keep_alive="1h", num_predict=512)
     visto: dict = {}
@@ -408,7 +408,7 @@ def T15_regressao_keep_alive_e_options_v221():
 
 @case
 def T16_regressao_denylist_seguranca():
-    from betterme.tools import execute_tool, is_dangerous
+    from pluto.tools import execute_tool, is_dangerous
 
     cfg = fresh()
     r = execute_tool("run_command", {"command": "rm -rf / --no-preserve-root"}, cfg)
@@ -422,13 +422,13 @@ def T16_regressao_denylist_seguranca():
 
 @case
 def T17_claude_modo_leve_e_fallback_de_cli_antiga():
-    from betterme.claude_agent import run_claude
+    from pluto.claude_agent import run_claude
 
     # mock=False: precisa executar a CLI de verdade (falsas, abaixo)
-    cfg = Config(data_dir=tempfile.mkdtemp(prefix="betterme-t-"), mock=False)
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="pluto-t-"), mock=False)
     cfg.update({"model": "qwen2.5-coder:7b", "claude_model": ""})
 
-    # CLI nova: --bare + diretiva PT + ferramentas essenciais + modelo do Betterme
+    # CLI nova: --bare + diretiva PT + ferramentas essenciais + modelo do Pluto
     d = Path(tempfile.mkdtemp())
     nova = d / "claude"
     nova.write_text("#!/bin/bash\n"
@@ -470,7 +470,7 @@ def T17_claude_modo_leve_e_fallback_de_cli_antiga():
 
 @case
 def T18_claude_model_vazio_usa_modelo_do_hermes_v222():
-    from betterme.claude_agent import _claude_cmd
+    from pluto.claude_agent import _claude_cmd
 
     cfg = fresh()
     cfg.update({"model": "hermes3:8b", "claude_model": ""})
@@ -485,7 +485,7 @@ def T18_claude_model_vazio_usa_modelo_do_hermes_v222():
 
 @case
 def T19_historico_de_execucoes():
-    from betterme import scheduler as S
+    from pluto import scheduler as S
 
     cfg = fresh()
     store = S.ScheduleStore(cfg)
@@ -500,8 +500,8 @@ def T19_historico_de_execucoes():
 
 @case
 def T20_retry_com_notificacoes():
-    from betterme import notify, scheduler as S
-    import betterme.agent as A
+    from pluto import notify, scheduler as S
+    import pluto.agent as A
 
     cfg = fresh()
     store = S.ScheduleStore(cfg)
@@ -538,7 +538,7 @@ def T20_retry_com_notificacoes():
 
 @case
 def T21_watcher_dispara_somente_arquivos_novos():
-    from betterme import scheduler as S
+    from pluto import scheduler as S
 
     watch = Path(tempfile.mkdtemp())
     cfg = fresh()
@@ -563,7 +563,7 @@ def T21_watcher_dispara_somente_arquivos_novos():
 
 @case
 def T22_webhook_nunca_dispara_por_tempo():
-    from betterme import scheduler as S
+    from pluto import scheduler as S
 
     cfg = fresh()
     store = S.ScheduleStore(cfg)
@@ -584,7 +584,7 @@ def T22_webhook_nunca_dispara_por_tempo():
 
 @case
 def T23_only_idle_adia_quando_ocupada():
-    from betterme import scheduler as S
+    from pluto import scheduler as S
 
     cfg = fresh()
     store = S.ScheduleStore(cfg)
@@ -615,8 +615,8 @@ def T23_only_idle_adia_quando_ocupada():
 def T24_supervisor_reinicia_mcp_morto():
     from unittest.mock import patch
 
-    from betterme import notify
-    from betterme.supervisor import McpSupervisor
+    from pluto import notify
+    from pluto.supervisor import McpSupervisor
 
     cfg = fresh()
 
@@ -634,7 +634,7 @@ def T24_supervisor_reinicia_mcp_morto():
             self.restarted.append(name)
 
     fake = FakeMgr()
-    with patch("betterme.mcp_client.get_manager", return_value=fake):
+    with patch("pluto.mcp_client.get_manager", return_value=fake):
         evs = McpSupervisor(cfg).check_once()
     assert fake.restarted == ["figma"] and evs[0]["restarted"]
     assert any("reiniciado" in n["title"] for n in notify.list_all(cfg))
@@ -643,11 +643,11 @@ def T24_supervisor_reinicia_mcp_morto():
 # ══════════════════════════════ API (test client) ══════════════════════════════
 
 def _app(cfg):
-    from betterme.scheduler import Scheduler
-    from betterme.server.app import create_app
+    from pluto.scheduler import Scheduler
+    from pluto.server.app import create_app
 
     app = create_app(cfg)
-    app.config["BETTERME_SCHEDULER"] = Scheduler(cfg)
+    app.config["PLUTO_SCHEDULER"] = Scheduler(cfg)
     return app.test_client()
 
 
@@ -667,13 +667,13 @@ def T25_endpoints_leitura_v3():
 def T26_chat_gera_metricas_e_auditoria():
     cfg = fresh()
     c = _app(cfg)
-    r = c.post("/api/chat", json={"message": "oi v3", "agent": "betterme"})
+    r = c.post("/api/chat", json={"message": "oi v3", "agent": "pluto"})
     assert r.status_code == 200
     list(r.response)
     assert c.get("/api/metrics?limit=5").json["summary"]["n"] == 1
     # JSON solto com ferramenta real → executa → audita
     r2 = c.post("/api/chat", json={"message": 'rode {"tool": "sys_info", "args": {}}',
-                                   "agent": "betterme"})
+                                   "agent": "pluto"})
     list(r2.response)
     ferramentas = [x["tool"] for x in c.get("/api/audit?limit=10").json["records"]]
     assert "sys_info" in ferramentas
@@ -683,7 +683,7 @@ def T26_chat_gera_metricas_e_auditoria():
 def T27_backups_e_restore_pela_api():
     cfg = fresh()
     c = _app(cfg)
-    from betterme.tools import execute_tool
+    from pluto.tools import execute_tool
 
     cfg.workdir.joinpath("api.txt").write_text("v1", encoding="utf-8")
     execute_tool("write_file", {"path": "api.txt", "content": "v2"}, cfg)
@@ -729,7 +729,7 @@ def T29_watch_valida_e_persiste_campos():
 def T30_export_conversa_md_e_json():
     cfg = fresh()
     c = _app(cfg)
-    from betterme.conversations import ConversationStore
+    from pluto.conversations import ConversationStore
 
     store = ConversationStore(cfg)
     s = store.new_session()
@@ -738,7 +738,7 @@ def T30_export_conversa_md_e_json():
     r = c.get(f"/api/conversations/{s['id']}/export?fmt=md")
     body = r.get_data(as_text=True)
     assert r.status_code == 200 and "attachment" in r.headers["Content-Disposition"]
-    assert "42" in body and "◈ Betterme" in body and "(2.5s)" in body
+    assert "42" in body and "◈ Pluto" in body and "(2.5s)" in body
     assert '"messages"' in c.get(f"/api/conversations/{s['id']}/export?fmt=json").get_data(as_text=True)
 
 
@@ -774,14 +774,14 @@ def T32_settings_aceita_chaves_v3():
 def T33_cli_versao_e_doctor():
     venv_py = ROOT / ".venv" / "bin" / "python"
     py = str(venv_py) if venv_py.exists() else sys.executable
-    out = os.popen(f'"{py}" -m betterme --version 2>&1').read()
-    from betterme.config import VERSION
+    out = os.popen(f'"{py}" -m pluto --version 2>&1').read()
+    from pluto.config import VERSION
     assert VERSION in out, f"esperava {VERSION}: {out}"
-    env = dict(os.environ, BETTERME_DATA_DIR=tempfile.mkdtemp(prefix="betterme-cli-"),
-               BETTERME_MOCK="1")
+    env = dict(os.environ, PLUTO_DATA_DIR=tempfile.mkdtemp(prefix="pluto-cli-"),
+               PLUTO_MOCK="1")
     import subprocess
 
-    r = subprocess.run([py, "-m", "betterme", "doctor"], capture_output=True,
+    r = subprocess.run([py, "-m", "pluto", "doctor"], capture_output=True,
                        text=True, env=env, timeout=120, cwd=str(ROOT))
     texto = r.stdout + r.stderr
     assert "Doctor" in texto and "Ollama" in texto, texto[:200]
@@ -810,11 +810,11 @@ def T34_anti_csrf_post_cross_origin():
     # ...mas passa com token válido (integração externa legítima)
     cfg.update({"auth_token": "segredo"})
     r = c.post("/api/schedules", json=ok_body,
-               headers={"Origin": "https://evil.com", "X-Betterme-Token": "segredo"})
+               headers={"Origin": "https://evil.com", "X-Pluto-Token": "segredo"})
     assert r.status_code == 200
     # GET não é afetado pelo guard (só pelo token, se houver)
     assert c.get("/api/status", headers={"Origin": "https://evil.com",
-                                         "X-Betterme-Token": "segredo"}).status_code == 200
+                                         "X-Pluto-Token": "segredo"}).status_code == 200
 
 
 @case
@@ -833,14 +833,14 @@ def T36_prompt_prefixo_estavel_sem_hora():
     """A data/hora sai da chave do cache: prefixo estável entre minutos."""
     from unittest.mock import patch
 
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh()
     ag = Agent(cfg)
-    with patch("betterme.agent.time.strftime", return_value="2026-01-01 10:00"):
+    with patch("pluto.agent.time.strftime", return_value="2026-01-01 10:00"):
         k1 = ag._prompt_key("pergunta")
         p1 = ag.system_prompt("pergunta")
-    with patch("betterme.agent.time.strftime", return_value="2026-01-01 10:59"):
+    with patch("pluto.agent.time.strftime", return_value="2026-01-01 10:59"):
         k2 = ag._prompt_key("pergunta")
         p2 = ag.system_prompt("pergunta")
     assert k1 == k2, "chave ainda depende do relógio"
@@ -853,7 +853,7 @@ def T37_system_busy_relativo_a_nucleos():
     """Load 3.5: ocioso em 16 núcleos, ocupado em 2."""
     from unittest.mock import patch
 
-    import betterme.scheduler as S
+    import pluto.scheduler as S
     with patch.object(S.Path, "read_text", return_value="3.50 1 1 1/1 1"), \
          patch.object(S.os, "cpu_count", return_value=16):
         assert S._system_busy() is False
@@ -869,7 +869,7 @@ def T37_system_busy_relativo_a_nucleos():
 
 def _fake_cli(script_body: str) -> tuple[Path, Path]:
     """Cria CLI falsa; devolve (dir, executável)."""
-    d = Path(tempfile.mkdtemp(prefix="betterme-cli-"))
+    d = Path(tempfile.mkdtemp(prefix="pluto-cli-"))
     exe = d / "claude"
     exe.write_text("#!/bin/bash\n" + script_body, encoding="utf-8")
     exe.chmod(0o755)
@@ -885,9 +885,9 @@ def _cli_prologue() -> str:
 def T38_guard_retry_modelo_recupera_e_executa():
     """1ª resposta: comando em bloco de código sem executar → guard repete
     com ordem direta → 2ª resposta CHAMA Bash e entrega saída real."""
-    from betterme.claude_agent import run_claude
+    from pluto.claude_agent import run_claude
 
-    cfg = Config(data_dir=tempfile.mkdtemp(prefix="betterme-t-"), mock=False)
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="pluto-t-"), mock=False)
     cfg.update({"model": "qwen2.5-coder:7b"})
     body = (_cli_prologue()
             + 'N=$(cat "$D/cnt" 2>/dev/null || echo 0); N=$((N+1)); echo $N > "$D/cnt"\n'
@@ -919,12 +919,12 @@ def T38_guard_retry_modelo_recupera_e_executa():
 
 @case
 def T39_guard_teimoso_hermes_executa_no_lugar():
-    """Modelo insiste em não executar → Betterme executa os comandos de verdade
+    """Modelo insiste em não executar → Pluto executa os comandos de verdade
     (denylist + auditoria) e entrega a saída REAL — nunca deixa na mão."""
-    from betterme import audit
-    from betterme.claude_agent import run_claude
+    from pluto import audit
+    from pluto.claude_agent import run_claude
 
-    cfg = Config(data_dir=tempfile.mkdtemp(prefix="betterme-t-"), mock=False)
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="pluto-t-"), mock=False)
     cfg.update({"model": "qwen2.5-coder:7b"})
     body = (_cli_prologue()
             + "cat <<'EOF'\n"
@@ -937,7 +937,7 @@ def T39_guard_teimoso_hermes_executa_no_lugar():
         final = run_claude(cfg, "informações do sistema", history=[], on_event=evs.append)
         assert "zorin-guard-ok" in final, final[:300]      # comando REAL executou
         assert "pulado" in final                            # bloco alucinado pulado
-        assert "guard de execução do Betterme" in final
+        assert "guard de execução do Pluto" in final
         assert any(e["type"] == "tool_start" and e["name"] == "run_command" for e in evs)
         recs = audit.query(cfg, tool="run_command", limit=10)
         assert any(r.get("source") == "guard-claude" for r in recs), recs
@@ -1132,7 +1132,7 @@ class _FakeCal(_threading.Thread):
                                    self.headers.get("Authorization", "")))
                 if self.path.startswith("/calendars/primary/events"):
                     self._send({"items": [
-                        {"summary": "Reunião do projeto Betterme", "status": "confirmed",
+                        {"summary": "Reunião do projeto Pluto", "status": "confirmed",
                          "start": {"dateTime": (hoje.replace(hour=9, minute=0,
                                              second=0, microsecond=0)).isoformat()},
                          "end": {"dateTime": (hoje.replace(hour=10, minute=0,
@@ -1199,8 +1199,8 @@ class _FakeToken(_threading.Thread):
 def T40_email_mcp_e2e_imap_smtp_reais():
     """Servidor MCP de e-mail via protocolo REAL (stdio) contra IMAP/SMTP
     falsos: listar, buscar, ler (assunto UTF-8) e enviar."""
-    from betterme import emailcfg
-    from betterme.mcp_client import get_manager, map_tool_name
+    from pluto import emailcfg
+    from pluto.mcp_client import get_manager, map_tool_name
 
     cfg = fresh()
     imap = _FakeImap()
@@ -1251,8 +1251,8 @@ def T41_secrets_protegidos_contra_o_agente():
     nada de senhas no config.yaml."""
     import stat as _stat
 
-    from betterme import emailcfg
-    from betterme.tools import execute_tool
+    from pluto import emailcfg
+    from pluto.tools import execute_tool
 
     cfg = fresh()
     emailcfg.save(cfg, {"accounts": [{
@@ -1265,7 +1265,7 @@ def T41_secrets_protegidos_contra_o_agente():
     r = execute_tool("run_command", {"command": f"cat {p}"}, cfg)
     assert not r["ok"] and "credenciais" in r["output"], r["output"][:150]
     r2 = execute_tool("run_command",
-                      {"command": "grep -i senha ~/.betterme/secrets/email.json"}, cfg)
+                      {"command": "grep -i senha ~/.pluto/secrets/email.json"}, cfg)
     assert not r2["ok"] and "credenciais" in r2["output"]
     # read_file fora do workspace → sandbox bloqueia
     r3 = execute_tool("read_file", {"path": str(p)}, cfg)
@@ -1282,12 +1282,12 @@ def T41_secrets_protegidos_contra_o_agente():
 def T42_log_mostra_todas_as_atividades():
     """Chat, ferramenta, tarefa agendada, ajustes e ações do painel
     aparecem no agent.log (que o Log ao vivo faz tail)."""
-    from betterme import scheduler as S
+    from pluto import scheduler as S
 
     cfg = fresh()
     c = _app(cfg)
     # 1. chat (mock) → pergunta + resposta
-    r = c.post("/api/chat", json={"message": "teste do log vivo", "agent": "betterme"})
+    r = c.post("/api/chat", json={"message": "teste do log vivo", "agent": "pluto"})
     list(r.response)
     # 2. ferramenta via terminal da GUI
     assert c.post("/api/tools/run", json={"command": "echo log-vivo-ok"}).json["ok"]
@@ -1318,7 +1318,7 @@ def T42_log_mostra_todas_as_atividades():
 @case
 def T43_activity_rotacao_por_tamanho():
     """agent.log rota em 5 MB (mantém .log.1) — sem crescer sem fim."""
-    from betterme import activity
+    from pluto import activity
 
     cfg = fresh()
     activity.log(cfg, "t", "linha 1", max_bytes=30)
@@ -1335,8 +1335,8 @@ def T43_activity_rotacao_por_tamanho():
 def T44_email_oauth_xoauth2_e2e():
     """Conta OAuth (XOAUTH2): refresh via token endpoint + login IMAP/SMTP
     com Bearer — ponta a ponta pelo servidor MCP real."""
-    from betterme import emailcfg
-    from betterme.mcp_client import get_manager, map_tool_name
+    from pluto import emailcfg
+    from pluto.mcp_client import get_manager, map_tool_name
 
     cfg = fresh()
     imap = _FakeImap(); imap.start()
@@ -1378,7 +1378,7 @@ def T44_email_oauth_xoauth2_e2e():
 @case
 def T45_oauth_device_flow_e_token_refresh():
     """Fluxo device-code (endpoint falso) e renovação quando o token expira."""
-    from betterme import emailcfg
+    from pluto import emailcfg
 
     # refresh: token válido em cache não bate no endpoint; expirado bate
     acc = {"client_id": "cid", "refresh_token": "rtok", "oauth_scopes": "s",
@@ -1409,7 +1409,7 @@ def T45_oauth_device_flow_e_token_refresh():
             return False
 
     saida: list[str] = []
-    import betterme.emailcfg as ec
+    import pluto.emailcfg as ec
     orig_request = ec.urllib.request.Request
     orig_urlopen = ec.urllib.request.urlopen
     def _device_resp(req, timeout=20):
@@ -1440,9 +1440,9 @@ def T45_oauth_device_flow_e_token_refresh():
 @case
 def T47_email_somente_leitura_padrao():
     """v3.1.3: conta SEM flag readonly → envio BLOQUEADO por padrão (o agente
-    só visualiza); `betterme email modo ... envio` libera; leitura sempre OK."""
-    from betterme import emailcfg
-    from betterme.mcp_client import get_manager, map_tool_name
+    só visualiza); `pluto email modo ... envio` libera; leitura sempre OK."""
+    from pluto import emailcfg
+    from pluto.mcp_client import get_manager, map_tool_name
 
     cfg = fresh()
     imap = _FakeImap(); imap.start()
@@ -1491,8 +1491,8 @@ def T47_email_somente_leitura_padrao():
 def T48_agenda_google_somente_leitura():
     """MCP agenda: device flow com escopo calendar.readonly, refresh do token,
     eventos via GET (nunca POST) e cache do access_token entre chamadas."""
-    from betterme import agendacfg
-    from betterme.mcp_client import get_manager, map_tool_name
+    from pluto import agendacfg
+    from pluto.mcp_client import get_manager, map_tool_name
 
     cfg = fresh()
     cal = _FakeCal(); cal.start()
@@ -1504,7 +1504,7 @@ def T48_agenda_google_somente_leitura():
         "token_endpoint": f"http://127.0.0.1:{tok_srv.port}/token",
         "access_token": None, "token_expires": 0}], "default": "gcal1"})
     # API falsa para o subprocesso do MCP (env da entrada de config)
-    os.environ["BETTERME_AGENDA_API"] = f"http://127.0.0.1:{cal.port}"
+    os.environ["PLUTO_AGENDA_API"] = f"http://127.0.0.1:{cal.port}"
     try:
         agendacfg.register_mcp(cfg)
         mgr = get_manager(cfg)
@@ -1516,7 +1516,7 @@ def T48_agenda_google_somente_leitura():
                     or "apaga" in n or "delete" in n or "move" in n]
         res = mgr.call(map_tool_name("agenda", "agenda_hoje"), {})
         assert res["ok"], res["output"][:300]
-        assert "Reunião do projeto Betterme" in res["output"]
+        assert "Reunião do projeto Pluto" in res["output"]
         assert "dia inteiro" in res["output"]          # evento de dia todo
         assert "Sala 3" in res["output"] and "3 participante" in res["output"]
         # acesso foi Bearer com token renovado no endpoint falso
@@ -1533,7 +1533,7 @@ def T48_agenda_google_somente_leitura():
         assert res["ok"] and "somente leitura" in res["output"]
         mgr.stop_all()
     finally:
-        os.environ.pop("BETTERME_AGENDA_API", None)
+        os.environ.pop("PLUTO_AGENDA_API", None)
         cal.httpd.shutdown(); tok_srv.httpd.shutdown()
     # escopo é somente leitura por definição
     assert agendacfg.CAL_SCOPE.endswith("calendar.readonly")
@@ -1575,7 +1575,7 @@ def _esperar(evs, pred, seg=25):
 def T76_orquestrador_aprende_experiencia():
     """v3.10 🧠: as tasks recentes (com as EDIÇÕES do operador) entram no
     contexto do planejador — reprovação e edição viram experiência."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     assert orc.experience(cfg) == ""                       # sem tasks: nada
@@ -1614,7 +1614,7 @@ def T77_hermes_update_offline():
     """v3.10 ⬇: lógica do update sem rede — escolha da última tag,
     comparação de versões e aplicação que PRESERVA data/.venv/.git."""
     import shutil as _sh
-    from betterme import update as up
+    from pluto import update as up
 
     # latest_tag com fetch injetado (sem rede)
     fetch = lambda url: json.dumps([{"name": "v3.9.0"}, {"name": "v3.10.0"},
@@ -1625,29 +1625,29 @@ def T77_hermes_update_offline():
     assert up.latest_tag(lambda url: "lixo") is None    # resposta inválida
     # apply_update preserva o que é local
     src = Path(tempfile.mkdtemp()) / "novo"
-    (src / "betterme").mkdir(parents=True)
-    (src / "betterme" / "novo.py").write_text("# novo", encoding="utf-8")
+    (src / "pluto").mkdir(parents=True)
+    (src / "pluto" / "novo.py").write_text("# novo", encoding="utf-8")
     (src / "pyproject.toml").write_text("novo", encoding="utf-8")
     (src / "data").mkdir()
     (src / "data" / "segredo.txt").write_text("não me toque", encoding="utf-8")
     dest = Path(tempfile.mkdtemp())
-    (dest / "betterme").mkdir()
-    (dest / "betterme" / "velho.py").write_text("# velho", encoding="utf-8")
+    (dest / "pluto").mkdir()
+    (dest / "pluto" / "velho.py").write_text("# velho", encoding="utf-8")
     (dest / "data").mkdir()
     (dest / "data" / "conversas.json").write_text("importante", encoding="utf-8")
     (dest / ".venv").mkdir()
     (dest / ".venv" / "bin").write_text("x", encoding="utf-8")
     atualizados = up.apply_update(src, dest, log=lambda *_: None)
-    assert "betterme" in atualizados and "pyproject.toml" in atualizados
+    assert "pluto" in atualizados and "pyproject.toml" in atualizados
     assert "data" not in atualizados
-    assert (dest / "betterme" / "novo.py").exists()
+    assert (dest / "pluto" / "novo.py").exists()
     assert (dest / "data" / "conversas.json").read_text() == "importante"
     assert (dest / ".venv" / "bin").exists()
     _sh.rmtree(src.parent, ignore_errors=True)
     _sh.rmtree(dest, ignore_errors=True)
     # CLI tem o comando
     import subprocess as _sp
-    r = _sp.run([*_betterme_bin(), "update", "--help"],
+    r = _sp.run([*_pluto_bin(), "update", "--help"],
                 capture_output=True, text=True, timeout=30)
     assert "check" in (r.stdout + r.stderr).lower()
 
@@ -1656,7 +1656,7 @@ def T77_hermes_update_offline():
 def T78_painel_de_saude_do_pipeline():
     """v3.10 📊: /api/orchestrator/stats calcula o funil (aprovação na 1ª,
     tentativas, duração, edições, skills top, por dia) e o Painel tem o card."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     d = c.get("/api/orchestrator/stats").get_json()
@@ -1694,7 +1694,7 @@ def T79_edicao_do_operador_muda_decisao_do_planejador():
     decisão do planejador MUDA na task seguinte (executar com relatório
     → responder direto). Cadeia completa: edição → jsonl → experience()
     → prompt → decisão."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     prompts = []
     orig = orc._fast
@@ -1739,10 +1739,10 @@ def T80_memoria_persiste_restart_e_tem_limite():
     """v3.10 🧠 ACEITAÇÃO — esperado: a memória vem do DISCO (jsonl),
     não da RAM: novo processo mantém a preferência; janela de 6 tasks;
     bloco cortado em 1600 chars; histórico vazio não injeta nada."""
-    from betterme import orchestrator as orc
-    from betterme.config import Config
+    from pluto import orchestrator as orc
+    from pluto.config import Config
 
-    d = tempfile.mkdtemp(prefix="betterme-restart-")
+    d = tempfile.mkdtemp(prefix="pluto-restart-")
     cfg1 = Config(data_dir=d, mock=True)
     orc.record(cfg1, {"objetivo": "relatório", "tipo": "criacao",
                       "status": "aprovada", "tentativas": 1, "dur_s": 5.0,
@@ -1777,16 +1777,16 @@ def T81_update_end_to_end_v3110_local():
     (download REAL via file://), preserva data/ e .venv, não apaga
     arquivos locais, recusa downgrade e é rápido."""
     import zipfile as _zf
-    from betterme import update as up
-    from betterme.config import VERSION as _V
+    from pluto import update as up
+    from pluto.config import VERSION as _V
 
     # fixture SEMPRE à frente da versão instalada (senão quebra a cada release)
     _p = [int(x) for x in _V.split(".")]
     nova = f"v{_p[0]}.{_p[1] + 1}.0"
-    tmp = Path(tempfile.mkdtemp(prefix="betterme-upd-"))
-    src = tmp / f"personal-hermes-agent-behsantos-{nova}"
-    (src / "betterme").mkdir(parents=True)
-    (src / "betterme" / "__init__.py").write_text(
+    tmp = Path(tempfile.mkdtemp(prefix="pluto-upd-"))
+    src = tmp / f"{up.REPO.split('/')[-1]}-{nova}"
+    (src / "pluto").mkdir(parents=True)
+    (src / "pluto" / "__init__.py").write_text(
         f'VERSION = "{nova.lstrip("v")}"', encoding="utf-8")
     (src / "pyproject.toml").write_text(f'version = "{nova.lstrip("v")}"',
                                         encoding="utf-8")
@@ -1804,8 +1804,8 @@ def T81_update_end_to_end_v3110_local():
         json.dumps([{"name": "v3.9.0"}]), encoding="utf-8")
 
     dest = tmp / "inst"
-    (dest / "betterme").mkdir(parents=True)
-    (dest / "betterme" / "cli.py").write_text("# velho", encoding="utf-8")
+    (dest / "pluto").mkdir(parents=True)
+    (dest / "pluto" / "cli.py").write_text("# velho", encoding="utf-8")
     (dest / "pyproject.toml").write_text('version = "3.10.0"',
                                          encoding="utf-8")
     (dest / "data").mkdir()
@@ -1825,22 +1825,22 @@ def T81_update_end_to_end_v3110_local():
         texto = " ".join(out)
         assert rc == 0 and dur < 5, texto
         assert nova in texto and "itens atualizados" in texto
-        assert (dest / "betterme" / "__init__.py").read_text(
+        assert (dest / "pluto" / "__init__.py").read_text(
             encoding="utf-8") == f'VERSION = "{nova.lstrip("v")}"'
         assert (dest / "data" / "conversas.json").read_text(
             encoding="utf-8") == "[1,2,3]"           # dados sobrevivem
         assert not (dest / "data" / "do-repo.txt").exists()
         assert (dest / ".venv" / "bin").exists()
-        assert (dest / "betterme" / "cli.py").read_text(
+        assert (dest / "pluto" / "cli.py").read_text(
             encoding="utf-8") == "# velho"           # não apaga local
 
         # --check avisa e NÃO aplica
-        (dest / "betterme" / "__init__.py").unlink()
+        (dest / "pluto" / "__init__.py").unlink()
         out2 = []
         assert up.run(check_only=True, assume_yes=True,
                       print_fn=out2.append) == 0
         assert "há atualização" in " ".join(out2)
-        assert not (dest / "betterme" / "__init__.py").exists()
+        assert not (dest / "pluto" / "__init__.py").exists()
 
         # só há versão MAIS VELHA: não faz nada
         up.TAGS_API = f"file://{tmp}/tags-velhas.json"
@@ -1858,7 +1858,7 @@ def T82_painel_confere_com_jsonl_bruto_fuzz_e_perf():
     (todos conferem com o recálculo direto do jsonl bruto) e o endpoint
     responde rápido com 1000 tasks."""
     import random
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     c = _app(cfg)
@@ -1934,10 +1934,10 @@ def T82_painel_confere_com_jsonl_bruto_fuzz_e_perf():
 def T83_goals_persistem_restart():
     """v3.11 🎯: goal de sessão definido antes de um restart continua
     valendo depois — vem do disco (session_goals.json), não da RAM."""
-    from betterme import orchestrator as orc
-    from betterme.config import Config
+    from pluto import orchestrator as orc
+    from pluto.config import Config
 
-    d = tempfile.mkdtemp(prefix="betterme-goal-")
+    d = tempfile.mkdtemp(prefix="pluto-goal-")
     c1 = Config(data_dir=d, mock=True)
     orc.set_goal("s1", "zerar a caixa de entrada esta semana", c1)
     # "restart": RAM morta, novo objeto Config no MESMO data_dir
@@ -1971,7 +1971,7 @@ def T84_plano_pendente_retoma_pos_restart():
     """v3.11 🔁 ACEITAÇÃO — esperado: um restart no meio do portão de
     CRIAÇÃO não perde a task. O plano pendente re-aparece na GUI e, ao
     aprovar/editar, a execução RETOMA em thread nova e é registrada."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     antigo = orc.APPROVAL_TIMEOUT_S
@@ -2030,7 +2030,7 @@ def T85_entrega_pendente_finaliza_pos_restart():
     """v3.11 📦 ACEITAÇÃO — esperado: restart no meio do portão de
     ENTREGA não perde o trabalho: o texto final re-aparece, entregar/
     editar finaliza e registra; refazer é recusado com mensagem honesta."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     antigo = orc.APPROVAL_TIMEOUT_S
@@ -2080,9 +2080,9 @@ def T86_skills_audit_detecta_problemas():
     """v3.11 🛡: a auditoria pega o que importa — injeção de prompt,
     campos ausentes, nome errado, tamanho fora do orçamento, duplicata —
     e NÃO acusa falsamente quem ensina o contrário (negação)."""
-    from betterme.skills_audit import audit_skills
+    from pluto.skills_audit import audit_skills
 
-    d = Path(tempfile.mkdtemp(prefix="betterme-aud-"))
+    d = Path(tempfile.mkdtemp(prefix="pluto-aud-"))
 
     def sk(pasta, front, corpo):
         p = d / pasta
@@ -2129,10 +2129,10 @@ def T86_skills_audit_detecta_problemas():
 def T87_skills_audit_catalogo_real_limpo():
     """v3.11 🛡 ACEITAÇÃO — esperado: as 18 skills reais do catálogo
     passam limpas (a auditoria não tem falso positivo no que existe)."""
-    from betterme.config import Config
-    from betterme.skills_audit import audit_skills
+    from pluto.config import Config
+    from pluto.skills_audit import audit_skills
 
-    cfg = Config(data_dir=tempfile.mkdtemp(prefix="betterme-cat-"), mock=True)
+    cfg = Config(data_dir=tempfile.mkdtemp(prefix="pluto-cat-"), mock=True)
     rels = audit_skills(cfg.skills_dirs)
     assert len(rels) >= 18
     problemas = {r["name"]: r["problemas"] for r in rels
@@ -2154,7 +2154,7 @@ def T88_banner_offline_casca_em_cache():
     assert "version" in c.get("/api/status").get_json()
     # e o service worker (a causa da casca) segue servido
     sw = c.get("/sw.js")
-    assert sw.status_code == 200 and "betterme-shell" in sw.get_data(as_text=True)
+    assert sw.status_code == 200 and "pluto-shell" in sw.get_data(as_text=True)
 
 
 @case
@@ -2196,7 +2196,7 @@ def T90_auto_atribuicao_de_papeis():
     qwen2.5-coder:3b, hermes3:3b, llama3.2:3b), o auto-atribuidor
     escolhe: 🎯🔍💬🔌 hermes3:8b (maior geral · escolha atual) e
     ⚡ qwen2.5-coder:7b (modelo de código)."""
-    from betterme import autoselect as aus
+    from pluto import autoselect as aus
 
     MEUS = ["hermes3:8b", "qwen2.5-coder:7b", "qwen2.5:3b", "llama3.2:1b",
             "qwen2.5-coder:3b", "hermes3:3b", "llama3.2:3b"]
@@ -2228,7 +2228,7 @@ def T90_auto_atribuicao_de_papeis():
     assert "autoAssign" in html and "auto-atribuir papéis" in html
     # CLI expõe o subcomando
     import subprocess as _sp
-    rr = _sp.run([*_betterme_bin(), "models", "--help"],
+    rr = _sp.run([*_pluto_bin(), "models", "--help"],
                  capture_output=True, text=True, timeout=30)
     assert "auto" in rr.stdout.lower() and "auto-atribui" in rr.stdout.lower()
 
@@ -2239,8 +2239,8 @@ def T91_auto_assign_respeita_teto_de_tamanho():
     o auto-atribuidor tem teto max_model_b (padrão 9B, filosofia local
     ≤8B do projeto). Mesmo com gemma3:12b e qwen3-coder:30b instalados,
     NUNCA os escolhe; subir o teto libera (máquina melhor no futuro)."""
-    from betterme import autoselect as aus
-    from betterme.config import Config
+    from pluto import autoselect as aus
+    from pluto.config import Config
 
     MEUS = ["hermes3:8b", "qwen2.5-coder:7b", "qwen2.5:3b", "llama3.2:1b",
             "qwen2.5-coder:3b", "hermes3:3b", "llama3.2:3b"]
@@ -2258,7 +2258,7 @@ def T91_auto_assign_respeita_teto_de_tamanho():
     for _papel, (m, _) in esc4.items():
         assert aus._params(m) <= 4
     # default no config = 9.0 e coerce funciona
-    c9 = Config(data_dir=tempfile.mkdtemp(prefix="betterme-teto-"), mock=True)
+    c9 = Config(data_dir=tempfile.mkdtemp(prefix="pluto-teto-"), mock=True)
     assert float(c9.max_model_b) == 9.0
     c9.update({"max_model_b": 8})
     assert float(c9.max_model_b) == 8.0
@@ -2272,7 +2272,7 @@ def T92_modo_economico_e_experiencia_enxuta():
     auto-assign ECONÔMICO por padrão (🎯🔍⚡ herdam 💬 chat = 1 modelo
     residente, zero trocas; --multi libera por papel) e experiência
     enxuta (sinal forte primeiro, máx 4 linhas, ≤800 chars)."""
-    from betterme import autoselect as aus, orchestrator as orc
+    from pluto import autoselect as aus, orchestrator as orc
 
     MEUS = ["hermes3:8b", "qwen2.5-coder:7b", "qwen2.5:3b", "llama3.2:1b",
             "qwen2.5-coder:3b", "hermes3:3b", "llama3.2:3b"]
@@ -2318,13 +2318,13 @@ def T92_modo_economico_e_experiencia_enxuta():
 @case
 def T93_memoria_importavel():
     """v3.12 🧠: transferência de contexto PARA o agente —
-    betterme memory import (JSON lista ou um fato por linha), com dedupe
+    pluto memory import (JSON lista ou um fato por linha), com dedupe
     (mesmo fato não entra duas vezes) e erro claro em arquivo ruim."""
     import json as _json
-    from betterme.memory import MemoryStore
+    from pluto.memory import MemoryStore
 
     cfg = fresh()
-    d = Path(tempfile.mkdtemp(prefix="betterme-mem-"))
+    d = Path(tempfile.mkdtemp(prefix="pluto-mem-"))
     fatos = ["O operador prefere respostas diretas, sem preâmbulo.",
              "Hardware: RTX 2050 com 4 GB de VRAM.",
              "Linguas: português do Brasil."]
@@ -2334,7 +2334,7 @@ def T93_memoria_importavel():
                                  "segundo fato", encoding="utf-8")
     # JSON: 3 novos
     import subprocess as _sp
-    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
+    r = _sp.run([*_pluto_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "fatos.json")],
                 capture_output=True, text=True, timeout=30)
     assert "3 fato(s) importado(s)" in r.stdout + r.stderr, r.stdout + r.stderr
@@ -2342,21 +2342,21 @@ def T93_memoria_importavel():
     textos = {f["text"] for f in ms.list_all()}
     assert textos == set(fatos)
     # de novo: 0 novos, 3 duplicados
-    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
+    r = _sp.run([*_pluto_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "fatos.json")],
                 capture_output=True, text=True, timeout=30)
     assert "0 fato(s) importado(s)" in r.stdout + r.stderr
     assert "3 duplicado(s)" in r.stdout + r.stderr
     assert len(ms.list_all()) == 3
     # texto por linha: ignora comentário e vazia
-    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
+    r = _sp.run([*_pluto_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "fatos.txt")],
                 capture_output=True, text=True, timeout=30)
     assert "2 fato(s) importado(s)" in r.stdout + r.stderr
     assert len(ms.list_all()) == 5
     # JSON inválido: erro claro, exit != 0
     (d / "ruim.json").write_text("{fatos:", encoding="utf-8")
-    r = _sp.run([*_betterme_bin(), "--data-dir", cfg.data_dir,
+    r = _sp.run([*_pluto_bin(), "--data-dir", cfg.data_dir,
                  "memory", "import", str(d / "ruim.json")],
                 capture_output=True, text=True, timeout=30)
     assert r.returncode != 0 and "JSON inválido" in r.stdout + r.stderr
@@ -2369,7 +2369,7 @@ def T94_plano_cache_zero_tokens_na_repeticao():
     modelo; mensagem nova planeja; edição/reprovação do operador
     INVALIDA o cache (preferência nova, plano novo); instalações
     diferentes não compartilham cache."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     calls = []
     orig = orc._fast
@@ -2418,7 +2418,7 @@ def T94_plano_cache_zero_tokens_na_repeticao():
 def T95_skills_do_dia_a_dia():
     """v3.13 ✦ ACEITAÇÃO — as 5 skills novas casam com pedidos naturais
     do dia a dia (score >= 2) e o catálogo segue limpo na auditoria."""
-    from betterme.orchestrator import skills_for
+    from pluto.orchestrator import skills_for
 
     cfg = fresh()
 
@@ -2430,9 +2430,9 @@ def T95_skills_do_dia_a_dia():
     assert "autocorrecao" in pega("o comando deu erro e falhou, tente de novo")
     assert "atalhos-shell" in pega("verifique o espaço em disco e memória")
     assert "caminho-curto" in pega("resposta rápida e simples, direto")
-    from betterme.config import Config
-    from betterme.skills_audit import audit_skills
-    c2 = Config(data_dir=tempfile.mkdtemp(prefix="betterme-cat3-"), mock=True)
+    from pluto.config import Config
+    from pluto.skills_audit import audit_skills
+    c2 = Config(data_dir=tempfile.mkdtemp(prefix="pluto-cat3-"), mock=True)
     rels = audit_skills(c2.skills_dirs)
     assert len(rels) >= 23, len(rels)
     problemas = {r["name"]: r["problemas"] for r in rels if r["problemas"]}
@@ -2445,11 +2445,11 @@ def T96_fim_da_recusa_vazia():
     repetir chamadas/textos' e ENTREGAVA NADA — revisor reprovava 2x e
     a task morria sem resposta. O nudge anti-loop e a mensagem de
     refazer agora exigem a RESPOSTA COMPLETA com os dados já coletados."""
-    from betterme import agent as ag
+    from pluto import agent as ag
 
     assert "NUNCA se recuse a responder" in ag._ANTILOOP_NUDGE
     assert "NÃO são respostas" in ag._ANTILOOP_NUDGE
-    src = Path("betterme/orchestrator.py").read_text(encoding="utf-8")
+    src = Path("pluto/orchestrator.py").read_text(encoding="utf-8")
     assert "COLETADOS" in src and "JÁ " in src
     assert "resposta final COMPLETA" in src
 
@@ -2460,9 +2460,9 @@ def T97_leitura_da_home_e_sensiveis_bloqueados():
     impossível — sandbox bloqueava a HOME inteira (auditoria: list_dir
     ✖ /home/beh-solutions). Agora: LEITURA da home liberada por padrão
     (sandbox_home_read), ESCRITA continua só no workspace e pastas
-    sensíveis (~/.ssh, ~/.betterme/secrets, ~/.config…) NUNCA são lidas —
+    sensíveis (~/.ssh, ~/.pluto/secrets, ~/.config…) NUNCA são lidas —
     credenciais não entram no contexto do modelo."""
-    from betterme.tools import ToolError, execute_tool, resolve_path
+    from pluto.tools import ToolError, execute_tool, resolve_path
 
     cfg = fresh()
     assert cfg.sandbox is True and cfg.sandbox_home_read is True
@@ -2475,7 +2475,7 @@ def T97_leitura_da_home_e_sensiveis_bloqueados():
         r = execute_tool("read_file", {"path": str(alvo)}, cfg)
         assert r["ok"] and "dado do sistema" in r["output"]
         # 2. pastas sensíveis: bloqueadas mesmo para leitura
-        for sens in ("~/.ssh/config", "~/.betterme/secrets/email.json",
+        for sens in ("~/.ssh/config", "~/.pluto/secrets/email.json",
                      "~/.netrc"):
             try:
                 resolve_path(sens, cfg)
@@ -2512,7 +2512,7 @@ def T98_diagnostico_em_uma_chamada():
     sistema' custava 9+ chamadas (sys_info ×9 na auditoria), alucinação
     de saídas e recusas. Agora: UMA ferramenta devolve o digesto real
     completo, e as mensagens de refazer proíbem recusa e saída crua."""
-    from betterme import tools as tl
+    from pluto import tools as tl
 
     cfg = fresh()
     r = tl.execute_tool("diagnostico_sistema", {}, cfg)
@@ -2532,13 +2532,13 @@ def T98_diagnostico_em_uma_chamada():
     assert "UMA chamada" in spec["function"]["description"]
     assert "diagnostico_sistema" in tl.EXECUTORS
     # mensagens de refazer à prova de recusa e saída crua
-    src_o = Path("betterme/orchestrator.py").read_text(encoding="utf-8")
+    src_o = Path("pluto/orchestrator.py").read_text(encoding="utf-8")
     assert "saída crua" in src_o and "falha de" in src_o
     # skill atalhos-shell aponta para a ferramenta
     sk = Path("skills/atalhos-shell/SKILL.md").read_text(encoding="utf-8")
     assert "diagnostico_sistema" in sk
     # e o casamento continua funcionando para o pedido original
-    from betterme.orchestrator import skills_for
+    from pluto.orchestrator import skills_for
     assert "atalhos-shell" in [s["name"] for s in
                                skills_for(cfg, "busca geral no sistema e "
                                                "uso do dispositivo")]
@@ -2550,17 +2550,17 @@ def T99_codigo_verificado_e_selftest():
     bateria de campo com LLM REAL existe (pula limpa em mock/sem
     Ollama). Responde à pergunta do operador: 'pode alucinar em
     outros tipos de pedido?' — agora isso é MENSURÁVEL na máquina dele."""
-    from betterme import orchestrator as orc, selftest as st
+    from pluto import orchestrator as orc, selftest as st
 
     # 1. critério de execução injetado para tarefas de código
     crit = orc._extra_criterios("crie um script python que calcula potências")
     assert len(crit) == 1 and "EXECUTADO" in crit[0] and "SAÍDA" in crit[0]
     assert orc._extra_criterios("resuma o uso de disco") == []
     assert orc._extra_criterios("implemente uma função de ordenação")
-    src = Path("betterme/orchestrator.py").read_text(encoding="utf-8")
+    src = Path("pluto/orchestrator.py").read_text(encoding="utf-8")
     assert "criterios += _extra_criterios(message)" in src
     # 2. skill casa com pedidos de código/projeto
-    from betterme.orchestrator import skills_for
+    from pluto.orchestrator import skills_for
     cfg = fresh()
     nomes = [s["name"] for s in skills_for(cfg, "gere código python "
                                             "para o meu projeto")]
@@ -2578,7 +2578,7 @@ def T99_codigo_verificado_e_selftest():
     assert "não vou repetir" in st._RECUSA[0]
     # 4. CLI expõe o selftest
     import subprocess as _sp
-    r = _sp.run([*_betterme_bin(), "--help"],
+    r = _sp.run([*_pluto_bin(), "--help"],
                 capture_output=True, text=True, timeout=30)
     assert "selftest" in r.stdout.lower()
 
@@ -2589,7 +2589,7 @@ def T100_qa_do_qa_selftest_falha_quando_deve():
     nada. Os checkers do selftest têm que FLAGEAR as falhas reais do
     campo (recusa literal do transcript, código sem execução, dado
     errado) e NÃO acusar as entregas boas."""
-    from betterme import selftest as st
+    from pluto import selftest as st
 
     cen = {c["nome"]: c for c in st._cenarios()}
     # 1. a RECUSA REAL do transcript do operador é detectada
@@ -2626,10 +2626,10 @@ def T100_qa_do_qa_selftest_falha_quando_deve():
 
 @case
 def T101_matriz_de_todos_os_modelos():
-    """v3.14 🧪 `betterme selftest --all-models`: matriz modelo × cenário
+    """v3.14 🧪 `pluto selftest --all-models`: matriz modelo × cenário
     com recomendação — a resposta à pergunta 'testes de todos os
     modelos'. Em mock/sem Ollama pula limpo (nunca mente)."""
-    from betterme import selftest as st
+    from pluto import selftest as st
 
     saida = []
     assert st.run(fresh(), print_fn=saida.append) == 0
@@ -2639,7 +2639,7 @@ def T101_matriz_de_todos_os_modelos():
     assert any("mock" in s.lower() for s in saida)      # pulou, não mentiu
     # a flag existe no CLI
     import subprocess as _sp
-    r = _sp.run([*_betterme_bin(), "selftest", "--help"],
+    r = _sp.run([*_pluto_bin(), "selftest", "--help"],
                 capture_output=True, text=True, timeout=30)
     assert "--all-models" in r.stdout
     # a matriz formata cabeçalho com os 5 cenários
@@ -2653,7 +2653,7 @@ def T102_claude_senior_com_skills_e_goal():
     especialista em Node.js' e entregou links — recusa de quem não tem
     persona, skills, memória nem goal. Agora: persona SÊNIOR com
     anti-recusa, skill que casa INJETADA no prompt e objetivo da sessão."""
-    from betterme import claude_agent as ca
+    from pluto import claude_agent as ca
 
     # 1. persona sênior + anti-recusa no prompt do modo leve
     assert "ENGENHEIRO DE SOFTWARE SÊNIOR" in ca.CLAUDE_LIGHT_PROMPT
@@ -2672,7 +2672,7 @@ def T102_claude_senior_com_skills_e_goal():
     com_goal = ca._enrich_prompt(cfg, "bom dia", goal="construir a calculadora")
     assert "OBJETIVO DA SESSÃO" in com_goal and "calculadora" in com_goal
     # 5. a chamada do chat passa o goal (fonte)
-    src = Path("betterme/server/app.py").read_text(encoding="utf-8")
+    src = Path("pluto/server/app.py").read_text(encoding="utf-8")
     assert "goal=get_goal(session_id, cfg))" in src
     # 6. run_claude aceita goal e continua funcionando em mock
     evs = []
@@ -2687,7 +2687,7 @@ def T103_casamento_por_nome_de_skill():
     skill agora casa (antes exigia 2 palavras — 'crie um código de
     calculadora' ficava de fora). E a classe 'projeto/aplicativo'
     ganha o critério de execução de código."""
-    from betterme.orchestrator import _extra_criterios, skills_for
+    from pluto.orchestrator import _extra_criterios, skills_for
 
     cfg = fresh()
     nomes = [s["name"] for s in
@@ -2717,7 +2717,7 @@ def T104_goal_sem_eco_triplo():
     Causa raiz dupla: (1) runSlash disparava um POST novo a cada Enter
     (a guarda state.sending só valia para chat normal); (2) o comando
     era renderizado 2× (span + prefixo do textContent)."""
-    src = Path("betterme/server/templates/index.html").read_text(encoding="utf-8")
+    src = Path("pluto/server/templates/index.html").read_text(encoding="utf-8")
     # guarda: novos Enters não disparam POST durante a resposta
     assert "if (state.cmdBusy) return;" in src
     assert "finally { state.cmdBusy = false; }" in src
@@ -2726,7 +2726,7 @@ def T104_goal_sem_eco_triplo():
     assert 'd.textContent = (j.ok ? (text.split(" ")[0]' not in src
     assert 'c.textContent = text.split(" ")[0];' in src
     # lado servidor: /goal continua atômico e disponível
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     orc.set_goal(cfg.data_dir.name, "construir a calculadora", cfg)
     assert "calculadora" in orc.get_goal(cfg.data_dir.name, cfg)
@@ -2738,7 +2738,7 @@ def T104_goal_sem_eco_triplo():
 def T105_robustez_escrita_atomica_e_processos():
     """v3.14.2 ✦: state nunca corrompe (tmp+replace), processo do Claude
     é recolhido (sem zombie), fd do log do Ollama fecha no pai."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     orc.set_goal("s1", "objetivo de teste", cfg)
     goals = cfg.data_dir / "session_goals.json"
@@ -2748,10 +2748,10 @@ def T105_robustez_escrita_atomica_e_processos():
     assert dados.get("s1") == "objetivo de teste"
     assert not (cfg.data_dir / "session_goals.json.tmp").exists()  # replace ✔
     # Claude: finally recolhe o processo
-    ca = Path("betterme/claude_agent.py").read_text(encoding="utf-8")
+    ca = Path("pluto/claude_agent.py").read_text(encoding="utf-8")
     assert "proc.wait(timeout=5)" in ca and "proc.kill()" in ca
     # Manager: fd do log fechado no pai (filho herda)
-    mg = Path("betterme/manager.py").read_text(encoding="utf-8")
+    mg = Path("pluto/manager.py").read_text(encoding="utf-8")
     assert "logf.close()" in mg
 
 
@@ -2761,7 +2761,7 @@ def T106_update_defende_zip_slip():
     diretório de destino (zip-slip); zip normal do GitHub passa."""
     import tempfile
     import zipfile as _zip
-    from betterme.update import _assert_zip_seguro
+    from pluto.update import _assert_zip_seguro
     with tempfile.TemporaryDirectory() as td:
         dest = Path(td)
         maligno = Path(td) / "maligno.zip"
@@ -2777,7 +2777,7 @@ def T106_update_defende_zip_slip():
         ok = Path(td) / "ok.zip"
         with _zip.ZipFile(ok, "w") as zf:
             zf.writestr("personal-hermes-agent-behsantos-v3.14.2/README.md", "x")
-            zf.writestr("personal-hermes-agent-behsantos-v3.14.2/betterme/cli.py", "x")
+            zf.writestr("personal-hermes-agent-behsantos-v3.14.2/pluto/cli.py", "x")
         with _zip.ZipFile(ok) as zf:
             _assert_zip_seguro(zf, dest)               # não levanta ✔
 
@@ -2786,8 +2786,8 @@ def T106_update_defende_zip_slip():
 def T107_detectar_pasta_do_projeto():
     """v3.15.0 (PR#1): referência de pasta no pedido → workspace da task;
     URLs, frações e pastas de sistema/configuração não valem."""
-    from betterme.orchestrator import _detectar_projetos
-    from betterme.tools import ToolError, validar_escopo_projeto
+    from pluto.orchestrator import _detectar_projetos
+    from pluto.tools import ToolError, validar_escopo_projeto
 
     cands = _detectar_projetos(
         "crie uma calculadora node com POO em "
@@ -2817,15 +2817,15 @@ def T107_detectar_pasta_do_projeto():
 @case
 def T108_escopo_de_projeto_funcional():
     """v3.15.0 (PR#1): dentro do escopo — cwd e escrita seguem a pasta do
-    projeto; fora dele o sandbox continua; ~/.betterme intocável; escopo é
+    projeto; fora dele o sandbox continua; ~/.pluto intocável; escopo é
     thread-local (tasks concorrentes não vazam)."""
     import os as _os
     import shutil as _sh
     import threading as _th
-    from betterme import tools as T
+    from pluto import tools as T
 
     cfg = fresh()
-    proj = Path.home() / f".betterme-t108-{_os.getpid()}"
+    proj = Path.home() / f".pluto-t108-{_os.getpid()}"
     _sh.rmtree(proj, ignore_errors=True)
     try:
         with T.task_scope(proj, cfg) as esc:
@@ -2849,11 +2849,11 @@ def T108_escopo_de_projeto_funcional():
             raise AssertionError("escrita fora do escopo foi liberada")
         except T.ToolError:
             pass
-        # configuração do Betterme NUNCA vira escopo de projeto
+        # configuração do Pluto NUNCA vira escopo de projeto
         try:
             with T.task_scope(cfg.data_dir, cfg):
                 pass
-            raise AssertionError("~/.betterme aceito como escopo")
+            raise AssertionError("~/.pluto aceito como escopo")
         except T.ToolError:
             pass
     finally:
@@ -2863,19 +2863,19 @@ def T108_escopo_de_projeto_funcional():
 @case
 def T109_pipeline_na_pasta_do_projeto():
     """v3.15.0 (PR#1) E2E: pedido com referência de pasta → executor recebe
-    AMBIENTE (cwd + betterme.md), task roda com escopo na pasta (evento
+    AMBIENTE (cwd + pluto.md), task roda com escopo na pasta (evento
     visível), pasta inexistente é CRIADA — e sem referência nada muda."""
     import os as _os
     import shutil as _sh
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh(creation_approval=False)
-    proj = Path.home() / f".betterme-t109-{_os.getpid()}"
-    proj2 = Path.home() / f".betterme-t109b-{_os.getpid()}"
+    proj = Path.home() / f".pluto-t109-{_os.getpid()}"
+    proj2 = Path.home() / f".pluto-t109b-{_os.getpid()}"
     _sh.rmtree(proj, ignore_errors=True)
     _sh.rmtree(proj2, ignore_errors=True)
     proj.mkdir(parents=True)
-    (proj / "betterme.md").write_text(
+    (proj / "pluto.md").write_text(
         "Convenção: código em ESM e testes com node.", encoding="utf-8")
     capturado = {}
 
@@ -2895,7 +2895,7 @@ def T109_pipeline_na_pasta_do_projeto():
         notas = [str(e.get("message", "")) for e in evs if e.get("type") == "note"]
         assert any("📁" in n and str(proj) in n for n in notas), notas[:6]
         assert "Pasta do projeto (cwd)" in capturado["prompt"]     # ambiente
-        assert "Convenção: código em ESM" in capturado["prompt"]   # betterme.md
+        assert "Convenção: código em ESM" in capturado["prompt"]   # pluto.md
         assert final
         # pasta inexistente é criada pelo harness na hora da execução
         evs2 = []
@@ -2909,7 +2909,7 @@ def T109_pipeline_na_pasta_do_projeto():
         orc.run_pipeline(_Ag(), cfg, "verifique o uso de disco", [],
                          on_event=evs3.append)
         assert not any("📁" in str(e.get("message", "")) for e in evs3)
-        # pasta RECUSADA (configuração do Betterme): avisa e segue no padrão
+        # pasta RECUSADA (configuração do Pluto): avisa e segue no padrão
         evs4 = []
         orc.run_pipeline(_Ag(), cfg, f"crie algo dentro de {cfg.data_dir}",
                          [], on_event=evs4.append)
@@ -2924,8 +2924,8 @@ def T109_pipeline_na_pasta_do_projeto():
 def T110_biblioteca_rag_local():
     """v3.15.0 (PR#2): livros do operador indexados e consultáveis —
     trecho VERBATIM com fonte (anti-alucinação por construção)."""
-    from betterme import knowledge
-    from betterme import tools as T
+    from pluto import knowledge
+    from pluto import tools as T
 
     cfg = fresh()
     livro = knowledge.biblioteca_dir(cfg) / "livro-teste.md"
@@ -2954,10 +2954,10 @@ def T111_git_no_projeto():
     da task; subcomando fora da lista e config global BLOQUEADOS."""
     import os as _os
     import shutil as _sh
-    from betterme import tools as T
+    from pluto import tools as T
 
     cfg = fresh()
-    proj = Path.home() / f".betterme-t111-{_os.getpid()}"
+    proj = Path.home() / f".pluto-t111-{_os.getpid()}"
     _sh.rmtree(proj, ignore_errors=True)
     try:
         with T.task_scope(proj, cfg):
@@ -2993,8 +2993,8 @@ def T111_git_no_projeto():
 def T112_skills_de_engenharia_multilingue():
     """v3.15.0 (PR#2): as 11 novas skills casam com pedidos reais de
     linguagem/arquitetura — e o catálogo continua limpo (39)."""
-    from betterme import orchestrator as orc
-    from betterme.skills import SkillLoader
+    from pluto import orchestrator as orc
+    from pluto.skills import SkillLoader
 
     cfg = fresh()
     nomes = [s["name"] for s in SkillLoader(cfg).enabled()]
@@ -3028,10 +3028,10 @@ def T113_folego_para_tarefas_de_projeto():
     ferramentas (não 4/12) — e o override é SEMPRE restaurado."""
     import os as _os
     import shutil as _sh
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh(creation_approval=False)
-    proj = Path.home() / f".betterme-t113-{_os.getpid()}"
+    proj = Path.home() / f".pluto-t113-{_os.getpid()}"
     _sh.rmtree(proj, ignore_errors=True)
     capturado = {}
 
@@ -3065,9 +3065,9 @@ def T114_import_nativo_de_qualquer_fonte():
     aparece no catálogo, casa com pedido e é idempotente."""
     import tempfile
     import zipfile as _zip
-    from betterme import skills as S
-    from betterme.orchestrator import skills_for
-    from betterme.skills import SkillLoader
+    from pluto import skills as S
+    from pluto.orchestrator import skills_for
+    from pluto.skills import SkillLoader
 
     cfg = fresh()
     with tempfile.TemporaryDirectory() as td:
@@ -3113,9 +3113,9 @@ def T115_autoscan_baixou_virou_nativa():
     """v3.15.0 (PR#3): skill largada na pasta assistida (ex.: ~/Downloads)
     é descoberta e importada SEM comando — e só uma vez."""
     import tempfile
-    from betterme import skills as S
-    from betterme.orchestrator import skills_for
-    from betterme.skills import SkillLoader
+    from pluto import skills as S
+    from pluto.orchestrator import skills_for
+    from pluto.skills import SkillLoader
 
     cfg = fresh()
     with tempfile.TemporaryDirectory() as td:
@@ -3166,8 +3166,8 @@ def T116_delegacao_para_skill():
     """v3.15.0 (PR#3): a skill que casa DELEGA — vira MANUAL DA TAREFA no
     executor e a seção '## Verificação' dela vira critério do revisor."""
     import tempfile
-    from betterme import orchestrator as orc
-    from betterme import skills as S
+    from pluto import orchestrator as orc
+    from pluto import skills as S
 
     cfg = fresh(creation_approval=False)
     with tempfile.TemporaryDirectory() as td:
@@ -3215,7 +3215,7 @@ def T117_compactacao_de_contexto():
     """v3.15.0 (PR#3): conversa longa não perde contexto — perto do
     limite da janela, o MEIO vira resumo e a TAREFA ORIGINAL + resultados
     recentes ficam (padrão Claude Code, adaptado ao 8B local)."""
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
     cfg = fresh(num_ctx=1024)
     ag = Agent(cfg)
@@ -3260,9 +3260,9 @@ def T117_compactacao_de_contexto():
 @case
 def T118_claude_code_plugin_opcional():
     """v3.15.0 (PR#3): sem a CLI do Claude Code o sistema é 100% Python —
-    tarefa agendada cai no loop Betterme com nota, /api/status anuncia e a
+    tarefa agendada cai no loop Pluto com nota, /api/status anuncia e a
     GUI esconde a opção."""
-    from betterme import agent as AG, claude_agent as CA, scheduler as SCH
+    from pluto import agent as AG, claude_agent as CA, scheduler as SCH
 
     cap = {}
 
@@ -3286,9 +3286,9 @@ def T118_claude_code_plugin_opcional():
     finally:
         CA.claude_path = orig_cp
         AG.Agent = orig_agent
-    src_app = Path("betterme/server/app.py").read_text(encoding="utf-8")
+    src_app = Path("pluto/server/app.py").read_text(encoding="utf-8")
     assert '"claude_available": claude_ok,' in src_app
-    src_gui = Path("betterme/server/templates/index.html").read_text(
+    src_gui = Path("pluto/server/templates/index.html").read_text(
         encoding="utf-8")
     assert "s.claude_available === false" in src_gui
 
@@ -3298,7 +3298,7 @@ def T119_selftest_cenario_projeto_real():
     """v3.15.0 (PR#3): selftest mede o cenário que importa — projeto em
     pasta externa: arquivo criado DE VERDADE, executado e versionado."""
     import re as _re
-    from betterme import selftest as ST
+    from pluto import selftest as ST
 
     cens = ST._cenarios()
     proj = [c for c in cens if "projeto" in c["nome"].lower()]
@@ -3324,7 +3324,7 @@ def T120_perguntar_caminho_do_projeto():
     """v3.15.1: contrato do operador — iniciar projeto SEM caminho → o
     agente PERGUNTA a pasta; a resposta retoma a task no escopo certo
     (busca/cria o local). Cancela, assunto-mudou, flag off e TTL cobertos."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh(creation_approval=False)
     capturado = {}
@@ -3349,7 +3349,7 @@ def T120_perguntar_caminho_do_projeto():
     # 2. operador responde o caminho → retoma e executa LÁ
     import os as _os
     import shutil as _sh
-    proj = Path.home() / f".betterme-t120-{_os.getpid()}"
+    proj = Path.home() / f".pluto-t120-{_os.getpid()}"
     _sh.rmtree(proj, ignore_errors=True)
     evs2 = []
     r2 = orc.run_pipeline(ag, cfg, str(proj), [], on_event=evs2.append,
@@ -3382,7 +3382,7 @@ def T120_perguntar_caminho_do_projeto():
     # 6. "quero INICIAR um projeto" (sem verbo criar): pergunta também —
     #    e a resposta retoma com escopo FORÇADO (decisão do operador)
     import shutil as _sh2
-    from betterme import tools as _T
+    from pluto import tools as _T
     cfg3 = fresh(creation_approval=False)
     cap3 = {}
     class _Ag3:
@@ -3396,7 +3396,7 @@ def T120_perguntar_caminho_do_projeto():
                           "quero iniciar um projeto: uma calculadora node com POO",
                           [], on_event=lambda e: None, session_id="s-t120e")
     assert "caminho" in rq.lower() and not cap3          # perguntou, não rodou
-    proj3 = Path.home() / f".betterme-t120e-{__import__('os').getpid()}"
+    proj3 = Path.home() / f".pluto-t120e-{__import__('os').getpid()}"
     _sh2.rmtree(proj3, ignore_errors=True)
     orc.run_pipeline(_Ag3(), cfg3, str(proj3), [],
                           on_event=lambda e: None, session_id="s-t120e")
@@ -3420,8 +3420,8 @@ def T121_mission_subtasks_sequenciais():
     do projeto propagada e relatório final com validação do objetivo."""
     import os as _os
     import shutil as _sh
-    from betterme import mission as M
-    from betterme import orchestrator as orc
+    from pluto import mission as M
+    from pluto import orchestrator as orc
 
     cfg = fresh(creation_approval=False)
 
@@ -3465,7 +3465,7 @@ def T121_mission_subtasks_sequenciais():
     orc.review = (lambda cfg, objetivo, criterios, resultado:
                   (criterios_vistos.append(list(criterios))
                    or {"veredito": "ok"}))
-    proj = Path.home() / f".betterme-t121-{_os.getpid()}"
+    proj = Path.home() / f".pluto-t121-{_os.getpid()}"
     _sh.rmtree(proj, ignore_errors=True)
     try:
         evs = []
@@ -3494,8 +3494,8 @@ def T121_mission_subtasks_sequenciais():
 def T122_mission_reescreve_task_ao_falhar():
     """v3.16.0 🔁: subtask reprovada → a TASK é reescrita (prompt melhorado
     com o problema do revisor) e re-executada — até concluir a missão."""
-    from betterme import mission as M
-    from betterme import orchestrator as orc
+    from pluto import mission as M
+    from pluto import orchestrator as orc
 
     cfg = fresh(creation_approval=False, ask_project_path=False)
     prompts = []
@@ -3539,9 +3539,9 @@ def T122_mission_reescreve_task_ao_falhar():
 
 @case
 def T123_memory_list_clear():
-    """v3.16.1: betterme memory list/clear — gerenciar a memória sem repetir:
+    """v3.16.1: pluto memory list/clear — gerenciar a memória sem repetir:
     import → list → clear --yes → import de novo (zero duplicatas)."""
-    from betterme.memory import MemoryStore
+    from pluto.memory import MemoryStore
 
     cfg = fresh()
     ms = MemoryStore(cfg)
@@ -3556,12 +3556,12 @@ def T123_memory_list_clear():
     textos = {f.get("text") for f in ms.list_all()}
     assert textos == {"fato A de teste", "fato C nova"}
     # CLI com parsers registrados (fonte)
-    src = Path("betterme/cli.py").read_text(encoding="utf-8")
+    src = Path("pluto/cli.py").read_text(encoding="utf-8")
     assert 'add_parser("list"' in src and 'add_parser("clear"' in src
     assert "cmd_memory_list" in src and "cmd_memory_clear" in src
     # help do pai menciona os subcomandos
     import subprocess as _sp
-    r = _sp.run([*_betterme_bin(), "memory", "--help"],
+    r = _sp.run([*_pluto_bin(), "memory", "--help"],
                 capture_output=True, text=True, timeout=30, check=False)
     assert "import" in (r.stdout or "") and "list" in (r.stdout or "")
     assert "clear" in (r.stdout or "")
@@ -3573,8 +3573,8 @@ def T124_provedores_externos_gratuitos():
     externo+fallback; chave mora em secrets/ (600) e NUNCA em config."""
     import os as _os
     import stat as _stat
-    from betterme import llm_providers as LP
-    from betterme.ollama_client import MockOllamaClient, OllamaClient, get_client
+    from pluto import llm_providers as LP
+    from pluto.ollama_client import MockOllamaClient, OllamaClient, get_client
 
     # registro: só provedores gratuitos, com base/modelo; llm7 sem chave
     for nome, info in LP.REGISTRY.items():
@@ -3591,15 +3591,15 @@ def T124_provedores_externos_gratuitos():
     assert not hasattr(cli, "externo") and not getattr(cli, "is_external", False)
     # configurado: externo com fallback (cfg NÃO-mock — mock tem precedência)
     import tempfile as _tf2
-    from betterme.config import Config as _Cfg
-    cfg = _Cfg(data_dir=_tf2.mkdtemp(prefix="betterme-t124b-"), mock=False)
+    from pluto.config import Config as _Cfg
+    cfg = _Cfg(data_dir=_tf2.mkdtemp(prefix="pluto-t124b-"), mock=False)
     cfg.update({"llm_provider": "groq", "llm_model": "llama-3.1-8b-instant"})
     cli2 = get_client(cfg)
     assert hasattr(cli2, "externo") and cli2.externo.provedor == "groq"
     assert isinstance(cli2.local, OllamaClient)
     assert cli2.is_external is True
     # mock ignora provedor externo (demo segue local-simulada)
-    cfg3 = _Cfg(data_dir=_tf2.mkdtemp(prefix="betterme-t124c-"), mock=True)
+    cfg3 = _Cfg(data_dir=_tf2.mkdtemp(prefix="pluto-t124c-"), mock=True)
     cfg3.update({"llm_provider": "groq"})
     assert isinstance(get_client(cfg3), MockOllamaClient)
     # chave em secrets (600), fora do config.yaml
@@ -3619,8 +3619,8 @@ def T125_memoria_nunca_sai_da_maquina():
     """v3.17.0 🔒 REGRA DO OPERADOR: fatos pessoais da memória são injetados
     no prompt SÓ no cliente local; provedor externo (ou fallback) recebe a
     task sem memória."""
-    from betterme.agent import Agent
-    from betterme.memory import MemoryStore
+    from pluto.agent import Agent
+    from pluto.memory import MemoryStore
 
     cfg = fresh()
     ms = MemoryStore(cfg)
@@ -3643,7 +3643,7 @@ def T125_memoria_nunca_sai_da_maquina():
     assert "Tigrão" not in p_ext and "4242" not in p_ext
     assert "Habilidades" in p_ext                     # skills continuam
     # FallbackClient também é externo (pode vir a usar o provedor)
-    from betterme.llm_providers import ExternalClient, FallbackClient
+    from pluto.llm_providers import ExternalClient, FallbackClient
     ext = ExternalClient(cfg, "llm7", _transport=lambda *a: iter(()))
     fb = FallbackClient(ext, _Local())
     assert fb.is_external is True
@@ -3654,8 +3654,8 @@ def T126_cliente_externo_sse_e_fallback():
     """v3.17.0: cliente OpenAI-compatível parseia SSE (tokens + tool_calls
     completos com argumentos normalizados) e o fallback cai no local se o
     externo falhar antes do 1º token."""
-    from betterme.llm_providers import ExternalClient, FallbackClient
-    from betterme.ollama_client import OllamaError
+    from pluto.llm_providers import ExternalClient, FallbackClient
+    from pluto.ollama_client import OllamaError
 
     cfg = fresh()
 
@@ -3749,7 +3749,7 @@ def T75_aba_ollama_modelos_e_papeis():
 def T63_e2e_jornada_completa():
     """E2E: sessão nova → conversa → task com skill → selo → tudo persistido
     (conversa, task, goal por sessão) — a jornada real do operador."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     # 1. conversa comum cria sessão
@@ -3791,7 +3791,7 @@ def T63_e2e_jornada_completa():
 def T64_e2e_criacao_editar_plano_e_entrega():
     """E2E do portão de criação com EDIÇÃO dos dois lados: plano editado
     muda o objetivo; entrega editada entrega o texto do operador."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     orc.APPROVAL_TIMEOUT_S = 25
@@ -3823,7 +3823,7 @@ def T64_e2e_criacao_editar_plano_e_entrega():
 def T65_integracao_skills_injecao_e_modelos():
     """Integração orquestrador×skills×modelos: skill relevante entra no
     prompt do executor; modelo do papel é usado; irrelevante não entra."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     cfg.orchestrator_model = "qwen3:8b"
     cfg.executor_model = "qwen3-coder:8b"
@@ -3864,7 +3864,7 @@ def T65_integracao_skills_injecao_e_modelos():
 def T66_integracao_chat_grava_tudo():
     """Integração: uma rodada de chat deixa rastro em TODOS os módulos —
     conversa (store), atividade (agent.log), auditoria e métricas."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     metrics_antes = c.get("/api/metrics").get_json()
@@ -3918,7 +3918,7 @@ def T67_integracao_settings_desliga_revisor():
 @case
 def T68_perf_orquestrador_e_skills():
     """Performance dos componentes do pipeline (orçamentos generosos p/ CI)."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     t0 = time.time(); orc.plan(cfg, "verifique o uso de disco", [])
     assert time.time() - t0 < 0.5                       # plano heurístico
@@ -3931,7 +3931,7 @@ def T68_perf_orquestrador_e_skills():
     orc._extract_json("x" * 20000 + '{"a":1}' + "y" * 20000)
     assert time.time() - t0 < 0.4                       # JSON em lixo longo
     # 100 tasks no jsonl → lista rápida e id segue a sequência
-    from betterme.orchestrator import record, list_tasks, _next_id
+    from pluto.orchestrator import record, list_tasks, _next_id
     for i in range(100):
         record(cfg, {"objetivo": f"t{i}", "status": "ok", "tentativas": 1,
                      "dur_s": 1, "veredito": "ok", "problema": ""})
@@ -3978,8 +3978,8 @@ def T71_estresse_chats_paralelos():
     """Estresse: 12 chats simultâneos (misto conversa/task) — todos entregam
     exatamente 1 done não vazio, sem erros, tasks registradas."""
     import threading as _th
-    from betterme import orchestrator as orc
-    from betterme.server.app import create_app
+    from pluto import orchestrator as orc
+    from pluto.server.app import create_app
     cfg = fresh()
     app = create_app(cfg)          # cada thread usa o PRÓPRIO client
     antes = len(orc.list_tasks(cfg, limit=500))
@@ -4048,7 +4048,7 @@ def T73_estresse_historico_e_mensagem_grande():
     done = next((e for e in evs if e.get("type") == "done"), None)
     assert done and done["message"].strip(), [e.get("type") for e in evs][:8]
     # memória com 50 fatos continua usável
-    from betterme.memory import MemoryStore
+    from pluto.memory import MemoryStore
     mem = MemoryStore(cfg)
     for i in range(50):
         mem.add(f"fato de estresse {i} para o agente lembrar")
@@ -4060,8 +4060,8 @@ def T73_estresse_historico_e_mensagem_grande():
 def T74_estresse_skills_30_diretorio_usuario():
     """Estresse do casamento de skills: 30 skills a mais no diretório do
     usuário continuam casando rápido e SEM falso-positivo em RAM."""
-    from betterme import orchestrator as orc
-    from betterme.skills import SkillLoader
+    from pluto import orchestrator as orc
+    from pluto.skills import SkillLoader
     cfg = fresh()
     userdir = cfg.data_dir / "skills"
     for i in range(30):
@@ -4089,7 +4089,7 @@ def T61_modelos_por_papel_sequenciais():
     """v3.7: um modelo por PAPEL (orquestrador × executor), troca SEQUENCIAL
     — nunca paralelo. Vazio = cfg.model. O executor recebe o override e ele
     é restaurado no fim; settings e GUI aceitam os dois campos."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     assert orc.model_for(cfg, "orchestrator") == cfg.model      # default
@@ -4134,7 +4134,7 @@ def T61_modelos_por_papel_sequenciais():
 def T62_ferramentas_reconstruidas_e_respostas_entendiveis():
     """v3.7: página Ferramentas sem inputs/botões quebrados (componente .frow
     com labels, sem flex inline) e padrão de COMUNICAÇÃO nas respostas."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     c = _app(fresh())
     html = c.get("/").get_data(as_text=True)
@@ -4150,7 +4150,7 @@ def T62_ferramentas_reconstruidas_e_respostas_entendiveis():
     # respostas entendíveis: prompts
     assert "COMUNICAÇÃO" in orc._PLANO_JSON or True   # (no executor, abaixo)
     assert "COMUNICAÇÃO: escreva para a PESSOA" in open(
-        "betterme/orchestrator.py", encoding="utf-8").read()
+        "pluto/orchestrator.py", encoding="utf-8").read()
     assert "ENTENDÍVEL para a pessoa que pediu" in orc._REVISAO_JSON
 
 
@@ -4159,7 +4159,7 @@ def T59_skills_precisas_caso_real():
     """v3.6 (caso real do operador): 'resumo detalhado do uso de memória
     ram' NÃO pode aplicar a skill resumo-inbox (era falso-positivo por
     palavras genéricas); skills certas continuam casando."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     # falso-positivo real: RAM ≠ caixa de e-mail
@@ -4182,7 +4182,7 @@ def T60_contexto_followup_e_retomada():
     follow-ups; retomada é imperativa (EXECUTE AGORA + pedido original);
     revisor ancorado (não inventa critério, tolera cortesia); heurística
     trata 'conclua o anterior' como ação."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     # prompts com as âncoras
     assert "REGRA DE CONTINUAÇÃO" in orc._PLANO_JSON
@@ -4246,7 +4246,7 @@ def T57_resposta_sempre_entregue():
     final mesmo sem tokens streamados (marcador do render defensivo)."""
     import threading as _th
 
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     orc.APPROVAL_TIMEOUT_S = 20
@@ -4313,7 +4313,7 @@ def T57_resposta_sempre_entregue():
 def T58_mente_senior_orquestrador():
     """v3.5: orquestrador e revisor com mente SÊNIOR (30 anos, cobrança,
     sem retrabalho) e o padrão de qualidade injetado no executor."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     # personas nos prompts
     assert "ORQUESTRADOR" in orc._PLANO_JSON and "SÊNIOR" in orc._PLANO_JSON
@@ -4382,7 +4382,7 @@ def T54_comandos_slash_no_chat():
     # /reset limpa
     c.post("/api/chat/command", json={"text": "/goal outra coisa", "session_id": "s2"})
     c.post("/api/chat/command", json={"text": "/reset", "session_id": "s2"})
-    from betterme import orchestrator as _orc
+    from pluto import orchestrator as _orc
     assert _orc.get_goal("s2") == ""
 
 
@@ -4390,7 +4390,7 @@ def T54_comandos_slash_no_chat():
 def T55_skills_aplicadas_ao_pipeline():
     """v3.4 ✦: skills ativas relevantes são selecionadas por palavra-chave
     e o conteúdo é injetável no executor; irrelevante não seleciona nada."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     sks = orc.skills_for(cfg, "pesquise na internet os preços de passagens aéreas")
@@ -4413,7 +4413,7 @@ def T56_aprovacao_de_criacao_e2e():
     no plano encerra sem executar. Editar troca o plano."""
     import threading as _th
 
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     orc.APPROVAL_TIMEOUT_S = 25          # teto de segurança do teste
@@ -4487,7 +4487,7 @@ def T56_aprovacao_de_criacao_e2e():
 def T51_orquestrador_plano_e_rota():
     """v3.3 🎯: plano JSONParseado; JSON inválido → heurística; ação → rota
     'executar' com objetivo; conversa → 'responder'; flag desliga tudo."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     # heurística (mock não bate no modelo — determinístico)
@@ -4521,7 +4521,7 @@ def T51_orquestrador_plano_e_rota():
 def T52_revisor_vereditos():
     """v3.3 🔍: ok/refazer parseados; lixo → ok (entrega nunca trava); flag
     desligada → sempre ok; problema vem junto no refazer."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     orig = orc._fast
@@ -4554,7 +4554,7 @@ def T53_pipeline_e2e_no_chat():
     """v3.3 e2e: mensagem de AÇÃO no chat gera 🎯 task → execução → 🔍
     revisão → registro (jsonl + endpoint); conversa comum não passa pelo
     pipeline (nenhuma task nova)."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg = fresh()
     c = _app(cfg)
     antes = len(orc.list_tasks(cfg))
@@ -4592,7 +4592,7 @@ def T50_gui_responsiva_e_pwa():
     """v3.2: GUI responsiva (viewport dinâmico, barra inferior, alvos de toque,
     inputs 16px anti-zoom do iOS) e PWA instalável (manifest, service worker
     que NUNCA cacheia /api/, ícones PNG gerados sem dependências)."""
-    from betterme.server.app import create_app
+    from pluto.server.app import create_app
     cfg = fresh()
     c = create_app(cfg).test_client()
     html = c.get("/").get_data(as_text=True)
@@ -4624,7 +4624,7 @@ def T50_gui_responsiva_e_pwa():
 def T49_guard_anti_loop_claude():
     """Guard anti-loop: a mesma linha repetida em degeneração é cortada da
     resposta final (caso real: 'Acessar Configurações de Contas do Google:'×N)."""
-    from betterme.claude_agent import _strip_loops
+    from pluto.claude_agent import _strip_loops
 
     linha = "Acessar Configurações de Contas do Google:"
     lixo = "Início do passo a passo.\n" + (linha + "\n") * 30 + "Fim."
@@ -4645,13 +4645,13 @@ def T49_guard_anti_loop_claude():
 @case
 def T46_auth_hint_diagnostico_por_provedor():
     """A mensagem de erro certa para cada bloqueio de 2FA/OAuth."""
-    from betterme.emailcfg import auth_hint
+    from pluto.emailcfg import auth_hint
 
     h = auth_hint("a@gmail.com",
                   "AUTHENTICATIONFAILED [ALERT] Please log in via your web browser")
     assert "senha de aplicativo" in h.lower()
     h2 = auth_hint("a@outlook.com", "AUTHENTICATE failed")
-    assert "betterme email oauth" in h2
+    assert "pluto email oauth" in h2
     h3 = auth_hint("a@hotmail.com", "authenticationfailed")
     assert "microsoft" in h3.lower()
     assert auth_hint("a@x.com", "timeout") == ""              # sem palpite indevido
@@ -4664,8 +4664,8 @@ def T127_agente_externo_usa_modelo_do_provedor():
     — nomes Ollama não existem na API externa e todo chat ia a HTTP 400
     (model_unavailable), caindo no fallback silencioso: o provedor externo
     configurado nunca atendia de verdade (achado de teste E2E real)."""
-    from betterme.agent import Agent
-    from betterme.llm_providers import ExternalClient
+    from pluto.agent import Agent
+    from pluto.llm_providers import ExternalClient
 
     cfg = fresh()                                   # cfg.model = "hermes3:8b"
     modelos, auths = [], []
@@ -4698,7 +4698,7 @@ def T128_varredura_de_segredos_e_dlp_mascarar():
     DLP mascarar() que impede código/segredos de sair para provedores
     externos (regra D2 do operador)."""
     import argparse
-    from betterme import varredura as V
+    from pluto import varredura as V
 
     # ---- padrões e severidades
     txt = ("key = gsk_" + "A" * 30 + "\n"
@@ -4756,7 +4756,7 @@ def T128_varredura_de_segredos_e_dlp_mascarar():
     assert "abracadabra" not in limpo
     assert "frase normal de prosa" in limpo      # prosa preservada
 
-    # ---- auto-teste: o PRÓPRIO repo do Betterme não tem crítico
+    # ---- auto-teste: o PRÓPRIO repo do Pluto não tem crítico
     repo = Path(__file__).resolve().parent.parent
     achos = [a for a in V.varrer_repo(cfg, repo)
              if a.severidade == "CRITICO"]
@@ -4766,10 +4766,10 @@ def T128_varredura_de_segredos_e_dlp_mascarar():
 @case
 def T129_hermes_md_contexto_de_projeto():
     """v4.0.0 M2: HERMES.md/AGENTS.md descoberto (global + projeto),
-    HERMES.md vence AGENTS.md, cap 32 KiB, `betterme init` cria scaffold,
+    HERMES.md vence AGENTS.md, cap 32 KiB, `pluto init` cria scaffold,
     injeção no prompt LOCAL e versão DLP-mascarada no EXTERNO."""
-    from betterme import project_context as PC
-    from betterme.agent import Agent
+    from pluto import project_context as PC
+    from pluto.agent import Agent
 
     cfg = fresh()
     # sem arquivos -> seção vazia, prompt inalterado
@@ -4778,7 +4778,7 @@ def T129_hermes_md_contexto_de_projeto():
     # global + projeto; HERMES.md vence AGENTS.md no projeto
     (cfg.data_dir / "HERMES.md").write_text(
         "global: responder sempre em PT-BR", encoding="utf-8")
-    proj = Path.home() / f".betterme-t129-{os.getpid()}"
+    proj = Path.home() / f".pluto-t129-{os.getpid()}"
     shutil.rmtree(proj, ignore_errors=True)
     proj.mkdir(parents=True)
     try:
@@ -4810,7 +4810,7 @@ def T129_hermes_md_contexto_de_projeto():
         assert "truncado em 32 KiB" in sec3
 
         # init: cria scaffold; de novo -> não altera
-        p2 = Path.home() / f".betterme-t129b-{os.getpid()}"
+        p2 = Path.home() / f".pluto-t129b-{os.getpid()}"
         shutil.rmtree(p2, ignore_errors=True)
         p2.mkdir(parents=True)
         try:
@@ -4824,8 +4824,8 @@ def T129_hermes_md_contexto_de_projeto():
 
         # injeção no prompt do agente LOCAL (dentro do task_scope)
         (proj / "HERMES.md").write_text(
-            "regra local do projeto betterme-md-t129", encoding="utf-8")
-        from betterme.tools import task_scope
+            "regra local do projeto pluto-md-t129", encoding="utf-8")
+        from pluto.tools import task_scope
 
         class _Fala:
             simulated = False
@@ -4834,7 +4834,7 @@ def T129_hermes_md_contexto_de_projeto():
         ag = Agent(cfg, client=_Fala())
         with task_scope(proj, cfg):
             prompt = ag.system_prompt("algo")
-        assert "regra local do projeto betterme-md-t129" in prompt
+        assert "regra local do projeto pluto-md-t129" in prompt
 
         # EXTERNO: seção vai, mas FILTRADA pelo DLP (código/segredo fora)
         class _Ext:
@@ -4870,8 +4870,8 @@ def T130_skills_de_metodologia_ptbr():
     """v4.0.0 M3 (D4): as 6 skills essenciais adaptadas do superpowers,
     reescritas em PT-BR no NOSSO modelo (fases do pipeline, nunca
     subagentes/comandos do Claude), sempre ativas e auditadas."""
-    from betterme.skills import SkillLoader
-    from betterme.skills_audit import run_audit
+    from pluto.skills import SkillLoader
+    from pluto.skills_audit import run_audit
 
     cfg = fresh()
     nomes = {"tdd", "debug-sistematico", "verificacao-antes-de-concluir",
@@ -4905,7 +4905,7 @@ def T131_sandbox_de_kernel_bwrap_seccomp():
     denylist de app quando o kernel não está disponível."""
     import struct as _st
     import subprocess as _sp
-    from betterme import sandbox_kernel as SK
+    from pluto import sandbox_kernel as SK
 
     # ---- BPF: formato e blocklist
     bpf = SK.bpf_blocklist()
@@ -5001,8 +5001,8 @@ def T132_autonomia_tres_niveis():
     """v4.0.0 M5 (D3): cauteloso/padrao/autonomo — gates soft respeitam
     o nível, hard gates são inegociáveis, AUTÔNOMO cria sem approval e
     ganha varredura pré-entrega; /autonomia no chat."""
-    from betterme import autonomy as AU
-    from betterme import orchestrator as orc
+    from pluto import autonomy as AU
+    from pluto import orchestrator as orc
 
     # ---- funções de nível
     cfg = fresh()
@@ -5019,7 +5019,7 @@ def T132_autonomia_tres_niveis():
     # ---- E2E: AUTÔNOMO com gate de criação LIGADO cria sem approval
     cfg2 = fresh(creation_approval=True)
     cfg2.update({"autonomia": "autonomo"})
-    proj = Path.home() / f".betterme-t132-{os.getpid()}"
+    proj = Path.home() / f".pluto-t132-{os.getpid()}"
     shutil.rmtree(proj, ignore_errors=True)
 
     class _Ag:
@@ -5040,14 +5040,14 @@ def T132_autonomia_tres_niveis():
         shutil.rmtree(proj, ignore_errors=True)
 
     # fonte: gates ligados ao nível
-    src = Path("betterme/orchestrator.py").read_text(encoding="utf-8")
+    src = Path("pluto/orchestrator.py").read_text(encoding="utf-8")
     assert "pula_gate_criacao(cfg)" in src and "pre_entrega_varredura" in src
-    assert "confirma_todo_comando" in Path("betterme/tui.py").read_text(
+    assert "confirma_todo_comando" in Path("pluto/tui.py").read_text(
         encoding="utf-8")
 
     # ---- varredura pré-entrega (AUTÔNOMO): crítico vira aviso
     cfg3 = fresh()
-    sujo = Path.home() / f".betterme-t132b-{os.getpid()}"
+    sujo = Path.home() / f".pluto-t132b-{os.getpid()}"
     shutil.rmtree(sujo, ignore_errors=True)
     sujo.mkdir(parents=True)
     try:
@@ -5055,7 +5055,7 @@ def T132_autonomia_tres_niveis():
                                         encoding="utf-8")
         aviso = AU.pre_entrega_varredura(cfg3, sujo)
         assert "CRÍTICO" in aviso and "chave.txt" in aviso
-        limpo = Path.home() / f".betterme-t132c-{os.getpid()}"
+        limpo = Path.home() / f".pluto-t132c-{os.getpid()}"
         shutil.rmtree(limpo, ignore_errors=True)
         limpo.mkdir(parents=True)
         try:
@@ -5109,7 +5109,7 @@ class _PoolFake:
 def T133_contrato_de_veredito_e_evidencia():
     """v4.0.0 M6 (R3): schema do veredito, confiança mínima, evidência
     obrigatória e checagem DETERMINÍSTICA em disco (risco #7)."""
-    from betterme.specialists import (checar_evidencia, invocar, validar,
+    from pluto.specialists import (checar_evidencia, invocar, validar,
                                     _extrair_json)
 
     bom = _extrair_json(_veredito_falso())
@@ -5126,7 +5126,7 @@ def T133_contrato_de_veredito_e_evidencia():
 
     # evidência em disco: arquivo:linha existe e contém o trecho
     cfg = fresh()
-    d = Path.home() / f".betterme-t133-{os.getpid()}"
+    d = Path.home() / f".pluto-t133-{os.getpid()}"
     shutil.rmtree(d, ignore_errors=True)
     d.mkdir(parents=True)
     try:
@@ -5170,7 +5170,7 @@ def T133_contrato_de_veredito_e_evidencia():
 def T134_dlp_codigo_e_segredos_nao_saim_no_pool():
     """v4.0.0 M6 (R6/D2): o caso enviado ao pool externo passa pelo DLP —
     código e segredos NUNCA saem; prosa permanece."""
-    from betterme.specialists import invocar
+    from pluto.specialists import invocar
 
     cfg = fresh()
     caso = ("o script é:\n```python\ndef banco():\n    return 1\n"
@@ -5188,7 +5188,7 @@ def T134_dlp_codigo_e_segredos_nao_saim_no_pool():
 @case
 def T135_pool_de_provedores_rotacao_e_fallback():
     """v4.0.0 M6 (R7): externo falha -> rotaciona -> todos caem -> local."""
-    from betterme.specialists import Pool
+    from pluto.specialists import Pool
 
     cfg = fresh()
 
@@ -5231,7 +5231,7 @@ def T135_pool_de_provedores_rotacao_e_fallback():
 def T136_exames_de_competencia_e_degradacao():
     """v4.0.0 M6 (R8/R5): casos-ouro com cache; reprovado desativa o
     especialista SEM quebrar o pipeline (regra 8 do ADR-001)."""
-    from betterme.specialists import _arquivo_exames, disponiveis, exame, \
+    from pluto.specialists import _arquivo_exames, disponiveis, exame, \
         invocar
 
     cfg = fresh()
@@ -5269,7 +5269,7 @@ def T137_loop_de_aprendizado_aprovacao():
     """v4.0.0 M6.5: missão com >=5 ferramentas aprovada -> RASCUNHO em
     staging (nunca direto no catálogo); aprovação instala a skill (com
     backup+auditoria); reprovada -> lição; nada entra sem o operador."""
-    from betterme import learning as LG
+    from pluto import learning as LG
 
     cfg = fresh()
     # abaixo do limiar: nada proposto
@@ -5294,7 +5294,7 @@ def T137_loop_de_aprendizado_aprovacao():
     assert alvo.is_file()
     assert not LG.pendentes(cfg)                    # staging esvaziou
     # skill aparece no catálogo do agente
-    from betterme.skills import SkillLoader
+    from pluto.skills import SkillLoader
     nomes = {s["name"] for s in SkillLoader(cfg).enabled()}
     assert ps[0]["alvo"] in nomes
     # de novo a mesma missão -> aprovar vira PATCH com backup
@@ -5318,7 +5318,7 @@ def T137_loop_de_aprendizado_aprovacao():
     assert ps4[0]["tipo"] == "licao" and "LIÇÃO" in ps4[0]["rascunho"]
     ok4, msg4 = LG.aprovar(cfg, ps4[0]["id"])
     assert ok4 and "memória" in msg4
-    from betterme.memory import MemoryStore
+    from pluto.memory import MemoryStore
     fatos = " ".join(f["text"] for f in MemoryStore(cfg).list_all())
     assert "missão que deu errado" in fatos
 
@@ -5327,11 +5327,11 @@ def T137_loop_de_aprendizado_aprovacao():
 def T138_skills_aprender_e_busca_em_conversas():
     """v4.0.0 M6.5: `skills aprender` (arquivo/texto) cria rascunho com
     frontmatter e a busca em conversas acha decisões antigas."""
-    from betterme import learning as LG
-    from betterme.learning import buscar_conversas
+    from pluto import learning as LG
+    from pluto.learning import buscar_conversas
 
     cfg = fresh()
-    doc = Path.home() / f".betterme-t138-{os.getpid()}.md"
+    doc = Path.home() / f".pluto-t138-{os.getpid()}.md"
     doc.write_text("# Deploy manual do servidor\n\n1. rode deploy.sh\n"
                    "2. confira o log\n", encoding="utf-8")
     try:
@@ -5349,7 +5349,7 @@ def T138_skills_aprender_e_busca_em_conversas():
         doc.unlink(missing_ok=True)
 
     # busca em conversas: cria sessão com decisão antiga
-    from betterme.conversations import ConversationStore
+    from pluto.conversations import ConversationStore
     store = ConversationStore(cfg)
     s = store.new_session()
     store.append(s["id"], "user", "vamos usar TF-IDF sem embeddings")
@@ -5359,7 +5359,7 @@ def T138_skills_aprender_e_busca_em_conversas():
     assert "TF-IDF sem embeddings" in ach[0]["trecho"]
     assert buscar_conversas(cfg, "zurplefrobnicate") == []
     # ferramenta do agente
-    import betterme.tools as T
+    import pluto.tools as T
     r = T.execute_tool("conversas_buscar", {"termo": "determinístico"}, cfg)
     assert r["ok"] and "conversas passadas" in r["output"]
     assert "RAG" in r["output"]
@@ -5369,16 +5369,16 @@ def T138_skills_aprender_e_busca_em_conversas():
 def T139_gerente_de_codigo_optin_consciente():
     """v4.0.0 M7 (D5): Claude = gerente de código — OFF por padrão; ligar
     exige --yes após o aviso de privacidade (código vai à Anthropic);
-    ferramenta delega só quando ativo; Betterme segue como cérebro main."""
-    from betterme import code_manager as GM
-    import betterme.tools as T
+    ferramenta delega só quando ativo; Pluto segue como cérebro main."""
+    from pluto import code_manager as GM
+    import pluto.tools as T
 
     cfg = fresh()
     # off por padrão; delegar explica em vez de executar
     assert GM.ativo(cfg) is False
     r = T.execute_tool("gerente_codigo", {"task": "refatore o app"}, cfg)
     assert not r["ok"] or "DESLIGADO" in r["output"]
-    assert "betterme gerente on" in r["output"]
+    assert "pluto gerente on" in r["output"]
     # ligar SEM --yes não liga — só mostra o aviso
     ok, msg = GM.ativar(cfg, assumir=False)
     assert ok is False and "Anthropic" in msg and "CÓDIGO SAI" in msg
@@ -5425,7 +5425,7 @@ def T140_gui_agentes_endpoints_e_fonte():
     assert r8["ok"]
 
     # ---- fluxo aprendizados pela API
-    from betterme import learning as LG
+    from pluto import learning as LG
     LG.observar(cfg, "missão rica da GUI x", "aprovada", "passos reais", 6)
     pend = c.get("/api/aprendizados").get_json()["pendentes"]
     assert len(pend) == 1
@@ -5435,7 +5435,7 @@ def T140_gui_agentes_endpoints_e_fonte():
     assert c.get("/api/aprendizados").get_json()["pendentes"] == []
 
     # ---- fonte da GUI (zero-build, vanilla, inline)
-    html = Path("betterme/server/templates/index.html").read_text(
+    html = Path("pluto/server/templates/index.html").read_text(
         encoding="utf-8")
     for marcador in ('id="page-agentes"', 'data-page="agentes"',
                      "loadAgentes", "setAutonomia", "apDecide",
@@ -5448,14 +5448,14 @@ def T140_gui_agentes_endpoints_e_fonte():
 
 @case
 def T141_renome_betterme_migracao_e_identidade():
-    """v4.1.0 (PR#4): renome Hermes->Betterme — pacote betterme, CLI
-    betterme (alias hermes), identidade no prompt, env BETTERME_* com
-    fallback HERMES_*, e migração automática ~/.hermes -> ~/.betterme."""
+    """v4.1.0 (PR#4): renome Hermes->Pluto — pacote pluto, CLI
+    pluto (alias hermes), identidade no prompt, env PLUTO_* com
+    fallback HERMES_*, e migração automática ~/.hermes -> ~/.pluto."""
     import subprocess as _sp
     import sys as _sys
-    from betterme.agent import Agent
+    from pluto.agent import Agent
 
-    # identidade: o prompt de sistema apresenta o Betterme
+    # identidade: o prompt de sistema apresenta o Pluto
     cfg = fresh()
 
     class _Fala:
@@ -5464,11 +5464,11 @@ def T141_renome_betterme_migracao_e_identidade():
             yield {"message": {"content": "ok"}}
     ag = Agent(cfg, client=_Fala())
     prompt = ag.system_prompt("oi")
-    assert "Betterme" in prompt and "Você é o Hermes" not in prompt
+    assert "Pluto" in prompt and "Você é o Hermes" not in prompt
 
     # pacote e alias de console script
-    from betterme.config import VERSION as _VER
-    r = _sp.run([*_betterme_bin(), "--version"], capture_output=True,
+    from pluto.config import VERSION as _VER
+    r = _sp.run([*_pluto_bin(), "--version"], capture_output=True,
                 text=True, timeout=60)
     assert r.returncode == 0 and _VER in r.stdout
     r2 = _sp.run([*_hermes_bin(), "--version"], capture_output=True,
@@ -5478,13 +5478,13 @@ def T141_renome_betterme_migracao_e_identidade():
     # env legado continua funcionando (HERMES_MOCK)
     r3 = _sp.run(["bash", "-c",
                   f"HERMES_MOCK=1 '{sys.executable}' -c "
-                  "'from betterme.config import Config; "
+                  "'from pluto.config import Config; "
                   "c=Config(data_dir=\"/home/user/.t141-env\"); "
                   "print(1 if c.mock else 0)'"],
                  capture_output=True, text=True, timeout=60)
     assert r3.returncode == 0 and r3.stdout.strip().endswith("1"), r3.stderr[-200:]
 
-    # migração: HOME falso com ~/.hermes legado -> vira ~/.betterme
+    # migração: HOME falso com ~/.hermes legado -> vira ~/.pluto
     fake = Path.home() / f".t141-home-{os.getpid()}"
     shutil.rmtree(fake, ignore_errors=True)
     (fake / ".hermes").mkdir(parents=True)
@@ -5495,18 +5495,18 @@ def T141_renome_betterme_migracao_e_identidade():
                                                               encoding="utf-8")
     try:
         r4 = _sp.run([_sys.executable, "-c",
-                      "from betterme.config import Config; "
+                      "from pluto.config import Config; "
                       "c = Config(); print(c.data_dir)"],
                       capture_output=True, text=True, timeout=60,
                       env={**os.environ, "HOME": str(fake)})
         assert r4.returncode == 0, r4.stderr[-300:]
-        assert str(fake / ".betterme") in r4.stdout
-        assert (fake / ".betterme" / "memory.json").is_file()
-        assert (fake / ".betterme" / "biblioteca" / "livro.md").is_file()
+        assert str(fake / ".pluto") in r4.stdout
+        assert (fake / ".pluto" / "memory.json").is_file()
+        assert (fake / ".pluto" / "biblioteca" / "livro.md").is_file()
         assert not (fake / ".hermes").exists()      # movido, não copiado
         # 2ª execução não quebra nem duplica
         r5 = _sp.run([_sys.executable, "-c",
-                      "from betterme.config import Config; "
+                      "from pluto.config import Config; "
                       "c = Config(); print(c.data_dir)"],
                       capture_output=True, text=True, timeout=60,
                       env={**os.environ, "HOME": str(fake)})
@@ -5543,8 +5543,8 @@ def T142_telegram_token_allowlist_e_comandos():
     """v4.2.0 (PR#5): token do bot em secrets 600 (nunca no config),
     allowlist de chats, e o parser de comandos compartilhado."""
     import stat as _stat
-    from betterme import telegram_gw as TG
-    from betterme.gateway import processar_comando
+    from pluto import telegram_gw as TG
+    from pluto.gateway import processar_comando
 
     cfg = fresh()
     assert TG.token(cfg) == ""
@@ -5569,7 +5569,7 @@ def T142_telegram_token_allowlist_e_comandos():
                               lambda tid, ac: decisoes.append((tid, ac))
                               or True,
                               lambda p: "resposta", autorizado=True)
-    assert "Betterme" in respo and "autonomia" in respo
+    assert "Pluto" in respo and "autonomia" in respo
     assert "/aprovar" in processar_comando(cfg, "/ajuda", "EU",
                                            lambda *a: True,
                                            lambda p: "", True)
@@ -5591,8 +5591,8 @@ def T142_telegram_token_allowlist_e_comandos():
 def T143_decisao_via_approve_ou_http_do_server():
     """v4.2.0 (PR#5): /aprovar decide pela approve() do orquestrador e,
     em processo separado, cai no HTTP do server local."""
-    from betterme import gateway as GW
-    from betterme import orchestrator as orc
+    from pluto import gateway as GW
+    from pluto import orchestrator as orc
 
     cfg = fresh()
     captura = {}
@@ -5624,7 +5624,7 @@ def T143_decisao_via_approve_ou_http_do_server():
 def T144_gateway_notifica_pendencias_com_privacidade():
     """v4.2.0 (PR#5): pendências novas viram notificação nos canais —
     com id + objetivo TRUNCADO, JAMAIS conteúdo de arquivo; dedup."""
-    from betterme.gateway import Gateway
+    from pluto.gateway import Gateway
 
     cfg = fresh()
     pend = cfg.data_dir / "pending_approvals.json"
@@ -5711,8 +5711,8 @@ def T145_whatsapp_playwright_fake_parear_ler_comandar():
     """v4.2.0 (PR#5): canal WhatsApp via Playwright — pareamento salva o
     QR, mensagens novas viram comandos, allowlist de números, resposta
     enviada de volta (tudo com Playwright FAKE)."""
-    from betterme import whatsapp_gw as WA
-    from betterme.gateway import Gateway
+    from pluto import whatsapp_gw as WA
+    from pluto.gateway import Gateway
 
     cfg = fresh()
     WA.autorizar_numero(cfg, "559299990000")
@@ -5754,7 +5754,7 @@ def T145_whatsapp_playwright_fake_parear_ler_comandar():
     gw = Gateway(cfg, decidir=lambda *a: True, runner=lambda p: "ok")
     canal._gw = gw
     r = gw.receber(canal, "559299990000", "/status")
-    assert "Betterme" in r
+    assert "Pluto" in r
     canal._page = _PagFake({"msgs": []})
     canal.enviar("resposta de teste")                  # nao explode
     assert canal._page.ações[0][0] == "goto"
@@ -5764,7 +5764,7 @@ def T145_whatsapp_playwright_fake_parear_ler_comandar():
 def T146_whatsapp_degradacao_e_remocao():
     """v4.2.0 (PR#5): sem playwright o canal desativa com instrução
     clara (nunca quebra) e `remover` apaga perfil/QR/allowlist."""
-    from betterme import whatsapp_gw as WA
+    from pluto import whatsapp_gw as WA
 
     cfg = fresh()
     canal = WA.CanalWhatsapp(cfg)          # sem _pw: depende do ambiente
@@ -5788,18 +5788,18 @@ def T146_whatsapp_degradacao_e_remocao():
 def T147_autostart_e_fonte_do_gateway():
     """v4.2.0 (PR#5): server sobe os canais ligados; flags OFF por
     padrão; playwright é extra opcional; CLI expõe os dois canais."""
-    from betterme.gateway import start_automatico
+    from pluto.gateway import start_automatico
 
     cfg = fresh()
     assert start_automatico(cfg) is None      # tudo off: nada sobe
-    app_src = Path("betterme/server/app.py").read_text(encoding="utf-8")
+    app_src = Path("pluto/server/app.py").read_text(encoding="utf-8")
     assert "start_automatico(cfg)" in app_src
-    cfg_src = Path("betterme/config.py").read_text(encoding="utf-8")
+    cfg_src = Path("pluto/config.py").read_text(encoding="utf-8")
     assert '"telegram_on": False' in cfg_src
     assert '"whatsapp_on": False' in cfg_src
     py = Path("pyproject.toml").read_text(encoding="utf-8")
     assert "[project.optional-dependencies]" in py and "playwright" in py
-    cli = Path("betterme/cli.py").read_text(encoding="utf-8")
+    cli = Path("pluto/cli.py").read_text(encoding="utf-8")
     assert 'sub.add_parser("telegram"' in cli
     assert 'sub.add_parser("whatsapp"' in cli
 
@@ -5808,8 +5808,8 @@ def T147_autostart_e_fonte_do_gateway():
 def T148_telegram_fluxo_e2e_com_http_fake():
     """v4.2.0 (PR#5): update do Telegram vira comando; a resposta sai
     por sendMessage; chat fora da allowlist recebe bloqueio."""
-    from betterme import telegram_gw as TG
-    from betterme.gateway import Gateway
+    from pluto import telegram_gw as TG
+    from pluto.gateway import Gateway
 
     cfg = fresh()
     TG.salvar_token(cfg, "1:TESTE")
@@ -5846,7 +5846,7 @@ def T148_telegram_fluxo_e2e_com_http_fake():
 def T149_arena_mesma_task_nos_contendores():
     """v4.3.0 (PR#6): a MESMA task vai a TODOS os contendores do pool fake,
     cronometrada — modo resposta (completion pura, sem ferramentas)."""
-    from betterme import arena
+    from pluto import arena
 
     cfg = fresh()
     pool = arena.candidatos(cfg)
@@ -5867,7 +5867,7 @@ def T149_arena_mesma_task_nos_contendores():
 def T150_revisor_ranking_com_criterios():
     """v4.3.0 (PR#6): o revisor ranqueia com critérios — em mock o juiz
     local não julga e a heurística determinística ordena groq>gemini>llm7."""
-    from betterme import arena
+    from pluto import arena
 
     cfg = fresh()
     res = arena.rodar(cfg, "resuma X")
@@ -5887,7 +5887,7 @@ def T150_revisor_ranking_com_criterios():
 def T151_arena_nao_escreve_no_disco():
     """v4.3.0 (PR#6): modo resposta — o resultado NUNCA escreve no disco
     (única escrita permitida: linha de auditoria em logs/agent.log)."""
-    from betterme import arena
+    from pluto import arena
 
     cfg = fresh()
     antes = {str(p.relative_to(cfg.data_dir))
@@ -5904,8 +5904,8 @@ def T151_arena_nao_escreve_no_disco():
 def T152_contendor_que_falha_nao_derruba_rodada():
     """v4.3.0 (PR#6): contendor em erro fica ok=False/nota 0 com motivo —
     a rodada continua e o bom contendor vence."""
-    from betterme.arena import rodar
-    from betterme.ollama_client import OllamaError
+    from pluto.arena import rodar
+    from pluto.ollama_client import OllamaError
 
     class Bom:
         model = "bom-1b"
@@ -5933,7 +5933,7 @@ def T152_contendor_que_falha_nao_derruba_rodada():
 def T153_arena_dlp_mascara_task_antes_do_pool():
     """v4.3.0 (PR#6) + D2: código/segredos da task são DLP-mascarados
     ANTES de qualquer payload externo — nunca chegam ao provedor."""
-    from betterme import arena
+    from pluto import arena
 
     cfg = fresh()
     pool = arena.candidatos(cfg)
@@ -5953,7 +5953,7 @@ def T153_arena_dlp_mascara_task_antes_do_pool():
 def T154_revisor_local_valido_e_fallback():
     """v4.3.0 (PR#6): juiz LOCAL válido → ranking do revisor (notas
     10/8, motivo no veredito); JSON inválido → heurística sem quebrar."""
-    from betterme.arena import rodar
+    from pluto.arena import rodar
 
     class P:
         model = "p1"
@@ -5989,15 +5989,15 @@ def T154_revisor_local_valido_e_fallback():
 
 @case
 def T155_cli_arena_tabela_e_vencedor():
-    """v4.3.0 (PR#6): `betterme arena "<task>"` imprime tabela + vencedor
+    """v4.3.0 (PR#6): `pluto arena "<task>"` imprime tabela + vencedor
     (mock: zero rede, zero chaves)."""
     venv_py = ROOT / ".venv" / "bin" / "python"
     py = str(venv_py) if venv_py.exists() else sys.executable
     env = dict(os.environ,
-               BETTERME_DATA_DIR=tempfile.mkdtemp(prefix="betterme-arena-"),
-               BETTERME_MOCK="1")
+               PLUTO_DATA_DIR=tempfile.mkdtemp(prefix="pluto-arena-"),
+               PLUTO_MOCK="1")
     import subprocess
-    r = subprocess.run([py, "-m", "betterme", "arena", "o que é regex?"],
+    r = subprocess.run([py, "-m", "pluto", "arena", "o que é regex?"],
                        capture_output=True, text=True, env=env,
                        timeout=120, cwd=str(ROOT))
     texto = r.stdout + r.stderr
@@ -6010,7 +6010,7 @@ def T155_cli_arena_tabela_e_vencedor():
 def T156_arena_candidatos_reais_por_chave():
     """v4.3.0 (PR#6): modo real — entram provedores com chave em secrets/
     + anônimos (llm7); sem chave fica fora; pool vazio → orientação."""
-    from betterme import arena, llm_providers
+    from pluto import arena, llm_providers
 
     cfg = fresh()
     cfg.mock = False                      # data-dir limpo: sem chaves
@@ -6073,7 +6073,7 @@ def _dump_grafo(cfg):
 def T157_grafo_build_deterministico():
     """v4.4.0 (PR#7): mesma árvore → mesmos símbolos e arestas (ordenados);
     símbolos/arestas esperados presentes com proveniência arquivo:linha."""
-    from betterme import grafo
+    from pluto import grafo
 
     raiz = _fixture_grafo()
     cfg_a, cfg_b = fresh(), fresh()
@@ -6095,21 +6095,21 @@ def T157_grafo_build_deterministico():
     assert ("importa", "pkg.mod", "json", "pkg/mod.py", 1) in conjunto
     for _t, _o, _d, ar, li in ars_a:           # proveniência sempre válida
         assert ar == "pkg/mod.py" and 1 <= li <= 20, (ar, li)
-    # build do PRÓPRIO repo: rápido, pula .venv/__pycache__, acha o Betterme
+    # build do PRÓPRIO repo: rápido, pula .venv/__pycache__, acha o Pluto
     cfg_repo = fresh()
     st_repo = grafo.build(cfg_repo, ROOT)
     assert st_repo["arquivos"] > 40 and st_repo["simbolos"] > 500, st_repo
     sims_repo, ars_repo = _dump_grafo(cfg_repo)
     assert not any(".venv" in s[3] or "__pycache__" in s[3] for s in sims_repo)
     assert not any(".venv" in a[3] or "__pycache__" in a[3] for a in ars_repo)
-    assert any(q == "betterme.arena.rodar" for _t, _n, q, _ar, _li in sims_repo)
+    assert any(q == "pluto.arena.rodar" for _t, _n, q, _ar, _li in sims_repo)
 
 
 @case
 def T158_grafo_query_acha_funcao_e_linha():
     """v4.4.0 (PR#7): query por nome acha função/classe/método com
     arquivo:linha CERTOS — case-insensitive, substring, contagem de chamadas."""
-    from betterme import grafo
+    from pluto import grafo
 
     cfg = fresh()
     grafo.build(cfg, _fixture_grafo())
@@ -6133,8 +6133,8 @@ def T158_grafo_query_acha_funcao_e_linha():
 def T159_grafo_query_tool_catalogo_e_path():
     """v4.4.0 (PR#7): ferramenta grafo_query no catálogo do cérebro —
     query e caminho A→B via execute_tool; sem grafo → orientação honesta."""
-    from betterme import grafo
-    from betterme.tools import TOOL_NAMES, execute_tool
+    from pluto import grafo
+    from pluto.tools import TOOL_NAMES, execute_tool
 
     assert "grafo_query" in TOOL_NAMES
     cfg = fresh()
@@ -6155,24 +6155,24 @@ def T159_grafo_query_tool_catalogo_e_path():
 
 @case
 def T160_cli_grafo_build_query_path():
-    """v4.4.0 (PR#7): `betterme grafo build|query|path` ponta a ponta."""
+    """v4.4.0 (PR#7): `pluto grafo build|query|path` ponta a ponta."""
     venv_py = ROOT / ".venv" / "bin" / "python"
     py = str(venv_py) if venv_py.exists() else sys.executable
     raiz = _fixture_grafo()
     env = dict(os.environ,
-               BETTERME_DATA_DIR=tempfile.mkdtemp(prefix="betterme-grafo-"),
-               BETTERME_MOCK="1")
+               PLUTO_DATA_DIR=tempfile.mkdtemp(prefix="pluto-grafo-"),
+               PLUTO_MOCK="1")
     import subprocess
-    r = subprocess.run([py, "-m", "betterme", "grafo", "build",
+    r = subprocess.run([py, "-m", "pluto", "grafo", "build",
                         "--raiz", raiz], capture_output=True, text=True,
                        env=env, timeout=120, cwd=str(ROOT))
     texto = r.stdout + r.stderr
     assert r.returncode == 0 and "7 símbolos" in texto, texto[:300]
-    r2 = subprocess.run([py, "-m", "betterme", "grafo", "query", "principal"],
+    r2 = subprocess.run([py, "-m", "pluto", "grafo", "query", "principal"],
                         capture_output=True, text=True, env=env,
                         timeout=120, cwd=str(ROOT))
     assert r2.returncode == 0 and "pkg/mod.py:18" in r2.stdout, r2.stdout[:300]
-    r3 = subprocess.run([py, "-m", "betterme", "grafo", "path",
+    r3 = subprocess.run([py, "-m", "pluto", "grafo", "path",
                          "principal", "run"], capture_output=True, text=True,
                         env=env, timeout=120, cwd=str(ROOT))
     assert r3.returncode == 0 and "Base.run" in r3.stdout, r3.stdout[:300]
@@ -6201,7 +6201,7 @@ def T161_diff_com_bug_ou_segredo_e_flagrado():
     """v4.5.0 (PR#8): bug sutil É flagrado pelo revisor (evidência
     arquivo:linha validada); segredo no diff reprova MESMO com juiz
     aprovando (gate objetivo da varredura)."""
-    from betterme import revisar
+    from pluto import revisar
 
     cfg = fresh()
     raiz = _fixture_git_diff()
@@ -6234,7 +6234,7 @@ def T161_diff_com_bug_ou_segredo_e_flagrado():
 def T162_diff_limpo_passa_e_vazio_orienta():
     """v4.5.0 (PR#8): diff limpo passa (aprovado, zero problemas);
     sem diff → mensagem honesta, sem quebrar."""
-    from betterme import revisar
+    from pluto import revisar
 
     cfg = fresh()
     raiz = _fixture_git_diff()
@@ -6258,9 +6258,9 @@ def T162_diff_limpo_passa_e_vazio_orienta():
 
 @case
 def T163_cli_e_tool_revisar_diff():
-    """v4.5.0 (PR#8): `betterme revisar` ponta a ponta (exit 0 aprovado /
+    """v4.5.0 (PR#8): `pluto revisar` ponta a ponta (exit 0 aprovado /
     exit 1 reprovado) + ferramenta revisar_diff no catálogo do cérebro."""
-    from betterme.tools import TOOL_NAMES, execute_tool
+    from pluto.tools import TOOL_NAMES, execute_tool
 
     assert "revisar_diff" in TOOL_NAMES
     cfg = fresh()
@@ -6272,10 +6272,10 @@ def T163_cli_e_tool_revisar_diff():
     venv_py = ROOT / ".venv" / "bin" / "python"
     py = str(venv_py) if venv_py.exists() else sys.executable
     env = dict(os.environ,
-               BETTERME_DATA_DIR=tempfile.mkdtemp(prefix="betterme-rev-"),
-               BETTERME_MOCK="1")
+               PLUTO_DATA_DIR=tempfile.mkdtemp(prefix="pluto-rev-"),
+               PLUTO_MOCK="1")
     import subprocess
-    rr = subprocess.run([py, "-m", "betterme", "revisar", "--raiz", str(raiz)],
+    rr = subprocess.run([py, "-m", "pluto", "revisar", "--raiz", str(raiz)],
                         capture_output=True, text=True, env=env,
                         timeout=120, cwd=str(ROOT))
     assert rr.returncode == 0 and "APROVADO" in rr.stdout, rr.stdout[:300]
@@ -6283,7 +6283,7 @@ def T163_cli_e_tool_revisar_diff():
     (raiz / "soma.py").write_text(
         "def soma(a, b):\n    return a + b\n\nKEY = 'gsk_" + "B" * 30
         + "'\n", encoding="utf-8")
-    rr2 = subprocess.run([py, "-m", "betterme", "revisar", "--raiz", str(raiz)],
+    rr2 = subprocess.run([py, "-m", "pluto", "revisar", "--raiz", str(raiz)],
                          capture_output=True, text=True, env=env,
                          timeout=120, cwd=str(ROOT))
     assert rr2.returncode == 1 and "REPROVADO" in rr2.stdout, rr2.stdout[:300]
@@ -6301,7 +6301,7 @@ def _fixture_mm():
     wh = d / "whisper-cli"
     wh.write_text("#!/bin/sh\n"
                   "echo \"[00:00:00.000 --> 00:00:04.000]  olá este é um teste\"\n"
-                  "echo \"[00:00:04.000 --> 00:00:08.500]  de transcrição local do betterme\"\n",
+                  "echo \"[00:00:04.000 --> 00:00:08.500]  de transcrição local do pluto\"\n",
                   encoding="utf-8")
     ff.chmod(0o755)
     wh.chmod(0o755)
@@ -6314,7 +6314,7 @@ def _fixture_mm():
 def T164_multimodal_pipeline_com_binarios_fake():
     """v4.6.0 (PR#9): ffmpeg extrai áudio → whisper.cpp local transcreve
     com timestamps → transcrição gravada (tudo local, nada sai)."""
-    from betterme import multimodal
+    from pluto import multimodal
 
     cfg = fresh()
     d, ff, wh, midia = _fixture_mm()
@@ -6337,7 +6337,7 @@ def T164_multimodal_pipeline_com_binarios_fake():
 def T165_transcricao_indexada_e_citada_no_rag():
     """v4.6.0 (PR#9): a transcrição ENTRA na biblioteca RAG — busca
     textual acha o trecho VERBATIM com a fonte citada."""
-    from betterme import knowledge, multimodal
+    from pluto import knowledge, multimodal
 
     cfg = fresh()
     d, ff, wh, midia = _fixture_mm()
@@ -6356,7 +6356,7 @@ def T165_transcricao_indexada_e_citada_no_rag():
 def T166_sem_binario_nao_quebra_e_orienta():
     """v4.6.0 (PR#9): degradação honesta — sem ffmpeg/whisper/arquivo →
     mensagem clara de COMO instalar, nunca exceção."""
-    from betterme import multimodal
+    from pluto import multimodal
 
     cfg = fresh()
     d, ff, wh, midia = _fixture_mm()
@@ -6385,7 +6385,7 @@ def _rascunho(cfg, titulo, ts=None):
     """Cria rascunho de aprendizado com id/timestamp únicos."""
     import time as _t
     _t.sleep(0.01)                     # garante id distinto (ms)
-    from betterme import learning
+    from pluto import learning
     e = learning._salvar(cfg, {"tipo": "skill", "titulo": titulo,
                                "rascunho": "corpo", "origem": "missao",
                                "objetivo": titulo})
@@ -6401,12 +6401,12 @@ def _rascunho(cfg, titulo, ts=None):
 def T167_cron_dispara_missao_modo_vida():
     """v5.0.0 (PR#10): missão agendada `modo-vida:` dispara pelo
     agendador de forma DETERMINÍSTICA — sem LLM, sem tokens, local."""
-    from betterme import scheduler, vida
+    from pluto import scheduler, vida
 
     cfg = fresh()
     reg = vida.registrar(cfg)
     assert reg["ok"] and len(reg["criadas"]) == 2, reg
-    from betterme.scheduler import ScheduleStore
+    from pluto.scheduler import ScheduleStore
     entradas = [e for e in ScheduleStore(cfg).list_all()
                 if str(e.get("input", "")).startswith("modo-vida:")]
     assert len(entradas) == 2
@@ -6429,7 +6429,7 @@ def T167_cron_dispara_missao_modo_vida():
 def T168_relatorio_diario_status_e_privacidade():
     """v5.0.0 (PR#10): relatório traz status + aprendizados SEM dados
     sensíveis — DLP mascara o texto INTEIRO antes de qualquer envio."""
-    from betterme import activity, vida
+    from pluto import activity, vida
 
     cfg = fresh()
     activity.log(cfg, "agente", "⚙ write_file · x.py → ok")
@@ -6460,7 +6460,7 @@ def T169_curadoria_arquiva_antigos():
     """v5.0.0 (PR#10): rascunhos envelhecidos (>7 dias) viram UM resumo
     para decisão em lote; originais ARQUIVADOS (movidos, nunca apagados)."""
     import time as _t
-    from betterme import learning, vida
+    from pluto import learning, vida
 
     cfg = fresh()
     velho = _rascunho(cfg, "skill antiga de regex",
@@ -6488,7 +6488,7 @@ def T169_curadoria_arquiva_antigos():
 
 def _fixture_n8n_fake(cfg):
     """Instala um binário n8n FAKE (sleep) no lugar certo do data-dir."""
-    from betterme import fluxos
+    from pluto import fluxos
     bin_ = fluxos.n8n_bin(cfg)
     bin_.parent.mkdir(parents=True, exist_ok=True)
     bin_.write_text("#!/bin/sh\nsleep 60\n", encoding="utf-8")
@@ -6507,7 +6507,7 @@ def T170_fluxos_node_check_e_setup_honesto():
         f.write_text(f"#!/bin/sh\necho '{saida}'\n", encoding="utf-8")
         f.chmod(0o755)
         fakes[nome] = str(f)
-    from betterme import fluxos
+    from pluto import fluxos
 
     ok, msg = fluxos.node_ok(fakes["node24"])
     assert ok and "24.1" in msg, msg
@@ -6525,7 +6525,7 @@ def T170_fluxos_node_check_e_setup_honesto():
             return 0
         return orig(cmd, *a, **kw)
 
-    import betterme.fluxos as F
+    import pluto.fluxos as F
     orig = F.subprocess.run
     F.subprocess.run = espiao
     try:
@@ -6542,7 +6542,7 @@ def T171_fluxos_start_stop_com_n8n_fake():
     """v5.1.0 (PR#11): start sobe o processo com telemetria OFF e pid
     file; stop desce limpo; start sem instalar → orientação honesta."""
     import os as _os
-    from betterme import fluxos
+    from pluto import fluxos
 
     cfg = fresh()
     r0 = fluxos.start(cfg)
@@ -6580,8 +6580,8 @@ def T172_fluxos_remover_tool_e_gui():
     rodando); tool fluxos_chamar no catálogo; rotas /fluxos e
     /api/fluxos/status no GUI."""
     import os as _os
-    from betterme import fluxos
-    from betterme.tools import TOOL_NAMES, execute_tool
+    from pluto import fluxos
+    from pluto.tools import TOOL_NAMES, execute_tool
 
     cfg = fresh()
     _fixture_n8n_fake(cfg)
@@ -6628,7 +6628,7 @@ def T173_plataforma_deteccao_liveness_e_hints():
     shell por SO, hints de instalação por SO e taskkill no Windows."""
     import platform as _platform
 
-    import betterme.plataforma as P
+    import pluto.plataforma as P
 
     assert P.so() in ("linux", "macos", "windows")
     assert P.liveness(os.getpid()) is True
@@ -6673,21 +6673,21 @@ def T173_plataforma_deteccao_liveness_e_hints():
 
 @case
 def T174_boot_autostart_nos_tres_sos():
-    """v6.0.0: `betterme boot` — Linux: unit systemd user + systemctl;
+    """v6.0.0: `pluto boot` — Linux: unit systemd user + systemctl;
     macOS: LaunchAgent plist; Windows: .bat na Inicialização. Tudo
     reversível (off remove o arquivo)."""
     from unittest import mock
 
-    from betterme import boot
+    from pluto import boot
 
     # specs puros (windows/macOS) — sem tocar no sistema
     w = boot._spec("windows")
-    assert w["arquivo"].name == "betterme-agent.bat"
+    assert w["arquivo"].name == "pluto-agent.bat"
     assert "Startup" in str(w["arquivo"])
     assert w["conteudo"].startswith("@echo off")
-    assert "-m betterme daemon" in w["conteudo"]
+    assert "-m pluto daemon" in w["conteudo"]
     m = boot._spec("macos")
-    assert m["arquivo"].name == "com.betterme.agent.plist"
+    assert m["arquivo"].name == "com.pluto.agent.plist"
     assert "<plist" in m["conteudo"] and "<true/>" in m["conteudo"]
     assert m["habilitar"][:2] == ["launchctl", "load"]
     # fluxo REAL do Linux com HOME falso + systemctl falso
@@ -6704,9 +6704,9 @@ def T174_boot_autostart_nos_tres_sos():
         r = boot.on(cfg)
         assert r["ok"], r
         unit = fake_home / ".config" / "systemd" / "user" \
-            / "betterme-agent.service"
+            / "pluto-agent.service"
         conteudo = unit.read_text(encoding="utf-8")
-        assert "ExecStart=" in conteudo and "betterme daemon" in conteudo
+        assert "ExecStart=" in conteudo and "pluto daemon" in conteudo
         assert "WantedBy=default.target" in conteudo
         assert cmds and cmds[0][:3] == ["systemctl", "--user", "enable"]
         st = boot.status(cfg)
@@ -6723,8 +6723,8 @@ def T174_boot_autostart_nos_tres_sos():
 def T175_run_command_por_so_e_perigos_windows():
     """v6.0.0: run_command usa o shell do SO (bash -c / cmd /c) e a
     denylist ganha os destrutivos do Windows — bloqueio em QUALQUER SO."""
-    from betterme import plataforma
-    from betterme.tools import execute_tool, is_dangerous
+    from pluto import plataforma
+    from pluto.tools import execute_tool, is_dangerous
 
     cfg = fresh()
     r = execute_tool("run_command", {"command": "echo crossplat"}, cfg)
@@ -6748,9 +6748,9 @@ def T175_run_command_por_so_e_perigos_windows():
 def T176_manager_e_fluxos_via_plataforma():
     """v6.0.0: manager/fluxos passam pela camada de plataforma — nenhum
     os.kill direto no código (no Windows os.kill(pid,0) MATARIA)."""
-    import betterme.fluxos as F
-    import betterme.manager as M
-    import betterme.plataforma as P
+    import pluto.fluxos as F
+    import pluto.manager as M
+    import pluto.plataforma as P
 
     assert M._pid_alive(os.getpid()) is True
     assert M._pid_alive(999999) is False
@@ -6770,10 +6770,10 @@ def T176_manager_e_fluxos_via_plataforma():
     venv_py = ROOT / ".venv" / "bin" / "python"
     py = str(venv_py) if venv_py.exists() else sys.executable
     env = dict(os.environ,
-               BETTERME_DATA_DIR=tempfile.mkdtemp(prefix="betterme-boot-"),
-               BETTERME_MOCK="1")
+               PLUTO_DATA_DIR=tempfile.mkdtemp(prefix="pluto-boot-"),
+               PLUTO_MOCK="1")
     import subprocess
-    r = subprocess.run([py, "-m", "betterme", "boot", "status"],
+    r = subprocess.run([py, "-m", "pluto", "boot", "status"],
                        capture_output=True, text=True, env=env,
                        timeout=120, cwd=str(ROOT))
     assert r.returncode == 0 and "boot" in r.stdout, r.stdout[:200]
@@ -6788,12 +6788,12 @@ def T177_update_garante_comando_betterme():
     preservando o .venv, e entry point nasce na INSTALAÇÃO. Autocura:
     pip -e . --no-deps → fallback launcher manual → idempotente; sem
     venv orienta; funciona inclusive no caminho 'já na mais recente'."""
-    import betterme.update as U
+    import pluto.update as U
 
     # pyproject declara os dois comandos
     py = Path("pyproject.toml").read_text(encoding="utf-8")
-    assert 'betterme = "betterme.cli:main"' in py
-    assert 'hermes = "betterme.cli:main"' in py
+    assert 'pluto = "pluto.cli:main"' in py
+    assert 'hermes = "pluto.cli:main"' in py
     # run() chama a autocura nos DOIS caminhos (fonte)
     src = Path(U.__file__).read_text(encoding="utf-8")
     assert src.count("garantir_entry_points(") >= 3, src.count
@@ -6817,10 +6817,10 @@ def T177_update_garante_comando_betterme():
         assert chamadas and chamadas[0][1:4] == ["-m", "pip", "install"], \
             chamadas
         assert "--no-deps" in chamadas[0]
-        launcher = bin_ / "betterme"
+        launcher = bin_ / "pluto"
         assert launcher.is_file()
         txt = launcher.read_text(encoding="utf-8")
-        assert "from betterme.cli import main" in txt and "sys.exit" in txt
+        assert "from pluto.cli import main" in txt and "sys.exit" in txt
         assert txt.startswith("#!") and "python" in txt.splitlines()[0]
         # idempotente: 2ª chamada NÃO roda pip de novo
         n = len(chamadas)
@@ -6829,8 +6829,8 @@ def T177_update_garante_comando_betterme():
     finally:
         U.subprocess.run = orig_run
 
-    # branch WINDOWS: fallback cria betterme.bat no Scripts/
-    import betterme.plataforma as P
+    # branch WINDOWS: fallback cria pluto.bat no Scripts/
+    import pluto.plataforma as P
     raiz_w = Path(tempfile.mkdtemp(prefix="ep-win-"))
     scr = raiz_w / ".venv" / "Scripts"
     scr.mkdir(parents=True)
@@ -6838,10 +6838,10 @@ def T177_update_garante_comando_betterme():
     P._SO_OVERRIDE = "windows"
     try:
         assert U.garantir_entry_points(raiz_w, log=lambda *_a: None) is True
-        bat = scr / "betterme.bat"
+        bat = scr / "pluto.bat"
         assert bat.is_file()
         conteudo = bat.read_text(encoding="utf-8")
-        assert "-m betterme" in conteudo and "python.exe" in conteudo
+        assert "-m pluto" in conteudo and "python.exe" in conteudo
     finally:
         P._SO_OVERRIDE = None
 
@@ -6865,7 +6865,7 @@ def T178_instalacao_editavel_robusta():
         "setuptools>=68" in py.replace(" ", ""), "setuptools min ausente"
     assert 'build-backend = "setuptools.build_meta"' in py
     # (ii) retry: 1ª tentativa falha → upgrade pip/setuptools → 2ª cria
-    import betterme.update as U
+    import pluto.update as U
 
     raiz = Path(tempfile.mkdtemp(prefix="ep660-"))
     bin_ = raiz / ".venv" / "bin"
@@ -6886,7 +6886,7 @@ def T178_instalacao_editavel_robusta():
         if "-U" in cmd:             # upgrade pip setuptools → ok
             return _R1()
         if "-e" in cmd and len(chamadas) > 2:   # 2ª tentativa -e: cria
-            (bin_ / "betterme").write_text("#!x\n", encoding="utf-8")
+            (bin_ / "pluto").write_text("#!x\n", encoding="utf-8")
             return _R1()
         return _R0()                # 1ª tentativa -e: falha
 
@@ -6898,7 +6898,7 @@ def T178_instalacao_editavel_robusta():
         assert ups and "setuptools" in ups[0] and "pip" in ups[0], ups
         es = [c for c in chamadas if "-e" in c]
         assert len(es) == 2, "deveria tentar -e exatamente 2x"
-        assert (bin_ / "betterme").is_file()    # oficial, sem launcher manual
+        assert (bin_ / "pluto").is_file()    # oficial, sem launcher manual
     finally:
         U.subprocess.run = orig
     # (iii) README orienta o upgrade numa instalação nova
@@ -6914,7 +6914,7 @@ def T179_dispositivo_universal_instalador_e_doctor():
     retrato do dispositivo (SO·arquitetura·RAM, x86-64 e ARM64), RAM
     lida por SO (/proc · sysctl · GlobalMemoryStatusEx), instalador
     Python puro (install.py, sem bash) e doctor com check Dispositivo."""
-    from betterme import doctor, plataforma
+    from pluto import doctor, plataforma
 
     # dispositivo: retrato completo no SO REAL
     d = plataforma.dispositivo()
@@ -6949,7 +6949,7 @@ def T179_dispositivo_universal_instalador_e_doctor():
     assert "sys.platform" in inst
     for alvo in ("winget", "brew install ollama", "install.sh"):
         assert alvo in inst, alvo            # hints dos 3 SOs dentro
-    assert "betterme" in inst and "doctor" in inst
+    assert "pluto" in inst and "doctor" in inst
     # README: seção universal + tabela Ollama por SO
     rd = Path("README.md").read_text(encoding="utf-8")
     assert "install.py" in rd and "qualquer dispositivo" in rd
@@ -6967,7 +6967,7 @@ def T180_performance_fast_lane_e_visibilidade():
     (−1 ida completa ao modelo); (iv) doctor mostra o CÉREBRO e acusa
     chave rápida guardada sem ativar."""
     from pathlib import Path as _P
-    src = _P("betterme/orchestrator.py").read_text(encoding="utf-8")
+    src = _P("pluto/orchestrator.py").read_text(encoding="utf-8")
     # (i) keep_alive no _fast (planejador e revisor)
     assert 'keep_alive=getattr(cfg, "keep_alive", "30m")' in src
     # (ii) duração por estágio no TRACE
@@ -6983,10 +6983,10 @@ def T180_performance_fast_lane_e_visibilidade():
     assert "and not criterios" in src                 # critério cobrado = revisa
     assert "and not resume_tid" in src                # retomada = revisa
     assert '"review_fast_lane": True' in Path(
-        "betterme/config.py").read_text(encoding="utf-8")
+        "pluto/config.py").read_text(encoding="utf-8")
     # comportamental (modo REAL, sem mock): revisor que reprovaria NÃO é
     # consultado — fast lane economiza a ida ao modelo
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
     cfg_r = fresh()
     cfg_r.mock = False                       # _fast falha em conectar → heurística
 
@@ -7017,8 +7017,8 @@ def T180_performance_fast_lane_e_visibilidade():
     assert len(calls) == 1, calls            # sem refazer
     assert rev["n"] == 0, rev                # revisão pulada (fast lane)
     # (iv) doctor: cérebro
-    from betterme import doctor
-    from betterme.llm_providers import salvar_key
+    from pluto import doctor
+    from pluto.llm_providers import salvar_key
     cfg = fresh()
     c = {x["id"]: x for x in doctor.run_checks(cfg)}
     assert c["cerebro"]["ok"] and "local" in c["cerebro"]["detail"].lower()
@@ -7069,8 +7069,8 @@ def T182_roteador_automatico_de_cerebro():
     (fallback local na falha). Prioridade groq>mistral>…; llm7 anônimo
     nunca é automático; provider off desliga DE VERDADE; fixação
     explícita vence; memória segue 100% local (is_external)."""
-    from betterme import llm_providers as LP
-    from betterme.ollama_client import OllamaClient, get_client
+    from pluto import llm_providers as LP
+    from pluto.ollama_client import OllamaClient, get_client
 
     cfg = fresh()
     cfg.mock = False
@@ -7094,27 +7094,27 @@ def T182_roteador_automatico_de_cerebro():
     assert type(cli2).__name__ == "FallbackClient"
     assert cli2.externo.provedor == "gemini"
     # memória nunca sai: guarda por is_external no agent.py
-    src = Path("betterme/agent.py").read_text(encoding="utf-8")
+    src = Path("pluto/agent.py").read_text(encoding="utf-8")
     assert "is_external" in src
     # CLI: off desliga o roteador; set religa
-    cli_src = Path("betterme/cli.py").read_text(encoding="utf-8")
+    cli_src = Path("pluto/cli.py").read_text(encoding="utf-8")
     assert '"auto_provider": False' in cli_src
     assert '"auto_provider": True' in cli_src
     # default do config: roteador ligado
     assert '"auto_provider": True' in Path(
-        "betterme/config.py").read_text(encoding="utf-8")
+        "pluto/config.py").read_text(encoding="utf-8")
 
 
 @case
 def T183_n8n_integracao_melhorada():
     """v6.3.0: integração n8n — API key em secrets 600 · listar via API
     pública (degradação honesta sem key/n8n) · chamar mapeia 404
-    (workflow inativo) · status expõe hook_url (n8n dispara o Betterme)
+    (workflow inativo) · status expõe hook_url (n8n dispara o Pluto)
     · GUI documenta os 2 sentidos · cmd apikey/listar/abrir."""
     import contextlib
     import io
 
-    from betterme import fluxos as F
+    from pluto import fluxos as F
 
     cfg = fresh()
     # API key: secrets 600, lida de volta
@@ -7151,7 +7151,7 @@ def T183_n8n_integracao_melhorada():
     ch = F.chamar(cfg, "wf-x", {}, _post=lambda u, p: {
         "ok": False, "status": 404, "msg": ""})
     assert ch["ok"] is False and "não está" in ch["msg"] and "ATIVO" in ch["msg"]
-    # status: hook_url (n8n → Betterme) + api_key
+    # status: hook_url (n8n → Pluto) + api_key
     st = F.status(cfg)
     assert st["api_key"] is True and "api/hooks" in st["hook_url"]
     # GUI documenta os 2 sentidos
@@ -7176,7 +7176,7 @@ def T183_n8n_integracao_melhorada():
         F.cmd(_A2(), cfg)
     assert "editor" in buf.getvalue()
     # CLI: posicional id no subparser fluxos
-    cli_src = Path("betterme/cli.py").read_text(encoding="utf-8")
+    cli_src = Path("pluto/cli.py").read_text(encoding="utf-8")
     assert 'p.add_argument("id", nargs="?", default=None' in cli_src
 
 
@@ -7201,10 +7201,10 @@ def T184_n8n_guia_passo_a_passo():
     blocos = re.findall(r"```json\n(.*?)```", md, re.S)
     assert len(blocos) == 2
     eco, gat = (json.loads(b) for b in blocos)
-    assert eco["name"] == "Betterme eco (teste)"
-    assert eco["nodes"][0]["parameters"]["path"] == "betterme-eco"
+    assert eco["name"] == "Pluto eco (teste)"
+    assert eco["nodes"][0]["parameters"]["path"] == "pluto-eco"
     assert eco["nodes"][1]["type"] == "n8n-nodes-base.respondToWebhook"
-    assert gat["name"] == "Dispara tarefa do Betterme"
+    assert gat["name"] == "Dispara tarefa do Pluto"
     assert "/api/hooks/" in gat["nodes"][1]["parameters"]["url"]
     assert gat["nodes"][1]["type"] == "n8n-nodes-base.httpRequest"
 
@@ -7233,9 +7233,9 @@ def T185_integracao_nenhuma_ilha():
     o n8n (check opcional, fs-only), receita de automação n8n, criação
     de tarefa webhook aponta o Template B — e revisar/arena/manager
     seguem LOCAIS por lei (D2: código nunca sai)."""
-    from betterme import fluxos as F
-    from betterme.tools import TOOL_NAMES, execute_tool
-    from betterme import doctor
+    from pluto import fluxos as F
+    from pluto.tools import TOOL_NAMES, execute_tool
+    from pluto import doctor
 
     cfg = fresh()
     # 1) tool no catálogo + degradação honesta (n8n ausente)
@@ -7285,19 +7285,19 @@ def T185_integracao_nenhuma_ilha():
     finally:
         F.rodando = orig2
     # 5) receita n8n encadeia as tools
-    from betterme.recipes import RECIPES
+    from pluto.recipes import RECIPES
     rec = [x for x in RECIPES if x["id"] == "n8n-fluxo-diario"]
     assert rec and "fluxos_listar" in rec[0]["input"]
     assert "fluxos_chamar" in rec[0]["input"]
     # 6) criação de tarefa webhook aponta o template na GUI
-    src = Path("betterme/server/app.py").read_text(encoding="utf-8")
+    src = Path("pluto/server/app.py").read_text(encoding="utf-8")
     assert "Template B" in src
     # 7) D2 guardado: revisor/juiz/manager LOCAIS (nada de roteador)
     for mod in ("revisar.py", "arena.py"):
-        msrc = Path("betterme", mod).read_text(encoding="utf-8")
+        msrc = Path("pluto", mod).read_text(encoding="utf-8")
         assert "get_client" not in msrc, mod
     assert "OllamaClient" in Path(
-        "betterme/manager.py").read_text(encoding="utf-8")
+        "pluto/manager.py").read_text(encoding="utf-8")
     # 8) o mapa de integração existe e documenta as exceções
     mapa_md = Path("MAPA_APLICACAO.md").read_text(encoding="utf-8")
     assert "Mapa de integração" in mapa_md
@@ -7311,10 +7311,10 @@ def T186_portugues_corrigido_contratos_intactos():
     /memoria, nível autonomo, gerente_codigo, tipo criacao) são
     CONTRATOS e continuam sem acento DE PROPÓSITO; prosa visível usa
     PT correto (Trabalhando…, renderizar, não é enviado, parâmetro)."""
-    from betterme.varredura import mascarar
+    from pluto.varredura import mascarar
 
     # ── correções presentes, erros ausentes (GUI)
-    gui = Path("betterme/server/templates/index.html").read_text(
+    gui = Path("pluto/server/templates/index.html").read_text(
         encoding="utf-8")
     assert "Trabalhando…" in gui
     assert "A trabalhar" not in gui            # variante europeia fora
@@ -7325,21 +7325,21 @@ def T186_portugues_corrigido_contratos_intactos():
     assert "CÓDIGO LOCAL — não é enviado" in limpo
     assert "CODIGO" not in limpo and "nao e" not in limpo
     # ── prompt do agente com acento no exemplo
-    agent = Path("betterme/agent.py").read_text(encoding="utf-8")
+    agent = Path("pluto/agent.py").read_text(encoding="utf-8")
     assert '"parâmetro": "valor"' in agent
     # ── status do fluxos legível
-    flx = Path("betterme/fluxos.py").read_text(encoding="utf-8")
-    assert "não — ligue com: betterme fluxos start" in flx
+    flx = Path("pluto/fluxos.py").read_text(encoding="utf-8")
+    assert "não — ligue com: pluto fluxos start" in flx
     # ── CONTRATOS intocáveis (sem acento DE PROPÓSITO — não "corrigir"):
-    app = Path("betterme/server/app.py").read_text(encoding="utf-8")
+    app = Path("pluto/server/app.py").read_text(encoding="utf-8")
     assert '"/memoria"' in app or "/memoria" in app          # rota/comando
-    aut = Path("betterme/autonomy.py").read_text(encoding="utf-8")
+    aut = Path("pluto/autonomy.py").read_text(encoding="utf-8")
     assert '"autonomo"' in aut                               # valor de nível
-    esp = Path("betterme/specialists.py").read_text(encoding="utf-8")
+    esp = Path("pluto/specialists.py").read_text(encoding="utf-8")
     assert "acao_proposta" in esp and "evidencia" in esp      # veredito JSON
-    tls = Path("betterme/tools.py").read_text(encoding="utf-8")
+    tls = Path("pluto/tools.py").read_text(encoding="utf-8")
     assert "gerente_codigo" in tls                           # nome da tool
-    from betterme import contratos as _C
+    from pluto import contratos as _C
     # v6.4.0: enum do TRACE vive no SSOT — valores canônicos intactos
     assert _C.TIPO_CRIACAO == "criacao" and _C.NIVEL_AUTONOMO == "autonomo"
 
@@ -7354,14 +7354,14 @@ def T187_contratos_estruturas_principios():
     import contextlib
     import io
 
-    from betterme import autonomy
-    from betterme import contratos as C
-    from betterme import orchestrator as orc
-    from betterme import specialists as S
-    from betterme.contratos import acao_de, especialista_de
-    from betterme.extrair import json_de
-    from betterme.ollama_client import timeout_resposta
-    from betterme.varredura import mascarar
+    from pluto import autonomy
+    from pluto import contratos as C
+    from pluto import orchestrator as orc
+    from pluto import specialists as S
+    from pluto.contratos import acao_de, especialista_de
+    from pluto.extrair import json_de
+    from pluto.ollama_client import timeout_resposta
+    from pluto.varredura import mascarar
 
     # ── SSOT: o vocabulário vive em contratos.py e os módulos importam
     assert C.NIVEIS_AUTONOMIA == ("cauteloso", "padrao", "autonomo")
@@ -7371,10 +7371,10 @@ def T187_contratos_estruturas_principios():
                                "stt", "claude", "fluxos", "omniroute",
                                "security")
     assert C.TIPOS_TASK == ("leitura", "criacao")
-    src_doctor = Path("betterme/doctor.py").read_text(encoding="utf-8")
+    src_doctor = Path("pluto/doctor.py").read_text(encoding="utf-8")
     assert "from .contratos import" in src_doctor
     assert "CHECK_CEREBRO" in src_doctor
-    src_orc = Path("betterme/orchestrator.py").read_text(encoding="utf-8")
+    src_orc = Path("pluto/orchestrator.py").read_text(encoding="utf-8")
     assert "TIPO_CRIACAO" in src_orc
     # ── Postel: tolerante na entrada, conservador na saída
     assert C.sem_acento("  ÇÃO ") == "cao"
@@ -7414,15 +7414,15 @@ def T187_contratos_estruturas_principios():
     assert json_de("sem json") is None
     # ── DRY: timeout único (fórmula saiu de revisar/arena)
     assert timeout_resposta(cfg) == cfg.cmd_timeout * 5 + 120
-    for mod in ("betterme/revisar.py", "betterme/arena.py"):
+    for mod in ("pluto/revisar.py", "pluto/arena.py"):
         src = Path(mod).read_text(encoding="utf-8")
         assert "timeout_resposta(cfg)" in src
         assert "* 5 + 120" not in src
     # ── DRY: acao_de adotado (nenhum getattr(args,"acao") cru)
-    for mod in ("betterme/vida.py", "betterme/boot.py", "betterme/fluxos.py",
-                "betterme/learning.py", "betterme/grafo.py",
-                "betterme/code_manager.py", "betterme/whatsapp_gw.py",
-                "betterme/telegram_gw.py", "betterme/cli.py"):
+    for mod in ("pluto/vida.py", "pluto/boot.py", "pluto/fluxos.py",
+                "pluto/learning.py", "pluto/grafo.py",
+                "pluto/code_manager.py", "pluto/whatsapp_gw.py",
+                "pluto/telegram_gw.py", "pluto/cli.py"):
         assert 'getattr(args, "acao"' not in Path(mod).read_text(
             encoding="utf-8"), mod
     # ── congelamento: valores canônicos (persistidos) INALTERADOS
@@ -7431,7 +7431,7 @@ def T187_contratos_estruturas_principios():
     assert C.MARCA_CODIGO_BLOCO in mascarar(
         "```python\ndef f(): pass\n```")
     # ── /autonomia da GUI também tolerante
-    src_app = Path("betterme/server/app.py").read_text(encoding="utf-8")
+    src_app = Path("pluto/server/app.py").read_text(encoding="utf-8")
     assert "nivel_valido(args)" in src_app
 
 
@@ -7447,9 +7447,9 @@ def T188_nunca_mudo_e_dados_reais():
     import json
     import threading
 
-    from betterme import orchestrator as orc
-    from betterme import plataforma as P
-    from betterme.tools import diagnostico_sistema
+    from pluto import orchestrator as orc
+    from pluto import plataforma as P
+    from pluto.tools import diagnostico_sistema
 
     # ── (b) a spec pedida pelo operador, nos 3 SOs (nomes por SO)
     SPEC = {
@@ -7472,7 +7472,7 @@ def T188_nunca_mudo_e_dados_reais():
     assert "== CPU" in out and "== disco ==" in out and "== memória ==" in out
     assert "Model name" in out or "CPU(s)" in out or "(lscpu" in out
     # ── (c) regra anti-invenção no prompt do agente
-    src_agent = Path("betterme/agent.py").read_text(encoding="utf-8")
+    src_agent = Path("pluto/agent.py").read_text(encoding="utf-8")
     assert "NUNCA escreva valores" in src_agent
     assert "diagnostico_sistema PRIMEIRO" in src_agent
     # ── (a) nunca mudo: final vazio → erro explícito
@@ -7513,7 +7513,7 @@ def T188_nunca_mudo_e_dados_reais():
     evs = _evs(c.post("/api/chat", json={"message": "oi", "session": "t188c"}))
     assert [e.get("type") for e in evs][-2] == "done"
     # ── (a4) as duas redes existem no código (defesa em profundidade)
-    src_app = Path("betterme/server/app.py").read_text(encoding="utf-8")
+    src_app = Path("pluto/server/app.py").read_text(encoding="utf-8")
     assert "SEM resposta" in src_app           # rede 1: garantidor do worker
     assert "interrompida sem" in src_app and "thread morta" in src_app  # rede 2
 
@@ -7526,10 +7526,10 @@ def T189_d2_no_transporte_do_roteador():
     cérebro LOCAL direto (análise de código é local, D2/§5.2); stream
     único no FallbackClient (antes: 2 requisições); prompt do agente
     não mente sobre o cérebro em uso."""
-    from betterme.agent import Agent
-    from betterme.llm_providers import (FallbackClient, dlp_messages,
+    from pluto.agent import Agent
+    from pluto.llm_providers import (FallbackClient, dlp_messages,
                                         payload_sensivel)
-    from betterme.ollama_client import OllamaClient
+    from pluto.ollama_client import OllamaClient
 
     # transporte: canário real + código censurados no payload
     # (canário de TESTE, formato real de chave — varredura:ok)
@@ -7616,8 +7616,8 @@ def T191_provider_test_e_guia():
     injetável (sem rede), testar_todos() cobre chaves salvas + llm7 +
     omniroute rodando, guia de onde pegar cada chave, endpoint
     /api/provider/test na GUI."""
-    from betterme import llm_providers as LP
-    from betterme.llm_providers import GUIAS, testar, testar_todos
+    from pluto import llm_providers as LP
+    from pluto.llm_providers import GUIAS, testar, testar_todos
 
     cfg = fresh()
     # sem chave → orientação clara
@@ -7657,7 +7657,7 @@ def T191_provider_test_e_guia():
                  "zai", "llm7", "omniroute"):
         assert nome in GUIAS and len(GUIAS[nome][0]) > 3, nome
     # CLI: guia + test com argumento + saída todos
-    cli_src = Path("betterme/cli.py").read_text(encoding="utf-8")
+    cli_src = Path("pluto/cli.py").read_text(encoding="utf-8")
     assert "guia" in cli_src and "testar_todos" in cli_src
     assert "funcionando de verdade" in cli_src
     # endpoint da GUI
@@ -7687,9 +7687,9 @@ def T192_omniroute_gateway_local():
     import io
     import contextlib
 
-    from betterme import llm_providers as LP
-    from betterme import omniroute as OM
-    from betterme.contratos import CHECKS_DOCTOR
+    from pluto import llm_providers as LP
+    from pluto import omniroute as OM
+    from pluto.contratos import CHECKS_DOCTOR
 
     cfg = fresh()
     # módulo: estado inicial honesto
@@ -7721,7 +7721,7 @@ def T192_omniroute_gateway_local():
         OM.rodando = orig_rod
     assert LP.melhor_provedor(cfg) is None
     # doctor: check opcional nos 3 estados
-    from betterme import doctor
+    from pluto import doctor
     mapa = {x["id"]: x for x in doctor.run_checks(cfg)}
     assert "omniroute" in mapa and mapa["omniroute"]["optional"] is True
     assert "omniroute setup" in mapa["omniroute"]["fix"]
@@ -7736,7 +7736,7 @@ def T192_omniroute_gateway_local():
     finally:
         OM.rodando = orig_rod
     # setup: recusa Node velho (achado do E2E real)
-    from betterme import fluxos as FLX
+    from pluto import fluxos as FLX
     orig_nv = FLX.node_versao
     FLX.node_versao = lambda node_bin="node": (20, 20)
     try:
@@ -7755,7 +7755,7 @@ def T192_omniroute_gateway_local():
     # contrato: check no CHECKS_DOCTOR
     assert "omniroute" in CHECKS_DOCTOR
     # subparser CLI existe
-    cli_src = Path("betterme/cli.py").read_text(encoding="utf-8")
+    cli_src = Path("pluto/cli.py").read_text(encoding="utf-8")
     assert '"omniroute"' in cli_src and "cmd_omniroute" in cli_src
 
 
@@ -7764,7 +7764,7 @@ def T193_fluxo_leve_modulo():
     """v6.6.0: módulo do fluxo adaptativo (padrão Plandex extraído,
     nativo) — classificação conservadora de conversa, decomposição
     estrutural e consolidação com rastro."""
-    from betterme import fluxo as FL
+    from pluto import fluxo as FL
 
     # ── nível 0: conversa pura
     for msg in ("oi, tudo bem?", "quem é você?", "o que é Python?",
@@ -7806,8 +7806,8 @@ def T194_fluxo_leve_pipeline():
     planner (provado com bomba), N2 decomposta executa 1 vez por
     etapa com contexto acumulado e UMA revisão no consolidado, N1
     segue o ciclo clássico, kill-switch desliga tudo."""
-    from betterme import orchestrator as orc
-    from betterme.agent import Agent
+    from pluto import orchestrator as orc
+    from pluto.agent import Agent
 
     cfg = fresh()
     _plan_orig = orc.plan
@@ -7886,9 +7886,9 @@ def T194_fluxo_leve_pipeline():
         cfg.update({"fluxo_leve": True})
     # ── default do config: ligado
     assert '"fluxo_leve": True' in Path(
-        "betterme/config.py").read_text(encoding="utf-8")
+        "pluto/config.py").read_text(encoding="utf-8")
     # ── seletor existe no orchestrator (3 níveis integrados)
-    src = Path("betterme/orchestrator.py").read_text(encoding="utf-8")
+    src = Path("pluto/orchestrator.py").read_text(encoding="utf-8")
     assert "_ciclo_etapas" in src and "_executar_ciclo" in src
     assert src.count("_executar_ciclo(") >= 4     # def + 3 call sites
     assert "from . import fluxo as _flx" in src
@@ -7901,7 +7901,7 @@ def T195_tool_call_em_texto_selfhealing():
     function como STRING) — nada era executado. Agora o agente
     reconhece o formato e EXECUTA a ferramenta (self-healing); e o
     parser antigo não crasha mais com AttributeError."""
-    from betterme.agent import (Agent, _bare_tool_call, _as_tool_calls,
+    from pluto.agent import (Agent, _bare_tool_call, _as_tool_calls,
                                 _json_blocks)
 
     # ── formato EXATO do log do operador (function como string)
@@ -7948,8 +7948,8 @@ def T196_portao_tool_call_texto():
     """v6.6.1: PORTÃO ESTRUTURAL — resposta com tool call impresso como
     texto é reprovada SEM gastar a revisão (0 tokens), refaz, e vale
     para o ciclo clássico E para o consolidado das etapas."""
-    from betterme import orchestrator as orc
-    from betterme import fluxo as FL
+    from pluto import orchestrator as orc
+    from pluto import fluxo as FL
 
     # detector
     assert FL.tem_tool_call_texto(
@@ -8047,14 +8047,14 @@ def T197_escopo_sticky_sessao():
     tudo). Agora a sessão lembra o último workspace (30 min); novo
     início de projeto continua perguntando o caminho."""
     from pathlib import Path
-    import betterme.tools as BT
-    from betterme import orchestrator as orc
+    import pluto.tools as BT
+    from pluto import orchestrator as orc
     _plan_orig = orc.plan
 
     with orc._ULTIMO_PROJ_LOCK:
         orc._ULTIMO_PROJETO.pop("s-t197", None)
     cfg = fresh(creation_approval=False)
-    proj = Path.home() / f".betterme-t197-{os.getpid()}"
+    proj = Path.home() / f".pluto-t197-{os.getpid()}"
     import shutil as _sh
     _sh.rmtree(proj, ignore_errors=True)
     proj.mkdir(parents=True, exist_ok=True)
@@ -8129,8 +8129,8 @@ def T198_skill_spec_driven():
     traz o fluxo SPEC→PLANO→TASKS→implementar→verificar e alimenta o
     revisor com critérios da seção Verificação."""
     import tempfile
-    from betterme.config import Config
-    from betterme.orchestrator import skills_for, _skill_criterios
+    from pluto.config import Config
+    from pluto.orchestrator import skills_for, _skill_criterios
 
     cfg = Config(data_dir=tempfile.mkdtemp(prefix="t198-"), mock=True)
     # ── dispara nos pedidos típicos de projeto/criação
@@ -8153,7 +8153,7 @@ def T198_skill_spec_driven():
     crit = _skill_criterios(sks)
     assert len(crit) >= 3 and all("spec-driven" in c for c in crit)
     # ── registrado no catálogo builtin (44+1 skills, source builtin)
-    from betterme.skills import SkillLoader
+    from pluto.skills import SkillLoader
     nomes_cat = [s["name"] for s in SkillLoader(cfg).scan()]
     assert "spec-driven" in nomes_cat
     sk = [s for s in SkillLoader(cfg).scan() if s["name"] == "spec-driven"][0]
@@ -8168,8 +8168,8 @@ def T199_skill_disciplina_agente():
     codifica as 7 regras (ferramenta de verdade, explorar antes, mudança
     cirúrgica, zero placeholder, convenção, auto-verificar, progresso)."""
     import tempfile
-    from betterme.config import Config
-    from betterme.orchestrator import skills_for, _skill_criterios
+    from pluto.config import Config
+    from pluto.orchestrator import skills_for, _skill_criterios
 
     cfg = Config(data_dir=tempfile.mkdtemp(prefix="t199-"), mock=True)
     # ── dispara em correção/edição de CÓDIGO (flexões: corrija, rode…)
@@ -8199,7 +8199,7 @@ def T199_skill_disciplina_agente():
     crit = _skill_criterios(sks)
     assert len(crit) >= 3, crit
     # ── builtin e habilitada
-    from betterme.skills import SkillLoader
+    from pluto.skills import SkillLoader
     sk = [s for s in SkillLoader(cfg).scan()
           if s["name"] == "disciplina-agente"][0]
     assert sk["source"] == "builtin" and sk["enabled"]
@@ -8212,8 +8212,8 @@ def T200_dossie_artefatos_da_task():
     critérios, skills), EVIDÊNCIA (cada ferramenta executada com hora)
     e ENTREGA (veredito, status, texto auditável). Cancelamento também
     fecha o dossiê; aprovação do plano deixa nota."""
-    from betterme import orchestrator as orc
-    from betterme import dossie as DOS
+    from pluto import orchestrator as orc
+    from pluto import dossie as DOS
 
     cfg = fresh(creation_approval=False)
     _plan_orig, _review_orig = orc.plan, orc.review
@@ -8293,13 +8293,13 @@ def T200_dossie_artefatos_da_task():
 @case
 def T201_dossie_cli_e_gui():
     """v6.8.0: o dossiê é consumível — GUI (GET /api/orchestrator/
-    dossie/<tid>) e CLI (`betterme dossie T000N`, com fallback que
+    dossie/<tid>) e CLI (`pluto dossie T000N`, com fallback que
     lista as tasks recentes quando o id não tem dossiê)."""
     import io
     import contextlib
-    from betterme import orchestrator as orc
-    from betterme.cli import main as cli_main
-    from betterme.server.app import create_app
+    from pluto import orchestrator as orc
+    from pluto.cli import main as cli_main
+    from pluto.server.app import create_app
 
     cfg = fresh(creation_approval=False)
     _plan_orig, _review_orig = orc.plan, orc.review
@@ -8352,9 +8352,9 @@ def T202_mencoes_arroba():
     e-mail não é menção; orçamento (6 menções/25 KB); binário protegido;
     no pipeline o anexo entra no pedido do executor com nota 📎."""
     import tempfile
-    from betterme.config import Config
-    from betterme import mencoes as M
-    from betterme import orchestrator as orc
+    from pluto.config import Config
+    from pluto import mencoes as M
+    from pluto import orchestrator as orc
 
     d = Path(tempfile.mkdtemp(prefix="t202-"))
     cfg = Config(data_dir=d, mock=True)
@@ -8420,9 +8420,9 @@ def T203_comandos_dispatcher():
     completa com @), responde com ZERO tokens; GUI (/api/chat/command)
     e TUI usam o mesmo módulo; comando desconhecido → None (segue)."""
     import tempfile
-    from betterme.config import Config
-    from betterme import comandos as C
-    from betterme import orchestrator as orc
+    from pluto.config import Config
+    from pluto import comandos as C
+    from pluto import orchestrator as orc
 
     d = Path(tempfile.mkdtemp(prefix="t203-"))
     cfg = Config(data_dir=d, mock=True)
@@ -8444,7 +8444,7 @@ def T203_comandos_dispatcher():
     # ── desconhecido: None (o chat segue o fluxo normal)
     assert C.executar(cfg, "/xxxdesconhecido", "", "s") is None
     # ── GUI: /api/chat/command passa pelo dispatcher
-    from betterme.server.app import create_app
+    from pluto.server.app import create_app
     c = create_app(cfg).test_client()
     r = c.post("/api/chat/command",
                json={"text": "/prazo 10", "session_id": "g1"})
@@ -8487,8 +8487,8 @@ def T204_prazo_modo():
     quando há provider) e, abaixo de 10 min, revisão apertada — reprovação
     NÃO refaz (entrega com ressalva honesta); sem prazo, refaz normal."""
     import tempfile
-    from betterme.config import Config
-    from betterme import orchestrator as orc
+    from pluto.config import Config
+    from pluto import orchestrator as orc
 
     d = Path(tempfile.mkdtemp(prefix="t204-"))
     cfg = Config(data_dir=d, mock=True)
@@ -8558,8 +8558,8 @@ def T205_skill_engenharia_reversa():
     formato evidência·mapa·limites·desconhecidos, cuidados legais, e
     a seção Verificação delegando critérios ao revisor."""
     import tempfile
-    from betterme.config import Config
-    from betterme.orchestrator import skills_for, _skill_criterios
+    from pluto.config import Config
+    from pluto.orchestrator import skills_for, _skill_criterios
 
     cfg = Config(data_dir=tempfile.mkdtemp(prefix="t205-"), mock=True)
     # ── dispara em pedidos de ER / entendimento interno
@@ -8587,7 +8587,7 @@ def T205_skill_engenharia_reversa():
     crit = _skill_criterios(sks)
     assert len(crit) >= 3 and all("engenharia-reversa" in c for c in crit)
     # ── builtin e habilitada
-    from betterme.skills import SkillLoader
+    from pluto.skills import SkillLoader
     sk = [s for s in SkillLoader(cfg).scan()
           if s["name"] == "engenharia-reversa"][0]
     assert sk["source"] == "builtin" and sk["enabled"]
@@ -8630,8 +8630,8 @@ def T207_portao_entrega_vazia():
     resposta VAZIA e o revisor APROVOU. Agora o portão estrutural
     reprova entrega essencialmente vazia (só pontuação/whitespace)
     ANTES da revisão — 0 tokens — e a nota é específica de vazia."""
-    from betterme import fluxo as FL
-    from betterme import orchestrator as orc
+    from pluto import fluxo as FL
+    from pluto import orchestrator as orc
 
     # ── detector
     for txt in ("", "   ", "  |  |  —  ", "``````", "....."):
@@ -8684,7 +8684,7 @@ def T208_retry_429_provedor():
     recusa → fallback local assumia SEM necessidade. Agora o
     _stream tenta até 3× com backoff respeitando o retry_after do
     provedor (teto 20 s); erro definitivo (401/400) segue direto."""
-    from betterme import llm_providers as LP
+    from pluto import llm_providers as LP
 
     cfg = fresh()
     ext = LP.ExternalClient(cfg, "llm7", "teste")
@@ -8740,8 +8740,8 @@ def T209_mencoes_x_d2_falso_positivo():
     INDENTAÇÃO (pode ir ao externo); código/config continua com cercas
     (D2 mantém análise local — lei preservada)."""
     import tempfile
-    from betterme import mencoes as M
-    from betterme.llm_providers import payload_sensivel
+    from pluto import mencoes as M
+    from pluto.llm_providers import payload_sensivel
 
     d = Path(tempfile.mkdtemp(prefix="t209-"))
     (d / "ata.txt").write_text(
@@ -8775,7 +8775,7 @@ def T210_financas_csv_formatos_e_dedup():
     duplica (id estável); --so-saidas ignora entradas (SumUp+API)."""
     import tempfile
     from decimal import Decimal
-    from betterme import financas as F
+    from pluto import financas as F
 
     cfg = fresh()
     d = Path(tempfile.mkdtemp(prefix="t210-"))
@@ -8827,7 +8827,7 @@ def T211_financas_lancar_categorias_e_ids():
     MESMO gasto 2× no dia é legítimo — sem dedup indevido), arquivo
     no data_dir (nunca no cwd/repo)."""
     from decimal import Decimal
-    from betterme import financas as F
+    from pluto import financas as F
 
     cfg = fresh()
     assert F.categorizar("ifood pedido") == "alimentacao"
@@ -8858,7 +8858,7 @@ def T212_financas_painel_somas_e_faturas():
     faturas a vencer com dias restantes ('HOJE' no dia, vencida some),
     top categorias de saída."""
     from datetime import date
-    from betterme import financas as F
+    from pluto import financas as F
 
     cfg = fresh()
     hoje = date(2026, 11, 4)
@@ -8891,8 +8891,8 @@ def T213_financas_sumup_sync_mock():
     duplica; repasses são informativos, não lançados; chave em
     secrets/ 600 e ausente do retorno."""
     import stat
-    from betterme import financas as F
-    from betterme.llm_providers import api_key
+    from pluto import financas as F
+    from pluto.llm_providers import api_key
 
     cfg = fresh()
     txs = [
@@ -8937,7 +8937,7 @@ def T214_skill_financas_valida_e_gatilhos():
     """v7.3.0: skill 'financas' (48ª) — frontmatter com gatilhos do
     dia a dia, corpo ensina as tools, e a auditoria de skills não
     acusa nada nela."""
-    from betterme.skills_audit import audit_skills
+    from pluto.skills_audit import audit_skills
 
     sk = Path("skills/financas/SKILL.md")
     assert sk.exists()
@@ -8960,8 +8960,8 @@ def T215_tools_e_cmd_financas():
     executáveis pelo agente; comando CLI 'financas lancar/mes' grava e
     lê o livro-caixa (argparse → cmd)."""
     import types
-    from betterme import financas as F
-    from betterme.tools import (EXECUTORS, TOOL_NAMES,
+    from pluto import financas as F
+    from pluto.tools import (EXECUTORS, TOOL_NAMES,
                                 financas_lancar, financas_painel)
 
     assert "financas_lancar" in TOOL_NAMES
@@ -8996,7 +8996,7 @@ def T216_belvo_token_status_remover():
     config.yaml/logs), servidor MCP registrado com Bearer no header,
     status com handshake injetável, remoção limpa e guia honesto."""
     import stat
-    from betterme import belvo as B
+    from pluto import belvo as B
 
     cfg = fresh()
     assert B.ler_token(cfg) == ""
@@ -9038,7 +9038,7 @@ def T217_financas_participantes_oficial():
     data-modalidades, cache 24 h (2ª consulta NÃO refaz o download),
     busca sem acento, papel da instituição e resposta honesta quando
     NÃO participa."""
-    from betterme import financas as F
+    from pluto import financas as F
 
     html = ('<a data-marca="Banco do Brasil" data-descricao="x" '
             'data-modalidades="Instituição detentora de conta <br />'
@@ -9073,7 +9073,7 @@ def T218_plano_verificado_egm_gate():
     replan 1× com o problema apontado. Goldfish (contexto zero):
     1 chamada pequena SÓ para criação — leitura não paga pedágio,
     fast lane não ganha nenhuma chamada, flag desliga tudo."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh(creation_approval=False)
     _plan_o, _fast_o = orc.plan, orc._fast
@@ -9149,7 +9149,7 @@ def T219_goldfish_pega_escopo_errado():
     """v7.5.0: o goldfish (contexto zero) reprova plano que ignora
     parte do pedido → replan acontece ANTES da task; se o replan
     ainda falhar, segue com ressalva honesta (não trava)."""
-    from betterme import orchestrator as orc
+    from pluto import orchestrator as orc
 
     cfg = fresh(creation_approval=False)
     _plan_o, _fast_o = orc.plan, orc._fast
@@ -9200,7 +9200,7 @@ def T220_certeza_camada_ponytail():
     de tamanho, TTL 30 dias, LRU 200, persistência em
     <data_dir>/certezas.json."""
     import time as _t
-    from betterme import certeza as C
+    from pluto import certeza as C
 
     assert C.chave("Qual é o prazo?? ") == C.chave("qual e o prazo")
     assert C.chave("  Prazo,  por FAVOR. ") == "prazo por favor"
@@ -9257,7 +9257,7 @@ def T220_certeza_camada_ponytail():
     assert C.buscar(cfg3, "pergunta numero 0 do teste") is None
     assert C.buscar(cfg3, "pergunta numero 204 do teste") is not None
 
-    from betterme.config import DEFAULTS
+    from pluto.config import DEFAULTS
     assert DEFAULTS.get("certeza_on") is True
 
 
@@ -9267,8 +9267,8 @@ def T221_agent_atalho_certeza_e_concisao():
     responde com 0 chamadas ao modelo (nota 🐴); pergunta volátil NUNCA
     sai do cache; follow-up (2º turno) não cacheia; resposta com
     ferramenta não cacheia; system prompt ganha bloco de CONCISÃO."""
-    from betterme.agent import Agent
-    from betterme import certeza as C
+    from pluto.agent import Agent
+    from pluto import certeza as C
 
     class Eco:
         simulated = False
@@ -9337,7 +9337,7 @@ def T222_fluxo_financeiro_e_acao():
     financeiro tem efeito real: é AÇÃO (registra/lança/aponta no
     _ACAO_RE; gasto/gastei/recebi/despesa/finanças no _INTENSO_RE).
     Conversa de verdade continua leve."""
-    from betterme.fluxo import eh_conversa
+    from pluto.fluxo import eh_conversa
 
     for msg in ("Gastei 42,50 no almoço de hoje, registre nos meus gastos",
                 "recebi 500 da consultoria, lança aí",
@@ -9358,9 +9358,9 @@ def T223_financas_frase_natural():
     morreu com KeyError. Agora a frase é parseada DETERMINÍSTICAMENTE
     (gastei/recebi + valor + descrição); sem match, erro que ENSINA o
     formato (não 'erro inesperado')."""
-    from betterme.tools import financas_lancar
+    from pluto.tools import financas_lancar
     from decimal import Decimal
-    from betterme import financas as F
+    from pluto import financas as F
 
     cfg = fresh()
     out = financas_lancar({"command": "gastei 42,50 no almoço"}, cfg)
@@ -9392,8 +9392,8 @@ def T224_vault_obsidian_memoria_externa():
     com fonte; escopo inválido e vault desligado falham honesto;
     atualização de nota existente não duplica."""
     import tempfile
-    from betterme import vault as V
-    from betterme.tools import TOOL_NAMES, vault_salvar
+    from pluto import vault as V
+    from pluto.tools import TOOL_NAMES, vault_salvar
 
     cfg = fresh()
     assert "vault_salvar" in TOOL_NAMES and "vault_buscar" in TOOL_NAMES
@@ -9404,7 +9404,7 @@ def T224_vault_obsidian_memoria_externa():
                                  "conteudo": "c"}, cfg)
 
     d = Path(tempfile.mkdtemp(prefix="t224-")) / "vault"
-    d.mkdir()                       # como `betterme vault usar` faria
+    d.mkdir()                       # como `pluto vault usar` faria
     cfg.update({"vault_dir": str(d)})
     assert V.ativo(cfg)
 
@@ -9421,7 +9421,7 @@ def T224_vault_obsidian_memoria_externa():
     assert "respostas curtas" in txt
 
     # MOC do escopo com wikilink
-    moc = (d / "Betterme" / "memoria" / "_indice.md").read_text(
+    moc = (d / "Pluto" / "memoria" / "_indice.md").read_text(
         encoding="utf-8")
     assert "[[preferencias-do-operador]]" in moc
 
@@ -9429,7 +9429,7 @@ def T224_vault_obsidian_memoria_externa():
     r2 = V.salvar(cfg, "memoria", "Preferências do operador",
                   "Gosta de respostas curtas E de exemplos.")
     assert r2["ok"] and not r2["novo"]
-    notas = list((d / "Betterme" / "memoria").glob("*.md"))
+    notas = list((d / "Pluto" / "memoria").glob("*.md"))
     assert len([n for n in notas if n.stem != "_indice"]) == 1
 
     # busca verbatim com fonte
@@ -9455,7 +9455,7 @@ def T225_skill_ensino_cbta():
     sentido; termo exato sem jargão empilhado; exemplo antes de
     teoria longa; sem cerimônia). Auditada e com gatilhos do dia a
     dia; integra com o vault (progresso em 'aprendizado')."""
-    from betterme.skills_audit import audit_skills
+    from pluto.skills_audit import audit_skills
 
     sk = Path("skills/ensino-cbta/SKILL.md")
     assert sk.exists()
@@ -9481,7 +9481,7 @@ def T226_edit_file_cirurgico():
     tolerante a indentação, só a 1ª ocorrência, new_text vazio apaga,
     backup automático, não-achado devolve erro que ENSINA, caminho
     fora da política de escrita é recusado."""
-    from betterme.tools import edit_file
+    from pluto.tools import edit_file
 
     cfg = fresh()
     d = Path(cfg.workdir)          # workdir da cfg (fora do deny)
@@ -9539,8 +9539,8 @@ def T227_procs_background():
     + arquivo; denylist do run_command vale; nome duplicado vivo é
     recusado; teto de 5; stop derruba (e reporta ja_morto)."""
     import time as _t
-    from betterme import procs
-    from betterme.tools import TOOL_NAMES
+    from pluto import procs
+    from pluto.tools import TOOL_NAMES
 
     for n in ("proc_start", "proc_logs", "proc_stop"):
         assert n in TOOL_NAMES, n
@@ -9548,7 +9548,7 @@ def T227_procs_background():
     try:
         r = procs.start(cfg, "tico", "rm -rf /")
         assert "BLOQUEADO" in r["erro"], r
-        r = procs.start(cfg, "tico", "cat /home/user/.betterme/secrets/x")
+        r = procs.start(cfg, "tico", "cat /home/user/.pluto/secrets/x")
         assert "BLOQUEADO" in r["erro"] or "secrets" in r["erro"], r
         r = procs.start(cfg, "bad name!", "echo oi")
         assert "nome inválido" in r["erro"]
@@ -9594,8 +9594,8 @@ def T228_perguntar_operador():
     parada honesta; id desconhecido → erro; registro em EXECUTORS."""
     import threading
     import time as _t
-    from betterme import perguntas as P
-    from betterme.tools import TOOL_NAMES, EXECUTORS
+    from pluto import perguntas as P
+    from pluto.tools import TOOL_NAMES, EXECUTORS
 
     assert "perguntar_operador" in TOOL_NAMES
     assert EXECUTORS["perguntar_operador"] is not None
@@ -9668,8 +9668,8 @@ def T230_notebook_clone_notebooklm():
     citação; materiais (resumo/faq/guia/flashcards) montam o pedido
     com contexto embutido; remover reindexa; erro honesto em tudo."""
     import tempfile
-    from betterme import notebook as NB
-    from betterme.tools import TOOL_NAMES
+    from pluto import notebook as NB
+    from pluto.tools import TOOL_NAMES
 
     cfg = fresh()
     assert "notebook_buscar" in TOOL_NAMES
@@ -9726,7 +9726,7 @@ def T231_ocr_engines_e_degradacao():
     tesseract); unlimited detectável via dir+venv; runner quebrado
     degrada com nota honesta; extensão sem suporte recusada."""
     import tempfile
-    from betterme import ocr
+    from pluto import ocr
 
     cfg = fresh()
     assert cfg.ocr_engine == "auto"
@@ -9775,9 +9775,9 @@ def T232_skill_notebook_e_config():
     """v8.1.0: skill notebook (50ª) auditada com gatilhos + regras de
     citação; config expõe ocr_engine/ocr_lang/ocr_unlimited_dir;
     tool notebook_buscar devolve grounded; DOCUMENTACAO menciona."""
-    from betterme.skills_audit import audit_skills
-    from betterme.config import DEFAULTS
-    from betterme.tools import EXECUTORS, notebook_buscar
+    from pluto.skills_audit import audit_skills
+    from pluto.config import DEFAULTS
+    from pluto.tools import EXECUTORS, notebook_buscar
 
     sk = Path("skills/notebook/SKILL.md")
     assert sk.exists()
@@ -9810,7 +9810,7 @@ def T233_notebook_nativo_cerebro():
     SALVA em materiais/ com header; lista de materiais; gerar=False
     preserva o contrato verbatim (T230)."""
     import tempfile
-    from betterme import notebook as NB
+    from pluto import notebook as NB
 
     cfg = fresh()
     doc = Path(tempfile.mkdtemp(prefix="t233-")) / "mist.md"
@@ -9864,13 +9864,21 @@ def T233_notebook_nativo_cerebro():
     # provedor e devolve "[erro] ..." como string — _gerar tem que
     # tratar como cérebro indisponível (fallback), NUNCA como resposta
     # (perguntar dizia que "respondeu" e material SALVAVA o erro).
-    import betterme.agent as AG
+    import pluto.agent as AG
 
-    class _AgErro:
+    visto = []
+
+    class _AgEspiao:
+        """Espião do contrato _gerar↔Agent.run: Agent.run DESCARTA o
+        role system (só preserva user/assistant/tool) — _gerar tem
+        que embutir o system no user e vetar tools (tarefa de texto)."""
         def __init__(self, cfg): ...
-        def run(self, messages, **kw): return "[erro] sem Ollama"
+        def run(self, messages, **kw):
+            visto.append((messages, kw))
+            return "[erro] sem Ollama"
 
-    AG.Agent = _AgErro
+    _orig_ag = AG.Agent
+    AG.Agent = _AgEspiao
     try:
         re_ = NB.perguntar(cfg, "o que é CBTA?", gerar=True)
         assert re_.startswith("📚 Notebook —"), re_
@@ -9879,8 +9887,16 @@ def T233_notebook_nativo_cerebro():
         m3 = NB.material(cfg, "faq", "cbta", gerar=True)
         assert "indisponível" in m3 and "GERADO" not in m3
         assert not (NB.dir_materiais(cfg) / "faq-cbta.md").exists()
+        msgs, kw = visto[0]           # chamada do perguntar
+        assert "EXCLUSIVAMENTE" in msgs[-1]["content"], \
+            "system de grounding tem que ir EMBUTIDO no user"
+        assert kw.get("allow_tool") is not None, \
+            "tools têm que ser vetadas no _gerar"
+        msgs_m, kw_m = visto[-1]      # chamada do material
+        assert "instrutor CBTA" in msgs_m[-1]["content"]
+        assert kw_m.get("allow_tool") is not None
     finally:
-        del AG.Agent                      # restaura o Agent real
+        AG.Agent = _orig_ag               # restaura o Agent real
 
 
 @case
@@ -9889,7 +9905,7 @@ def T234_ocr_instaladores_nativos():
     pacotes, mostra comando, exige confirmação (nunca silencioso) e
     reporta falha com o comando manual; unlimited AVISA ~2–6 GB e
     configura ocr_unlimited_dir ao concluir; já-instalado é idempotente."""
-    from betterme import ocr
+    from pluto import ocr
 
     # sem gestor de pacotes → instruções honestas
     r = ocr.instalar_tesseract(_which=lambda n: None)
@@ -9944,13 +9960,13 @@ def T235_cli_nativo_v82():
     instalador nativo, `materiais` lista (vazia honesta)."""
     import tempfile
     d = tempfile.mkdtemp(prefix="t235-")
-    env = {**os.environ, "BETTERME_DATA_DIR": d}
+    env = {**os.environ, "PLUTO_DATA_DIR": d}
     doc = Path(d) / "met.md"
     doc.write_text("CBTA: competência como evidência observável.",
                    encoding="utf-8")
 
     def _run(*args):
-        r = subprocess.run(_betterme_bin() + list(args), capture_output=True,
+        r = subprocess.run(_pluto_bin() + list(args), capture_output=True,
                            text=True, env=env, timeout=90)
         assert r.returncode == 0, (args, r.stdout, r.stderr)
         return r.stdout + r.stderr
@@ -9967,6 +9983,82 @@ def T235_cli_nativo_v82():
     assert "nenhum" in mats
 
 
+@case
+def T236_renome_pluto_v83():
+    """v8.3.0 (renome final — Pluto Agente): pacote pluto, comando
+    `pluto` (+ aliases betterme/hermes), env PLUTO_* com fallback
+    BETTERME_*/HERMES_*, migração ~/.betterme -> ~/.pluto e
+    PLUTO.md > BETTERME.md no contexto de projeto."""
+    import subprocess as _sp
+    import sys as _sys
+    from pluto import project_context as PC
+    from pluto.agent import Agent
+
+    # identidade: o agente se apresenta como Pluto (nunca Betterme)
+    cfg = fresh()
+
+    class _Fala:
+        simulated = False
+        def chat_stream(self, model, messages, **k):
+            yield {"message": {"content": "ok"}}
+    ag = Agent(cfg, client=_Fala())
+    prompt = ag.system_prompt("oi")
+    assert "Pluto" in prompt and "Betterme" not in prompt
+
+    # env legado BETTERME_MOCK continua funcionando (fallback)
+    _env_h = {"PATH": os.environ.get("PATH", ""),
+              "HOME": os.environ.get("HOME", "")}
+    r = _sp.run(["bash", "-c",
+                 f"BETTERME_MOCK=1 '{sys.executable}' -c "
+                 "'from pluto.config import Config; "
+                 "c = Config(data_dir=\"/home/user/.t236-env\"); "
+                 "print(1 if c.mock else 0)'"],
+                capture_output=True, text=True, timeout=60, env=_env_h)
+    assert r.returncode == 0 and r.stdout.strip().endswith("1"), r.stderr[-200:]
+
+    # alias binário: `betterme --version` segue no ar (quando há venv)
+    venv_bm = ROOT / ".venv" / "bin" / "betterme"
+    if venv_bm.is_file():
+        r3 = _sp.run([str(venv_bm), "--version"], capture_output=True,
+                     text=True, timeout=60)
+        assert r3.returncode == 0, r3.stderr[-200:]
+
+    # migração: HOME falso com ~/.betterme legado -> vira ~/.pluto
+    fake = Path.home() / f".t236-home-{os.getpid()}"
+    shutil.rmtree(fake, ignore_errors=True)
+    (fake / ".betterme").mkdir(parents=True)
+    (fake / ".betterme" / "memory.json").write_text('{"facts": []}',
+                                                    encoding="utf-8")
+    try:
+        r4 = _sp.run([_sys.executable, "-c",
+                      "from pluto.config import Config; "
+                      "c = Config(); print(c.data_dir)"],
+                     capture_output=True, text=True, timeout=60,
+                     env={**_env_h, "HOME": str(fake)})
+        assert r4.returncode == 0, r4.stderr[-300:]
+        assert str(fake / ".pluto") in r4.stdout
+        assert (fake / ".pluto" / "memory.json").is_file()
+        assert not (fake / ".betterme").exists()   # movido, não copiado
+    finally:
+        shutil.rmtree(fake, ignore_errors=True)
+
+    # PLUTO.md vence o BETTERME.md legado no contexto do projeto
+    proj = Path.home() / f".t236-ctx-{os.getpid()}"
+    shutil.rmtree(proj, ignore_errors=True)
+    proj.mkdir(parents=True)
+    try:
+        (proj / "BETTERME.md").write_text("legado: use poetry",
+                                          encoding="utf-8")
+        ach = dict(PC.descobrir(cfg, proj))
+        assert "poetry" in ach.get("BETTERME.md do projeto", "")
+        (proj / "PLUTO.md").write_text("novo: use uv", encoding="utf-8")
+        ach2 = dict(PC.descobrir(cfg, proj))
+        assert "use uv" in ach2.get("PLUTO.md do projeto", "")
+        assert "BETTERME.md do projeto" not in ach2
+    finally:
+        shutil.rmtree(proj, ignore_errors=True)
+
+
 if __name__ == "__main__":
-    print("◈ Betterme — suíte de testes\n")
+    print("◈ Pluto — suíte de testes\n")
     sys.exit(run_all())

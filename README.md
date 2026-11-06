@@ -1,10 +1,10 @@
-# ◈ Betterme Agent
+# ◈ Pluto Agente
 
 **Agente pessoal que opera seu dispositivo — Windows | macOS | Linux (x86-64 e
 ARM64) — via terminal, GUI web, Telegram e WhatsApp, com cérebro local
 (Ollama + hermes3) e roteador opcional de provedores grátis.**
 
-O Betterme conversa, diagnostica e opera sua máquina executando comandos,
+O Pluto conversa, diagnostica e opera sua máquina executando comandos,
 lendo/gravando arquivos e inspecionando o sistema. **Local-first**: memória e
 dados pessoais ficam na sua máquina, sempre. Se você guardar uma chave de
 provedor grátis (Groq, Mistral, Gemini…), o **roteador automático** usa o
@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v8.2.0** · 235 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
+**v8.3.0** · 236 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
 
 ```
                         ┌─────────────────────────────┐
@@ -29,8 +29,8 @@ receitas, doctor e editor de automações n8n.
               ▼                    ▼                    ▼
    ┌────────────────────┐ ┌──────────────────┐ ┌─────────────────┐
    │ agent daemon       │ │ CLI terminal     │ │ Ollama          │
-   │ ▸ fila de tarefas  │ │ betterme chat/run  │ │ ollama serve    │
-   │ ▸ heartbeat+log    │ │ betterme agent …   │ │ modelo: hermes3 │
+   │ ▸ fila de tarefas  │ │ pluto chat/run  │ │ ollama serve    │
+   │ ▸ heartbeat+log    │ │ pluto agent …   │ │ modelo: hermes3 │
    └─────────┬──────────┘ └────────┬─────────┘ └────────▲────────┘
              │      ferramentas (bash, arquivos, diagnóstico)
              └──────────► seu dispositivo ◄──────────────┘
@@ -42,8 +42,8 @@ receitas, doctor e editor de automações n8n.
 
 ```bash
 python3 install.py          # qualquer SO: venv + CLI + guia do Ollama
-betterme doctor             # checa dispositivo, cérebro, modelo, segurança
-betterme server             # GUI em http://127.0.0.1:8080
+pluto doctor             # checa dispositivo, cérebro, modelo, segurança
+pluto server             # GUI em http://127.0.0.1:8080
 ```
 
 **Tudo de uma vez** (ditado por voz, WhatsApp, Ollama, modelo e n8n):
@@ -55,13 +55,13 @@ python3 install.py --full   # +--skip-stt/--skip-n8n/--skip-playwright
 Acesso de outros aparelhos na rede (**sempre com senha!**):
 
 ```bash
-betterme server --host 0.0.0.0 --port 8080 --token minha-senha-segura
+pluto server --host 0.0.0.0 --port 8080 --token minha-senha-segura
 ```
 
 Para instalar como serviço que sobe junto do sistema:
 
 ```bash
-./install.sh --with-systemd        # betterme-server + betterme-agent no systemd
+./install.sh --with-systemd        # pluto-server + pluto-agent no systemd
 ```
 
 ### Requisitos
@@ -71,14 +71,14 @@ Para instalar como serviço que sobe junto do sistema:
 | SO | Windows · macOS · Linux (x86-64 e ARM64; systemd quando disponível) |
 | Python | 3.9+ |
 | RAM | 8 GB (`hermes3:3b`) · 12 GB+ (`hermes3:8b`) · 64 GB+ (`hermes3:70b`) |
-| Disco | ~5 GB (modelo 8b) + 1 GB (Betterme) |
+| Disco | ~5 GB (modelo 8b) + 1 GB (Pluto) |
 
 ### Instalação universal (qualquer dispositivo — Windows | macOS | Linux)
 
 ```bash
-python3 install.py    # venv + pip/setuptools + betterme + guia do Ollama
-betterme doctor       # checa dispositivo (SO, arquitetura, RAM), Ollama, modelo
-betterme server       # GUI em http://127.0.0.1:8080
+python3 install.py    # venv + pip/setuptools + pluto + guia do Ollama
+pluto doctor       # checa dispositivo (SO, arquitetura, RAM), Ollama, modelo
+pluto server       # GUI em http://127.0.0.1:8080
 ```
 
 `install.py` é Python puro — roda em PC, notebook, Mac (Intel/Apple
@@ -99,17 +99,17 @@ disponível. Instalação manual: `python3 -m venv .venv` →
 
 ## 🧠 Cérebro com roteador automático (v6.3+)
 
-Guarde uma chave grátis (`betterme provider set groq` + chave) e o agente
+Guarde uma chave grátis (`pluto provider set groq` + chave) e o agente
 **usa o provedor rápido por padrão** — com fallback local se falhar.
 Pedido com código/segredo? Fica no Ollama local (regra D2: análise de
-código nunca sai). `betterme provider off` = 100% local. Cada resposta
-registra no log qual cérebro usou; `betterme doctor` mostra o estado.
+código nunca sai). `pluto provider off` = 100% local. Cada resposta
+registra no log qual cérebro usou; `pluto doctor` mostra o estado.
 
-**Sem chave nenhuma?** Dois caminhos: `betterme provider guia` (onde pegar
-cada chave grátis em 2 min) e **`betterme omniroute setup && betterme
+**Sem chave nenhuma?** Dois caminhos: `pluto provider guia` (onde pegar
+cada chave grátis em 2 min) e **`pluto omniroute setup && pluto
 omniroute start`** — gateway local open-source que roteia para pools
 gratuitos keyless (requer Node 23+ e onboarding 1× no dashboard).
-**Valide tudo com `betterme provider test`** — 1 completion real por
+**Valide tudo com `pluto provider test`** — 1 completion real por
 provedor, com latência e veredito. Provedores com rate limit têm
 **retry automático com backoff** (v7.2.0) — rajadas de 429/5xx não
 derrubam mais a tarefa para o fallback local.
@@ -136,7 +136,7 @@ plano reprovado é replanejado 1× ANTES da execução. O revisor de
 resultado já era goldfish (prompt fresco: objetivo + critérios +
 resultado, sem histórico). Pedidos simples seguem na fast lane (0
 chamadas extras) — como o próprio EGM recomenda. Desligue com
-`betterme config set planejamento_verificado false`.
+`pluto config set planejamento_verificado false`.
 
 **Camada de certeza (v7.6.0, conceito ponytail)**: pergunta repetida
 com resposta já validada é respondida com **0 chamadas ao modelo**
@@ -154,9 +154,9 @@ focadas** com contexto acumulado e 1 revisão única no consolidado
 (padrão Plandex, nativo).
 
 - **🗂️ Dossiê de task** — cada task produz um artefato auditável em
-  `~/.betterme/dossies/T000N.md`: **PLANO** (aprovado antes de
+  `~/.pluto/dossies/T000N.md`: **PLANO** (aprovado antes de
   executar) · **EVIDÊNCIA** (cada ferramenta com hora) · **ENTREGA**
-  (veredito do revisor + texto final). Consulta: `betterme dossie
+  (veredito do revisor + texto final). Consulta: `pluto dossie
   T0001` ou `/dossie T0001` no chat (modelo Antigravity).
 - **⏱ Modo prazo** — `/prazo 15` no chat: contagem visível, estado do
   roteador (nuvem/local) e revisão apertada em prazos curtos
@@ -174,7 +174,7 @@ focadas** com contexto acumulado e 1 revisão única no consolidado
 
 ## ⚙ Automações com n8n (v6.3+)
 
-`betterme fluxos setup|start` sobe um n8n **local** (grátis, uso
+`pluto fluxos setup|start` sobe um n8n **local** (grátis, uso
 pessoal). Do chat: "quais são meus fluxos?" e "dispare o X". Do n8n: POST
 em `/api/hooks/<id>` dispara o agente. Guia completo com templates
 prontos: **N8N_PASSOAPASSO.md**.
@@ -184,16 +184,16 @@ prontos: **N8N_PASSOAPASSO.md**.
 Passe ensino/conhecimento para a IA usar nos seus processos:
 
 ```bash
-betterme notebook add manual.pdf      # PDF, scan (OCR), .md, .txt
-betterme notebook add pasta/          # lote inteiro
-betterme notebook perguntar "o que é CAVOK?"   # o CÉREBRO DO APP
+pluto notebook add manual.pdf      # PDF, scan (OCR), .md, .txt
+pluto notebook add pasta/          # lote inteiro
+pluto notebook perguntar "o que é CAVOK?"   # o CÉREBRO DO APP
                                       # responde com citação [n] +
                                       # rodapé de fontes (nativo)
-betterme notebook perguntar "..." --raw        # só os trechos verbatim
-betterme notebook material guia metar # GERA com o cérebro (CBTA) e
+pluto notebook perguntar "..." --raw        # só os trechos verbatim
+pluto notebook material guia metar # GERA com o cérebro (CBTA) e
                                       # SALVA em notebook/materiais/
-betterme notebook materiais           # lista os materiais salvos
-betterme notebook listar|remover|status
+pluto notebook materiais           # lista os materiais salvos
+pluto notebook listar|remover|status
 ```
 
 - **Nativo de verdade (v8.2.0)**: `perguntar` e `material` usam o
@@ -209,9 +209,9 @@ betterme notebook listar|remover|status
   instalado (`ocr_unlimited_dir`); degrada para **tesseract** (leve,
   CPU); sem nenhum, instruções exatas de instalação. PDFs com camada
   de texto nem usam OCR (pdftotext direto).
-- **Instalador nativo (v8.2.0)**: `betterme ocr instalar tesseract`
+- **Instalador nativo (v8.2.0)**: `pluto ocr instalar tesseract`
   detecta o gestor de pacotes (apt/dnf/pacman/brew), mostra o comando
-  e só roda com confirmação [s/N]; `betterme ocr instalar unlimited`
+  e só roda com confirmação [s/N]; `pluto ocr instalar unlimited`
   avisa os ~2–6 GB antes de clonar. Nunca nada silencioso.
 - Sem "áudio overview" do NotebookLM (fase futura: TTS local).
 
@@ -228,14 +228,14 @@ O orquestrador ganha o padrão de funcionamento dos agentes de ponta —
   log em memória + arquivo; teto 5; mesma denylist do run_command
 - **`perguntar_operador`** — pergunta ESTRUTURADA com opções quando o
   pedido é ambíguo, bloqueia pela resposta (evento no chat;
-  `betterme responder <id> <texto>` ou `POST /api/pergunta/<id>`);
+  `pluto responder <id> <texto>` ou `POST /api/pergunta/<id>`);
   sem resposta → segue com a suposição DECLARADA
 - **Estrutura completa** do que existe × o que faltava:
   `docs/V8-AGENTE-PARIDADE.md` (inventário + especificações + fase 2)
 
 ## 🗄️ Vault Obsidian + ensino CBTA (v7.7.0)
 
-**Memória de longo prazo em ARQUIVOS, não em RAM**: `betterme vault
+**Memória de longo prazo em ARQUIVOS, não em RAM**: `pluto vault
 usar ~/Obsidian/SeuVault` liga o vault — o agente passa a guardar
 conhecimento duradouro em `.md` organizado por **escopos**
 (`memoria` · `projetos` · `conhecimento` · `aprendizado`), com
@@ -258,22 +258,22 @@ vault — a próxima sessão continua de onde parou.
 Livro-caixa LOCAL (`<data_dir>/financas/`, nunca no repo) para PF e PJ:
 
 ```bash
-betterme financas                      # painel do mês: entradas, saídas,
+pluto financas                      # painel do mês: entradas, saídas,
                                        # saldo, top categorias, faturas
-betterme financas lancar 35 "almoço"   # registro manual (ou no chat:
+pluto financas lancar 35 "almoço"   # registro manual (ou no chat:
                                        # "gastei 35 no almoço")
-betterme financas importar bb.csv --conta bb     # extrato CSV do BB,
+pluto financas importar bb.csv --conta bb     # extrato CSV do BB,
                                        # Bradesco ou SumUp (formatos por
                                        # família de coluna; reimportar
                                        # não duplica — id estável)
-betterme financas fatura 1850 15/11 bradesco    # vencimento no painel
-betterme financas sumup setup <api-key>         # uma vez (secrets/ 600)
-betterme financas participantes sumup   # quem participa do Open
+pluto financas fatura 1850 15/11 bradesco    # vencimento no painel
+pluto financas sumup setup <api-key>         # uma vez (secrets/ 600)
+pluto financas participantes sumup   # quem participa do Open
                                        # Finance? (lista OFICIAL, com
                                        # papel da instituição, cache 24 h)
-betterme belvo guia                     # Open Finance só-leitura via
-betterme belvo token <t>                # Belvo MCP (grátis, regulado)
-betterme financas sumup sync           # vendas → entradas (API titular)
+pluto belvo guia                     # Open Finance só-leitura via
+pluto belvo token <t>                # Belvo MCP (grátis, regulado)
+pluto financas sumup sync           # vendas → entradas (API titular)
 ```
 
 No chat, o agente registra com as tools `financas_lancar` /
@@ -293,30 +293,30 @@ registro manual ou agregador MCP (ex.: Belvo MCP, grátis/leitura).
 
 | Comando | O que faz |
 |---|---|
-| `betterme chat` | chat interativo com o agente no terminal |
-| `betterme run "tarefa"` | executa uma tarefa única (ex.: `betterme run "mostre uso de disco"`) |
-| `betterme server` | sobe a GUI web (`--host --port --token`) |
-| `betterme daemon` | roda o daemon do agente em primeiro plano |
-| `betterme status` | status do agente + Ollama |
-| `betterme agent start\|stop\|restart\|status` | **liga/desliga** o agente |
-| `betterme ollama start\|stop\|status` | **liga/desliga** o servidor Ollama |
-| `betterme ollama pull [modelo]` | baixa um modelo |
-| `betterme models` | lista modelos locais |
-| `betterme tasks` | fila de tarefas e resultados |
-| `betterme doctor` | diagnóstico do ambiente (dispositivo, cérebro, n8n…) |
-| `betterme provider list\|set\|test\|guia\|off` | chaves grátis, roteador e **teste real** de cada provedor |
-| `betterme omniroute status\|setup\|start` | gateway local de LLMs grátis (keyless) |
-| `betterme dossie T0001` | dossiê da task: plano, evidência e entrega |
-| `betterme fluxos setup\|start\|listar` | automações n8n locais |
-| `betterme autonomia [nível]` | cauteloso · padrao · autonomo |
-| `betterme varredura` | caça segredos/dados no projeto (pré-push) |
-| `betterme update` | atualiza a partir das tags do GitHub |
-| `betterme config show\|set\|edit` | configuração |
+| `pluto chat` | chat interativo com o agente no terminal |
+| `pluto run "tarefa"` | executa uma tarefa única (ex.: `pluto run "mostre uso de disco"`) |
+| `pluto server` | sobe a GUI web (`--host --port --token`) |
+| `pluto daemon` | roda o daemon do agente em primeiro plano |
+| `pluto status` | status do agente + Ollama |
+| `pluto agent start\|stop\|restart\|status` | **liga/desliga** o agente |
+| `pluto ollama start\|stop\|status` | **liga/desliga** o servidor Ollama |
+| `pluto ollama pull [modelo]` | baixa um modelo |
+| `pluto models` | lista modelos locais |
+| `pluto tasks` | fila de tarefas e resultados |
+| `pluto doctor` | diagnóstico do ambiente (dispositivo, cérebro, n8n…) |
+| `pluto provider list\|set\|test\|guia\|off` | chaves grátis, roteador e **teste real** de cada provedor |
+| `pluto omniroute status\|setup\|start` | gateway local de LLMs grátis (keyless) |
+| `pluto dossie T0001` | dossiê da task: plano, evidência e entrega |
+| `pluto fluxos setup\|start\|listar` | automações n8n locais |
+| `pluto autonomia [nível]` | cauteloso · padrao · autonomo |
+| `pluto varredura` | caça segredos/dados no projeto (pré-push) |
+| `pluto update` | atualiza a partir das tags do GitHub |
+| `pluto config show\|set\|edit` | configuração |
 
 E também: `skills` · `memoria` · `rag` · `vida` · `arena` · `audio` ·
-`conversas` · `aprender` · `grafo` — `betterme --help` mostra tudo.
+`conversas` · `aprender` · `grafo` — `pluto --help` mostra tudo.
 
-Flags globais: `--data-dir DIR` (diretório de dados, padrão `~/.betterme`) e
+Flags globais: `--data-dir DIR` (diretório de dados, padrão `~/.pluto`) e
 `--mock` (modo demonstração com Ollama simulado).
 
 ## 🌐 GUI web
@@ -330,7 +330,7 @@ Abra `http://localhost:8080` (ou `host:porta` que você escolheu).
 - **☑ Tarefas** — enfileira tarefas para o daemon executar em sequência
   (funciona até com o chat fechado; histórico com resultados).
 - **⚙ Ajustes** — troca de modelo, prompt de sistema, limites, sandbox e token
-  de acesso, salvos em `~/.betterme/config.yaml`.
+  de acesso, salvos em `~/.pluto/config.yaml`.
 
 ## 🔌 API REST (usada pela GUI)
 
@@ -345,7 +345,7 @@ Abra `http://localhost:8080` (ou `host:porta` que você escolheu).
 | GET/POST | `/api/tasks` (+`/clear`) | fila de tarefas |
 | GET/POST | `/api/settings` | configuração |
 
-Autenticação (quando houver token): header `X-Betterme-Token: <token>` ou
+Autenticação (quando houver token): header `X-Pluto-Token: <token>` ou
 `?token=<token>`.
 
 Exemplo:
@@ -358,13 +358,13 @@ curl -N localhost:8080/api/logs/stream          # log ao vivo no terminal
 ## ⏰ Tarefas agendadas
 
 Deixe pedidos para executarem sozinhos em horários específicos — o
-agendador roda **dentro do `betterme server`** (mantenha a GUI aberta):
+agendador roda **dentro do `pluto server`** (mantenha a GUI aberta):
 
 ```bash
-betterme schedule add "resuma meus e-mails e as atividades do classroom" "diário 07:30"
-betterme schedule add "relatório de uso de disco" "seg,sex 18:00"
-betterme schedule add "limpeza de backups antigos" "domingo 03:00"
-betterme schedule list
+pluto schedule add "resuma meus e-mails e as atividades do classroom" "diário 07:30"
+pluto schedule add "relatório de uso de disco" "seg,sex 18:00"
+pluto schedule add "limpeza de backups antigos" "domingo 03:00"
+pluto schedule list
 ```
 
 Ou pela GUI → aba **Tarefas → ⏰ Tarefas agendadas**. Formatos aceitos:
@@ -391,14 +391,14 @@ terminal rápido (com a mesma denylist de segurança), arquivos do workspace
 (listar/ler/gravar), diagnóstico da máquina e o catálogo de funções
 (nativas + MCP). Use sem passar pelo chat.
 
-## 🔌 Dois agentes: Betterme e Claude Code
+## 🔌 Dois agentes: Pluto e Claude Code
 
 No chat, o seletor no topo escolhe quem responde:
 
-- **◈ Betterme (Ollama)** — o agente padrão deste projeto;
+- **◈ Pluto (Ollama)** — o agente padrão deste projeto;
 - **🔌 Claude Code** — a CLI `claude` da sua máquina, com as funções padrão
   do Claude (bash, leitura/edição de arquivos, busca…), **integrada ao
-  Ollama automaticamente**: o Betterme lança o `claude` apontando para o mesmo
+  Ollama automaticamente**: o Pluto lança o `claude` apontando para o mesmo
   servidor Ollama (variáveis `ANTHROPIC_*` aplicadas sozinhas — não é
   preciso exportar nada). Ajustável em ⚙ Ajustes (`claude_use_ollama`,
   `claude_model`).
@@ -409,7 +409,7 @@ No chat, o seletor no topo escolhe quem responde:
   # ⚠ sem --model ele tenta "claude-opus-…", que NÃO existe no Ollama
   ```
 
-As tarefas agendadas também têm seletor de agente (Betterme ou Claude Code).
+As tarefas agendadas também têm seletor de agente (Pluto ou Claude Code).
 
 ## 🎤 Ditar pelo microfone (Whisper local)
 
@@ -462,7 +462,7 @@ no horário agendado.
 
 ## 📔 Memória do agente
 
-O Betterme lembra de você entre conversas, reinícios e tarefas agendadas.
+O Pluto lembra de você entre conversas, reinícios e tarefas agendadas.
 Na prática:
 
 - No chat, conte algo ("lembre que meu curso é X") e o agente salva com a
@@ -479,7 +479,7 @@ resto do `data/`.
 A aba **Ollama** dá a visibilidade de processo que no Windows fica na bandeja:
 
 - **Servidor**: estado, versão, **PID, tempo ligado, memória RSS**, quem gerencia
-  (systemd/Betterme/externo), modelos carregados em memória/VRAM e botões
+  (systemd/Pluto/externo), modelos carregados em memória/VRAM e botões
   ▶ Ligar / ■ Desligar / ⟳ Reiniciar / ⚙ **iniciar com o sistema** (systemd).
 - **Conexão**: edite o endereço da API (`ollama_url`), ative o **arranjo
   automático** (o agente sobe o Ollama sozinho quando precisar) e rode o
@@ -495,7 +495,7 @@ A aba **Ollama** dá a visibilidade de processo que no Windows fica na bandeja:
 
 ## 🔌 Conectores MCP
 
-O Betterme é um **cliente MCP** (Model Context Protocol): servidores externos
+O Pluto é um **cliente MCP** (Model Context Protocol): servidores externos
 (Figma, GitHub, bancos, automação) aparecem para o agente como ferramentas
 extras `mcp_<servidor>_<ferramenta>`. Configure em `config.yaml`:
 
@@ -545,7 +545,7 @@ curl -X POST localhost:8080/api/skills/install \
 ```
 
 **Criar suas próprias**: pasta com `SKILL.md` (frontmatter `name` +
-`description` + instruções em Markdown) em `~/.betterme/skills/` — o próprio
+`description` + instruções em Markdown) em `~/.pluto/skills/` — o próprio
 agente pode criar skills com a ferramenta `write_file`.
 
 ## 🛡 Segurança
@@ -557,16 +557,16 @@ O agente executa comandos na máquina — trate-o como um shell com assistência
 - Comandos destrutivos (`rm -rf /`, `mkfs`, `dd` para disco, `shutdown`,
   `curl … | sh`, fork bomb…) são **bloqueados por denylist** em qualquer modo.
 - `sandbox: true` restringe leitura/escrita de arquivos ao workspace
-  (`~/.betterme/workspace`).
+  (`~/.pluto/workspace`).
 - No terminal, comandos arriscados pedem confirmação
   (`confirm_dangerous: true`).
 - Todo comando tem timeout (`cmd_timeout`) e saída truncada.
 - Prefira manter a GUI em `127.0.0.1` e acessar via SSH/túnel quando possível.
 
-## 📁 Onde ficam os dados (`~/.betterme`)
+## 📁 Onde ficam os dados (`~/.pluto`)
 
 ```
-~/.betterme/
+~/.pluto/
 ├── config.yaml          configuração (editável pela GUI/CLI)
 ├── heartbeat.json       estado do agente (pid, status) — usado pelo ligar/desligar
 ├── workspace/           sandbox de arquivos do agente
@@ -577,31 +577,31 @@ O agente executa comandos na máquina — trate-o como um shell com assistência
 
 ## 🧪 Modo demonstração (sem Ollama)
 
-Sem Ollama instalado (ou com `--mock`), o Betterme entra em **modo demonstração**:
+Sem Ollama instalado (ou com `--mock`), o Pluto entra em **modo demonstração**:
 um Ollama simulado responde localmente, o loop de ferramentas é real e a GUI
 funciona por completo — útil para avaliar antes de baixar modelos. As respostas
 deixam claro que são simuladas.
 
 ## 🧩 Modelos
 
-Qualquer tag do Ollama funciona; o padrão é o Betterme:
+Qualquer tag do Ollama funciona; o padrão é o Pluto:
 
 ```bash
 ollama pull hermes3:3b     # leve (~2 GB, 8 GB RAM)
 ollama pull hermes3:8b     # padrão (~4,7 GB, 12 GB RAM) — recomendado
 ollama pull hermes3:70b    # servidor (~40 GB)
-betterme config set model hermes3:3b
+pluto config set model hermes3:3b
 ```
 
 ## ❓ Problemas comuns
 
 | Sintoma | Solução |
 |---|---|
-| “não consegui falar com o Ollama” | `betterme ollama status` → `betterme ollama start` |
-| “modelo não encontrado” | `betterme ollama pull` (baixa o modelo da config) |
+| “não consegui falar com o Ollama” | `pluto ollama status` → `pluto ollama start` |
+| “modelo não encontrado” | `pluto ollama pull` (baixa o modelo da config) |
 | GUI não abre de outro aparelho | liberar a porta no firewall e usar `--host 0.0.0.0` |
-| Respostas lentas | guarde uma chave grátis (`betterme provider set groq`) — o roteador usa o provedor rápido · ou use `hermes3:3b` |
-| Agente “sem heartbeat” | processo travado → `betterme agent restart` |
+| Respostas lentas | guarde uma chave grátis (`pluto provider set groq`) — o roteador usa o provedor rápido · ou use `hermes3:3b` |
+| Agente “sem heartbeat” | processo travado → `pluto agent restart` |
 
 ---
 

@@ -29,7 +29,7 @@ jobs:
 
 ## Segredos
 - NUNCA no yaml — `secrets.NOME` (Settings → Secrets → Actions).
-- Segredo no log = rodar `betterme` rotação + remover do histórico.
+- Segredo no log = rodar `pluto` rotação + remover do histórico.
 
 ## Release
 ```

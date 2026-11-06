@@ -1,11 +1,11 @@
 [Unit]
-Description=Betterme Agent - daemon do agente (fila de tarefas)
+Description=Pluto Agente - daemon do agente (fila de tarefas)
 After=network.target ollama.service
 
 [Service]
 Type=simple
-# WorkingDirectory=/opt/betterme-agent
-# ExecStart=/opt/betterme-agent/.venv/bin/betterme daemon
+# WorkingDirectory=/opt/pluto-agent
+# ExecStart=/opt/pluto-agent/.venv/bin/pluto daemon
 Restart=on-failure
 RestartSec=3
 

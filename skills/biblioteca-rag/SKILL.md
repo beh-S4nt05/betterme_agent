@@ -24,8 +24,8 @@ knowledge_search({ "query": "reducer estado imutável MVI" })
 - Se não achar nada: diga que não há na biblioteca — NÃO invente citação.
 
 ## Manutenção (operador)
-- Livros em `~/.betterme/biblioteca/` (.md/.txt/.pdf com pdftotext).
-- Reindexar: `betterme rag` · consultar no terminal: `betterme rag "query"`.
+- Livros em `~/.pluto/biblioteca/` (.md/.txt/.pdf com pdftotext).
+- Reindexar: `pluto rag` · consultar no terminal: `pluto rag "query"`.
 
 ## Verificação
 Toda afirmação técnica forte tem fonte da biblioteca OU teste executado.

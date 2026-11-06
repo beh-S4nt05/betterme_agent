@@ -6,7 +6,7 @@ description: Desenvolvimento guiado por especificação (adaptação nativa do s
 # Spec-driven: spec → plano → tasks → código verificado (spec-kit)
 
 Adaptação nativa do Spec-Driven Development do [github/spec-kit](https://github.com/github/spec-kit)
-(MIT) para o fluxo do Betterme. A regra de ouro: **código sem spec é
+(MIT) para o fluxo do Pluto. A regra de ouro: **código sem spec é
 palpite caro** — primeiro o QUE e o PORQUÊ, depois o COMO, por último
 o código.
 

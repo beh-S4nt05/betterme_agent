@@ -3,8 +3,8 @@
 > **ER completa do n8n pelo método REA** (5 passos: uma função ·
 > ferramenta pelo tipo · resumo primeiro · **visto/inferido/
 > desconhecido** · reconstruir e testar) — [REA do INEMA, MIT](https://github.com/inematds/rea-engenharia-reversa).
-> out/2026 · n8n embutido no Betterme desde a PR#11 (installer SUL,
-> templates tpl-eco/tpl-gat, `betterme fluxos`) · complementa o
+> out/2026 · n8n embutido no Pluto desde a PR#11 (installer SUL,
+> templates tpl-eco/tpl-gat, `pluto fluxos`) · complementa o
 > `N8N_PASSOAPASSO.md` (passo a passo de uso) e o
 > `docs/COMPARATIVO-AGENTES.md`.
 
@@ -14,11 +14,11 @@
 
 - **Função estudada (passo 1 — UMA função):** *como o n8n executa um
   workflow* — do JSON do grafo até o efeito no mundo. É a função que
-  importa para o Betterme (nós orquestramos o n8n por API e geramos
+  importa para o Pluto (nós orquestramos o n8n por API e geramos
   workflows nativos).
 - **Ferramentas (passo 2 — pelo tipo):** alvo é **código aberto**
   (fair-code) → leitura de fontes/documentação pública + **experiência
-  real de campo** do projeto Betterme (instalação, API, execução,
+  real de campo** do projeto Pluto (instalação, API, execução,
   templates). Sem descompilação, sem Ghidra.
 - **Rótulos (passo 4):** `[visto]` = evidência deste projeto (comando
   executado, arquivo observado, resposta de API) ou doc oficial
@@ -26,7 +26,7 @@
   `[desconhecido]` = admitido.
 - **Licença (cuidado REA):** n8n é **fair-code** (Sustainable Use
   License + Apache-2.0 nos módulos) — NÃO é OSI open source; self-host
-  e uso interno são o terreno seguro em que o Betterme está.
+  e uso interno são o terreno seguro em que o Pluto está.
 
 ## 1. Resumo primeiro (passo 3) — o mapa em 8 linhas
 
@@ -39,14 +39,14 @@ emite itens para as arestas de saída. Estado de cada execução é
 persistido (SQLite por padrão) — por isso dá para retomar, auditar e
 reexecutar. A UI (porta 5678) é só um cliente; **tudo que a UI faz
 com workflow/credencial/execução passa pela API**, e é por essa porta
-que o Betterme automatiza (chave `X-N8N-API-KEY`).
+que o Pluto automatiza (chave `X-N8N-API-KEY`).
 
 ## 2. Evidência (o que foi examinado de verdade)
 
 1. **Instalação embutida no projeto** (PR#11): installer "SUL" baixa e
    instala o n8n local — observado em campo em máquina real do
    operador; porta padrão **5678**. `[visto]`
-2. **Uso da API pública por automação**: comandos `betterme fluxos`
+2. **Uso da API pública por automação**: comandos `pluto fluxos`
    (listar/executar/apikey) conversam com a API do n8n local usando a
    chave de API — requests reais executados e documentados no
    `N8N_PASSOAPASSO.md`. `[visto]`
@@ -115,14 +115,14 @@ que o Betterme automatiza (chave `X-N8N-API-KEY`).
   docs; o data dir isolado foi observado]`
 - A API pública (v1) autentica por **chave de API** (header
   `X-N8N-API-KEY`) com escopos por recurso — é o contrato que o
-  Betterme usa; a chave NUNCA passa pelo chat do agente. `[visto +
+  Pluto usa; a chave NUNCA passa pelo chat do agente. `[visto +
   regra D2 do projeto]`
 
-## 4. Lições aplicadas no Betterme (a ER virou produto)
+## 4. Lições aplicadas no Pluto (a ER virou produto)
 
-| Achado da ER | Onde vive no Betterme |
+| Achado da ER | Onde vive no Pluto |
 |---|---|
-| Tudo que a UI faz passa pela API | `betterme fluxos` automatiza por API — sem raspar tela |
+| Tudo que a UI faz passa pela API | `pluto fluxos` automatiza por API — sem raspar tela |
 | Workflow = JSON declarativo versionado | templates `tpl-eco`/`tpl-gat` geram grafo por API |
 | Execução persistida = auditável | filosofia herdada no **dossiê de task** (v6.8.0): PLANO/EVIDÊNCIA/ENTREGA |
 | Itens fluem nó a nó com contexto | **etapas focadas com contexto acumulado** (v6.6.0, N2) |
@@ -136,7 +136,7 @@ que o Betterme automatiza (chave `X-N8N-API-KEY`).
   cuidado nº 3 do REA).
 - Não executamos carga, nem queue mode, nem task runners em campo —
   esses pontos são `[inferido]` de documentação.
-- A UI (Vue) e o editor visual não foram dissecados — o Betterme
+- A UI (Vue) e o editor visual não foram dissecados — o Pluto
   usa a API, não a UI.
 
 ## 6. Desconhecidos declarados
@@ -154,14 +154,14 @@ que o Betterme automatiza (chave `X-N8N-API-KEY`).
 ## 7. Reconstrução e teste (passo 5 — a prova)
 
 A reconstrução da função estudada já existe E foi testada em campo:
-o **motor de etapas focadas do Betterme** (v6.6.0) reimplementa, em
+o **motor de etapas focadas do Pluto** (v6.6.0) reimplementa, em
 escala de agente, o padrão *grafo → execução nó a nó com contexto →
 auditoria persistida* — com `decompor()` (o grafo), `_ciclo_etapas`
 (o percurso com contexto acumulado) e o dossiê (a execução
 auditável). Os templates n8n (grafo JSON aceito pelo motor real do
 n8n) e o `N8N_PASSOAPASSO.md` (execuções reais) são os testes da
 integração. O que NÃO reconstruímos: gatilhos webhook/polling como
-serviço — para isso o Betterme usa o próprio n8n embutido (integração
+serviço — para isso o Pluto usa o próprio n8n embutido (integração
 em vez de imitação, decisão ADR-001-style).
 
 ---

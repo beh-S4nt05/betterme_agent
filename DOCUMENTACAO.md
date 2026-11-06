@@ -1,13 +1,13 @@
-# 📘 Betterme Agent — Documentação viva: uso, evolução e funções
+# 📘 Pluto Agente — Documentação viva: uso, evolução e funções
 
-**Versão 8.2.0** · gerado em 06/11/2026 · este documento é extraído do
+**Versão 8.3.0** · gerado em 06/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
 
 ---
 
-## 1. O que é o Betterme Agent
+## 1. O que é o Pluto Agente
 
 Um **agente pessoal que roda na SUA máquina** (Linux, local-first):
 conversa por chat, executa tarefas de verdade (shell, arquivos, web,
@@ -16,7 +16,7 @@ de controle em `localhost:8080` — zero nuvem, zero dado saindo do
 computador. O Claude Code entra como 2º agente opcional.
 
 **Princípios que não negociam:**
-- 🏠 **local-first**: tudo em `~/.betterme`; funciona offline;
+- 🏠 **local-first**: tudo em `~/.pluto`; funciona offline;
 - 🎯 **pipeline padrão**: conversa comum responde direto; pedido de
   tarefa → 🎯 orquestrador → [🔒 aprovação] → ⚡ executor → 🔍 revisor
   → [📦 entrega] → done;
@@ -33,20 +33,20 @@ computador. O Claude Code entra como 2º agente opcional.
 ### 2.1 Instalar e atualizar
 ```bash
 ./install.sh                  # instalação completa (Debian/Ubuntu/Fedora/Arch)
-betterme update                 # ⬇ atualiza em 1 comando (tags do GitHub)
-betterme update --check         # só verifica se há versão nova
+pluto update                 # ⬇ atualiza em 1 comando (tags do GitHub)
+pluto update --check         # só verifica se há versão nova
 ```
 O `update` preserva `data/` (suas conversas, memória, config), `.venv`
 e `.git`.
 
 ### 2.2 Ligar e desligar (ciclo de vida)
 ```bash
-betterme server                 # ▶ liga a GUI — http://localhost:8080
+pluto server                 # ▶ liga a GUI — http://localhost:8080
 # Ctrl+C desliga. Não existe serviço no boot por padrão.
 ```
 - Instalação com `install.sh --with-systemd` cria os services
-  (`betterme-server`, `betterme-agent`) — `sudo systemctl disable --now
-  betterme-server betterme-agent` remove.
+  (`pluto-server`, `pluto-agent`) — `sudo systemctl disable --now
+  pluto-server pluto-agent` remove.
 - **O "fantasma do cache"**: com o servidor desligado o navegador ainda
   pode abrir a página (service worker guarda a casca). Desde a v3.11.1
   ela exibe um **banner vermelho "server OFFLINE"**. Para limpar de
@@ -59,7 +59,7 @@ betterme server                 # ▶ liga a GUI — http://localhost:8080
 | **Painel** | status do agente/Ollama, desempenho (tok/s) e **🎯 Saúde do pipeline**: aprovação na 1ª tentativa (%), tentativas médias, duração média, suas edições, skills top, tasks por dia (v3.10) |
 | **Chat** | conversa + pipeline; 🔒 aprovação de plano (só criação), 📦 entrega editável; 🔬 por baixo dos panos; `/comandos`; `goal` de sessão; pendências de antes de um restart reaparecem no topo (v3.11) |
 | **Ollama** | TODOS os modelos instalados + **papel de cada um** (💬 chat · 🎯 orquestrador · 🔍 revisor · ⚡ executor · 🔌 claude) com atribuição em 1 clique; funciona com servidor desligado (cache) (v3.9) |
-| **Skills** | catálogo (18 embutidas), ativar/desativar, criar com `criar-skill`, auditar com `betterme skills audit` (v3.11) |
+| **Skills** | catálogo (18 embutidas), ativar/desativar, criar com `criar-skill`, auditar com `pluto skills audit` (v3.11) |
 | **Tarefas** | fila do daemon + ⏰ agendadas |
 | **Auditoria / Memória / Ferramentas / Ajustes** | rastro de ações, fatos lembrados, toggles e modelos por papel ao vivo |
 
@@ -78,69 +78,69 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 | Comando | O que faz |
 |---|---|
 
-| `betterme update` | atualiza o agente a partir do GitHub |
-| `betterme memory` | memória de longo prazo do agente |
-| `betterme import` | importa fatos para a memória (JSON lista ou  |
-| `betterme list` | lista os fatos da memória do agente |
-| `betterme clear` | apaga TODOS os fatos da memória (reimporte um pacote limpo depois) |
-| `betterme skills` | catálogo de skills |
-| `betterme import` | importa skills: pasta local, .zip, URL git ou owner/repo |
-| `betterme aprender` | transforma arquivo/URL/texto em rascunho de skill (M6.5) |
-| `betterme scan` | varre pastas assistidas (ex.: ~/Downloads) e importa skills novas |
-| `betterme audit` | audita todas as skills: estrutura, tamanho,  |
-| `betterme chat` | chat interativo no terminal |
-| `betterme selftest` | 🧪 bateria de aceitação com o LLM real: sem  |
-| `betterme provider` | provedores LLM externos gratuitos (memória nunca sai) |
-| `betterme list` | lista provedores gratuitos e o atual |
-| `betterme set` | ativa um provedor (pede a chave com segurança) |
-| `betterme test` | 1 completion REAL por provedor  |
-| `betterme guia` | onde conseguir cada chave grátis |
-| `betterme off` | volta ao Ollama local |
-| `betterme varredura` | varre segredos/dados pessoais antes de expor código (pré-push) |
-| `betterme init` | cria HERMES.md (instruções duráveis do projeto) |
-| `betterme autonomia` | nível de autonomia do agente ( |
-| `betterme gerente` | gerente de código (Claude Code) — opt-in consciente |
-| `betterme telegram` | canal Telegram: controle e aprovação pelo celular |
-| `betterme whatsapp` | canal WhatsApp via Playwright — grátis, local, removível |
-| `betterme arena` | 🏟️ roda a MESMA task nos provedores grátis e ranqueia (v4.3.0) |
-| `betterme grafo` | 🗺️ grafo de código: onde está a lógica de X? (v4.4.0) |
-| `betterme build` | constrói o grafo AST do projeto (SQLite no data-dir) |
-| `betterme query` | busca símbolos por nome (função/classe/método) |
-| `betterme path` | traça o caminho de chamadas A → B |
-| `betterme revisar` | 🔍 revisa o git diff HEAD (gate único pré-push; v4.5.0) |
-| `betterme transcrever` | extrai áudio (ffmpeg) → whisper.cpp  |
-| `betterme vida` | 🌅 Modo Vida: relatório diário + curadoria de  |
-| `betterme fluxos` | ⚙️ fluxos n8n LOCAIS — automações visuais no  |
-| `betterme aprendidos` | rascunhos de skills/lições esperando sua aprovação |
-| `betterme conversas` | conversas passadas do agente |
-| `betterme rag` | biblioteca de livros (RAG local): indexa ou consulta |
-| `betterme doctor` | diagnostica a conexão Ollama↔Python (com geração de teste) |
-| `betterme email` | configura contas de e-mail (MCP email_*) |
-| `betterme notebook` | 📚 clone local do NotebookLM: fontes + RAG  |
-| `betterme ocr` | 🔍 OCR nativo: status dos engines +  |
-| `betterme responder` | ❓ responde uma pergunta pendente do agente  |
-| `betterme vault` | 🗄️ vault Obsidian — memória de longo prazo  |
-| `betterme belvo` | 🔗 Belvo MCP — Open Finance somente leitura:  |
-| `betterme financas` | 💰 livro-caixa: gastos, entradas, extratos,  |
-| `betterme agenda` | agenda Google Calendar — somente leitura (MCP agenda_*) |
-| `betterme status` | status do agente e do Ollama |
-| `betterme run` | executa uma tarefa única |
-| `betterme boot` | 🔘 iniciar com o sistema — Windows | macOS |  |
-| `betterme daemon` | roda o daemon em primeiro plano |
-| `betterme server` | sobe a GUI web de controle |
-| `betterme agent` | controla o agente (ligar/desligar) |
-| `betterme ollama` | controla o servidor Ollama |
-| `betterme dossie` | dossiê da task: plano, evidência e entrega |
-| `betterme tasks` | lista tarefas da fila e resultados |
-| `betterme schedule` | tarefas agendadas (⏰) |
-| `betterme config` | configuração |
-| `betterme models` | lista modelos locais do Ollama |
-| `betterme auto` | ✨ auto-atribui o melhor modelo instalado  |
+| `pluto update` | atualiza o agente a partir do GitHub |
+| `pluto memory` | memória de longo prazo do agente |
+| `pluto import` | importa fatos para a memória (JSON lista ou  |
+| `pluto list` | lista os fatos da memória do agente |
+| `pluto clear` | apaga TODOS os fatos da memória (reimporte um pacote limpo depois) |
+| `pluto skills` | catálogo de skills |
+| `pluto import` | importa skills: pasta local, .zip, URL git ou owner/repo |
+| `pluto aprender` | transforma arquivo/URL/texto em rascunho de skill (M6.5) |
+| `pluto scan` | varre pastas assistidas (ex.: ~/Downloads) e importa skills novas |
+| `pluto audit` | audita todas as skills: estrutura, tamanho,  |
+| `pluto chat` | chat interativo no terminal |
+| `pluto selftest` | 🧪 bateria de aceitação com o LLM real: sem  |
+| `pluto provider` | provedores LLM externos gratuitos (memória nunca sai) |
+| `pluto list` | lista provedores gratuitos e o atual |
+| `pluto set` | ativa um provedor (pede a chave com segurança) |
+| `pluto test` | 1 completion REAL por provedor  |
+| `pluto guia` | onde conseguir cada chave grátis |
+| `pluto off` | volta ao Ollama local |
+| `pluto varredura` | varre segredos/dados pessoais antes de expor código (pré-push) |
+| `pluto init` | cria HERMES.md (instruções duráveis do projeto) |
+| `pluto autonomia` | nível de autonomia do agente ( |
+| `pluto gerente` | gerente de código (Claude Code) — opt-in consciente |
+| `pluto telegram` | canal Telegram: controle e aprovação pelo celular |
+| `pluto whatsapp` | canal WhatsApp via Playwright — grátis, local, removível |
+| `pluto arena` | 🏟️ roda a MESMA task nos provedores grátis e ranqueia (v4.3.0) |
+| `pluto grafo` | 🗺️ grafo de código: onde está a lógica de X? (v4.4.0) |
+| `pluto build` | constrói o grafo AST do projeto (SQLite no data-dir) |
+| `pluto query` | busca símbolos por nome (função/classe/método) |
+| `pluto path` | traça o caminho de chamadas A → B |
+| `pluto revisar` | 🔍 revisa o git diff HEAD (gate único pré-push; v4.5.0) |
+| `pluto transcrever` | extrai áudio (ffmpeg) → whisper.cpp  |
+| `pluto vida` | 🌅 Modo Vida: relatório diário + curadoria de  |
+| `pluto fluxos` | ⚙️ fluxos n8n LOCAIS — automações visuais no  |
+| `pluto aprendidos` | rascunhos de skills/lições esperando sua aprovação |
+| `pluto conversas` | conversas passadas do agente |
+| `pluto rag` | biblioteca de livros (RAG local): indexa ou consulta |
+| `pluto doctor` | diagnostica a conexão Ollama↔Python (com geração de teste) |
+| `pluto email` | configura contas de e-mail (MCP email_*) |
+| `pluto notebook` | 📚 clone local do NotebookLM: fontes + RAG  |
+| `pluto ocr` | 🔍 OCR nativo: status dos engines +  |
+| `pluto responder` | ❓ responde uma pergunta pendente do agente  |
+| `pluto vault` | 🗄️ vault Obsidian — memória de longo prazo  |
+| `pluto belvo` | 🔗 Belvo MCP — Open Finance somente leitura:  |
+| `pluto financas` | 💰 livro-caixa: gastos, entradas, extratos,  |
+| `pluto agenda` | agenda Google Calendar — somente leitura (MCP agenda_*) |
+| `pluto status` | status do agente e do Ollama |
+| `pluto run` | executa uma tarefa única |
+| `pluto boot` | 🔘 iniciar com o sistema — Windows | macOS |  |
+| `pluto daemon` | roda o daemon em primeiro plano |
+| `pluto server` | sobe a GUI web de controle |
+| `pluto agent` | controla o agente (ligar/desligar) |
+| `pluto ollama` | controla o servidor Ollama |
+| `pluto dossie` | dossiê da task: plano, evidência e entrega |
+| `pluto tasks` | lista tarefas da fila e resultados |
+| `pluto schedule` | tarefas agendadas (⏰) |
+| `pluto config` | configuração |
+| `pluto models` | lista modelos locais do Ollama |
+| `pluto auto` | ✨ auto-atribui o melhor modelo instalado  |
 
-Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
+Subcomandos: `pluto skills audit` (auditar o catálogo), `pluto config set/get`, `pluto server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v8.2.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v8.3.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -148,6 +148,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v8.3.0** | 🐕 PLUTO AGENTE (RENOME FINAL) |
 | **v8.2.0** | 🧠 NOTEBOOK + OCR NATIVOS (O APP FAZ, NÃO INSTRUI) |
 | **v8.1.0** | 📚 NOTEBOOK (CLONE DO NOTEBOOKLM) + OCR SEM LIMITES |
 | **v8.0.0** | 🧰 PARIDADE DE AGENTE: EDIT_FILE, PROCESSOS, PERGUNTAS |
@@ -294,7 +295,7 @@ de todo push.
 navegador ─ GUI (index.html, vanilla JS)
    │  HTTP/SSE
    ▼
-betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
+pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
    │                          │
    ▼                          ▼
 🎯 orchestrator ────────── ⚡ agent.py ──🔧 tools (shell/web/arquivos)
@@ -303,10 +304,10 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 🔍 revisão ──► entrega      Ollama (localhost:11434) · Claude Code
    │
    ▼  registro/aprendizado
-~/.betterme/ (dados — tabela abaixo)
+~/.pluto/ (dados — tabela abaixo)
 ```
 
-**Arquivos em `~/.betterme/` (data_dir):**
+**Arquivos em `~/.pluto/` (data_dir):**
 
 | Caminho | O que guarda |
 |---|---|
@@ -333,7 +334,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 
 ## 6. Referência de funções (gerada do código-fonte)
 
-### betterme/orchestrator.py — 🎯 o coração do pipeline: planeja (lendo a conversa, a experiência e o goal), aplica skills, submete aos portões de aprovação, executa, revisa, registra cada task e aprende com as edições do operador
+### pluto/orchestrator.py — 🎯 o coração do pipeline: planeja (lendo a conversa, a experiência e o goal), aplica skills, submete aos portões de aprovação, executa, revisa, registra cada task e aprende com as edições do operador
 
 | Função | O que faz |
 |---|---|
@@ -375,7 +376,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `_quer_projeto_sem_caminho(cfg, message, resume_plan)` | v3.15.1: task de código/projeto para INICIAR, sem pasta no pedido. |
 | `run_pipeline(agent, cfg, message, history, on_event, cancel, max_tentativas, goal, session_id, resume_plan, resume_tid, extra_criterios, resultado_meta)` | Conversa → 🎯 plano → [🔒 aprovação p/ criação] → ⚡ execução → 🔍 revisão → [🔒 entrega editável p/ criação] → done. Emite … |
 
-### betterme/agent.py — 💬 o executor: conversa com o Ollama com streaming de tokens e uso das ferramentas
+### pluto/agent.py — 💬 o executor: conversa com o Ollama com streaming de tokens e uso das ferramentas
 
 **classe `Agent`** — —
 
@@ -398,7 +399,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `_bare_tool_call(text)` | Detecta chamada de ferramenta em JSON SEM cercas de código. Modelos pequenos às vezes respondem com o JSON cru (com ou … |
 | `_as_tool_calls(block)` | Normaliza {"tool":..,"args":..} / {"name":..,"arguments":..} para o formato da API. |
 
-### betterme/server/app.py — 🌐 a API REST + GUI web (Flask/waitress): todos os endpoints, streaming do chat, aprovações, painel e páginas
+### pluto/server/app.py — 🌐 a API REST + GUI web (Flask/waitress): todos os endpoints, streaming do chat, aprovações, painel e páginas
 
 **88 endpoints HTTP:**
 
@@ -500,7 +501,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `create_app(cfg)` | — |
 | `serve(cfg, host, port)` | — |
 
-### betterme/cli.py — ⌨️ todos os comandos `betterme` do terminal
+### pluto/cli.py — ⌨️ todos os comandos `pluto` do terminal
 
 | Função | O que faz |
 |---|---|
@@ -560,7 +561,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `build_parser()` | — |
 | `main(argv)` | — |
 
-### betterme/tools.py — 🔧 ferramentas do agente: shell, arquivos, web, lembrar… (com denylist de segurança)
+### pluto/tools.py — 🔧 ferramentas do agente: shell, arquivos, web, lembrar… (com denylist de segurança)
 
 **classe `ToolError`** — —
 
@@ -593,7 +594,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `esquecer(args, cfg)` | — |
 | `_backups_tool(args, cfg)` | — |
 | `git_run(args, cfg)` | v3.15.0 (PR#2): git com subcomandos permitidos, no projeto da task. |
-| `gerente_codigo_tool(args, cfg)` | v4.0.0 (M7, D5): delega uma task de CÓDIGO ao gerente Claude (só se o operador ativou com `betterme gerente on --yes`). |
+| `gerente_codigo_tool(args, cfg)` | v4.0.0 (M7, D5): delega uma task de CÓDIGO ao gerente Claude (só se o operador ativou com `pluto gerente on --yes`). |
 | `conversas_buscar(args, cfg)` | v4.0.0 (M6.5): busca nas conversas passadas (decisões antigas). |
 | `especialista_tool(args, cfg)` | v4.0.0 (M6): o cérebro invoca um especialista (revisor, debugger, pesquisador, seguranca) para um caso pontual — veredi… |
 | `knowledge_search(args, cfg)` | v3.15.0 (PR#2): RAG local — trechos verbatim com fonte. |
@@ -614,7 +615,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `execute_tool(name, arguments, cfg, source, agent)` | Executa uma ferramenta e devolve {'ok': bool, 'output': str}. v3.0: toda execução vai para a trilha de auditoria (data/… |
 | `tool_summary()` | — |
 
-### betterme/skills.py — ✦ carregador de skills: frontmatter, gatilhos, ativação e instalação
+### pluto/skills.py — ✦ carregador de skills: frontmatter, gatilhos, ativação e instalação
 
 **classe `SkillLoader`** — —
 
@@ -635,13 +636,13 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 |---|---|
 | `_slug(nome, fallback)` | — |
 | `find_skill_dirs(root, depth)` | Pastas com SKILL.md válido (name+description) sob `root`. |
-| `import_skill_dir(src_dir, cfg)` | Copia UMA pasta de skill para ~/.betterme/skills/<nome>. |
+| `import_skill_dir(src_dir, cfg)` | Copia UMA pasta de skill para ~/.pluto/skills/<nome>. |
 | `_importar_todas(dirs, cfg)` | — |
 | `import_from(src, cfg)` | Importa skills de QUALQUER fonte: pasta local, arquivo .zip, URL git/GitHub ou owner/repo (delega no install_from_githu… |
 | `autoscan(cfg)` | Varre as pastas assistidas (default ~/Downloads) e importa skills novas — o 'baixei do GitHub, agora é nativa' sem coma… |
 | `parse_skill_md(text)` | Separa frontmatter YAML do corpo Markdown. |
 
-### betterme/skills_audit.py — 🛡 auditoria do catálogo: estrutura, tamanho, prompt injection, duplicatas
+### pluto/skills_audit.py — 🛡 auditoria do catálogo: estrutura, tamanho, prompt injection, duplicatas
 
 | Função | O que faz |
 |---|---|
@@ -650,21 +651,21 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `audit_skills(dirs)` | Audita todos os diretórios de skills + duplicatas de nome. |
 | `run_audit(cfg, print_fn)` | Roda a auditoria no catálogo configurado; devolve exit code. |
 
-### betterme/update.py — ⬇ autoatualização: consulta tags no GitHub, baixa o zip e aplica preservando data/.venv/.git
+### pluto/update.py — ⬇ autoatualização: consulta tags no GitHub, baixa o zip e aplica preservando data/.venv/.git
 
 | Função | O que faz |
 |---|---|
 | `_parse_version(tag)` | 'v3.10.0' → (3,10,0); tags com sufixo (-beta, -rc) ficam (0,). |
 | `latest_tag(fetch)` | Última tag do repositório (None se não conseguir consultar). `fetch(url) -> str` injetável para testes offline. |
-| `_project_root()` | Raiz da instalação (pasta que contém betterme/ e pyproject.toml). |
+| `_project_root()` | Raiz da instalação (pasta que contém pluto/ e pyproject.toml). |
 | `_assert_zip_seguro(zf, dest_dir)` | v3.14.2: defesa zip-slip — nenhum membro do zip pode escapar do diretório de destino (caminho absoluto ou com '..' é re… |
 | `download(tag, dest_dir)` | Baixa e extrai o zip da tag; devolve a raiz extraída. |
 | `apply_update(src_root, dest_root, log)` | Copia a nova versão sobre a instalação — preserva data/, .venv e .git. Devolve a lista de itens atualizados. |
 | `_venv_python(root)` | Python do venv DO PROJETO (bin/ no Unix, Scripts/ no Windows). |
-| `garantir_entry_points(root, log)` | v6.0.1: autocura dos COMANDOS `betterme` (+ alias `hermes`). Entry points são gerados NA INSTALAÇÃO (pip); o update tro… |
+| `garantir_entry_points(root, log)` | v6.0.1: autocura dos COMANDOS `pluto` (+ alias `hermes`). Entry points são gerados NA INSTALAÇÃO (pip); o update troca … |
 | `run(check_only, assume_yes, print_fn)` | Executa o update; devolve código de saída (0 = ok/atualizado). |
 
-### betterme/config.py — ⚙️ Config: defaults, leitura/escrita do config.yaml, skills_dirs, chaves tipadas
+### pluto/config.py — ⚙️ Config: defaults, leitura/escrita do config.yaml, skills_dirs, chaves tipadas
 
 **classe `Config`** — Acesso por atributos: cfg.model, cfg.max_steps, ...
 
@@ -691,7 +692,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `_env_flag(name)` | — |
 | `_coerce(key, value)` | — |
 
-### betterme/memory.py — 🧠 memória de longo prazo (fatos guardados com `lembrar`)
+### pluto/memory.py — 🧠 memória de longo prazo (fatos guardados com `lembrar`)
 
 **classe `MemoryStore`** — —
 
@@ -710,7 +711,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `prompt_section` | Seção pronta para o prompt de sistema ('' se não houver fatos). v3.0:… |
 
 
-### betterme/conversations.py — 🗂 conversas: sessões, histórico, títulos
+### pluto/conversations.py — 🗂 conversas: sessões, histórico, títulos
 
 **classe `ConversationStore`** — —
 
@@ -730,7 +731,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `get_current` | — |
 
 
-### betterme/scheduler.py — ⏰ agendador de tarefas periódicas/pontuais
+### pluto/scheduler.py — ⏰ agendador de tarefas periódicas/pontuais
 
 **classe `ScheduleStore`** — —
 
@@ -746,7 +747,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `public_list` | — |
 | `delete` | — |
 
-**classe `Scheduler`** — Loop que dispara as tarefas agendadas (roda dentro do `betterme server`).
+**classe `Scheduler`** — Loop que dispara as tarefas agendadas (roda dentro do `pluto server`).
 
 | Método | O que faz |
 |---|---|
@@ -774,7 +775,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `live_status(sid)` | Snapshot do console ao vivo da tarefa (None se nunca rodou neste server). |
 | `_system_busy(threshold)` | True se a máquina estiver ocupada (para tarefas 'only_idle'). v3.0.1: o load é comparado RELATIVO ao número de núcleos … |
 
-### betterme/daemon.py — 🔄 daemon: fila de tarefas em segundo plano
+### pluto/daemon.py — 🔄 daemon: fila de tarefas em segundo plano
 
 | Função | O que faz |
 |---|---|
@@ -784,7 +785,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `list_tasks(cfg)` | — |
 | `run_daemon(cfg)` | — |
 
-### betterme/manager.py — 🖥 liga/desliga Ollama e daemon, boot systemd, diagnóstico
+### pluto/manager.py — 🖥 liga/desliga Ollama e daemon, boot systemd, diagnóstico
 
 **classe `DaemonManager`** — Controla o processo do agente (o 'coração' que executa tarefas).
 
@@ -820,7 +821,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `_run(cmd, timeout)` | — |
 | `python_env_check()` | Confere se as dependências Python estão íntegras. Detecta o caso do PyYAML 'quebrado': `import yaml` funciona mas o pac… |
 
-### betterme/ollama_client.py — 📡 cliente HTTP do Ollama (chat, tags, ps)
+### pluto/ollama_client.py — 📡 cliente HTTP do Ollama (chat, tags, ps)
 
 **classe `OllamaError`** — Erro de comunicação/execução no Ollama.
 
@@ -855,24 +856,24 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `timeout_resposta(cfg)` | v6.4.0 (DRY): timeout das respostas LONGAS do modelo local (revisão de diff, juiz da arena, gateway) — 5× o timeout de … |
 | `get_client(cfg)` | Fábrica: devolve o cliente mock quando cfg.mock for verdadeiro. v3.17.0: com llm_provider externo configurado, devolve … |
 
-### betterme/claude_agent.py — 🔌 agente Claude Code (2º cérebro, modo leve)
+### pluto/claude_agent.py — 🔌 agente Claude Code (2º cérebro, modo leve)
 
 | Função | O que faz |
 |---|---|
 | `_claude_env(cfg)` | Ambiente do subprocesso `claude` — Ollama por padrão. Com claude_use_ollama=True (padrão), o Claude Code é apontado par… |
 | `_extract_commands(text)` | Comandos dos blocos ```bash (sem comentários, até 4, ≤500 chars). |
-| `_guard_execute(cfg, commands, ev)` | Último recurso: executa os comandos com as ferramentas do Betterme (denylist + timeout + auditoria) e devolve a saída R… |
+| `_guard_execute(cfg, commands, ev)` | Último recurso: executa os comandos com as ferramentas do Pluto (denylist + timeout + auditoria) e devolve a saída REAL. |
 | `_strip_loops(text)` | Corta runs de linhas idênticas consecutivas → (texto limpo, cortes). |
 | `_cli_version(exe)` | Versão da CLI claude (cacheada; '?' se não conseguir ler). |
 | `_claude_cmd(exe, cfg, prompt, light)` | Linha de comando do Claude Code (headless, stream JSON). MODO LEVE (Ollama): --bare — o payload enviado ao modelo cai d… |
 | `claude_path()` | Caminho do binário `claude` (None se não estiver instalado). |
-| `_enrich_prompt(cfg, message, goal)` | v3.14.1: o Claude Code ganha o CONTEXTO do Betterme — a skill que casa com o pedido (CONTEÚDO, não só o nome) e o objet… |
+| `_enrich_prompt(cfg, message, goal)` | v3.14.1: o Claude Code ganha o CONTEXTO do Pluto — a skill que casa com o pedido (CONTEÚDO, não só o nome) e o objetivo… |
 | `_build_prompt(message, history)` | Serializa a conversa anterior + a mensagem nova em um único prompt. |
 | `_simulate(message, ev, cancel)` | Resposta simulada (modo demonstração) — mesmo formato de eventos. |
 | `run_claude(cfg, message, history, on_event, cancel, goal)` | Executa o Claude Code e devolve a resposta final (texto). Emite os mesmos eventos do chat: step, note, token, tool_star… |
 | `_run_impl(cfg, message, history, on_event, cancel, _light, _guard, goal)` | — |
 
-### betterme/mcp_client.py — 🔌 cliente MCP: e-mail, agenda, Figma…
+### pluto/mcp_client.py — 🔌 cliente MCP: e-mail, agenda, Figma…
 
 **classe `MCPError`** — —
 
@@ -939,14 +940,14 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `get_manager(cfg)` | — |
 | `_shutdown_all()` | — |
 
-### betterme/doctor.py — 🩺 diagnóstico passo a passo Ollama↔Python
+### pluto/doctor.py — 🩺 diagnóstico passo a passo Ollama↔Python
 
 | Função | O que faz |
 |---|---|
 | `run_checks(cfg)` | — |
 | `summary(checks)` | — |
 
-### betterme/emailcfg.py — 🔑 OAuth do e-mail (XOAUTH2 + device code)
+### pluto/emailcfg.py — 🔑 OAuth do e-mail (XOAUTH2 + device code)
 
 | Função | O que faz |
 |---|---|
@@ -966,10 +967,10 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `add_oauth_account(cfg, user, provider, client_id, client_secret, print_fn, readonly)` | Cria conta via OAuth (device code), valida IMAP/SMTP e salva. |
 | `set_modo(cfg, conta, envio)` | Alterna o modo da conta: envio=True libera ENVIO (e exige SMTP válido); envio=False volta para SOMENTE LEITURA (visuali… |
 | `status(cfg)` | — |
-| `setup_interactive(cfg)` | `betterme email setup` — pergunta contas, testa, salva e registra. |
-| `_oauth_wizard(cfg)` | Assistente OAuth dentro do `betterme email setup` (opção 'o'). |
+| `setup_interactive(cfg)` | `pluto email setup` — pergunta contas, testa, salva e registra. |
+| `_oauth_wizard(cfg)` | Assistente OAuth dentro do `pluto email setup` (opção 'o'). |
 
-### betterme/agendacfg.py — 🔑 OAuth da agenda Google
+### pluto/agendacfg.py — 🔑 OAuth da agenda Google
 
 | Função | O que faz |
 |---|---|
@@ -982,9 +983,9 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `add_account(cfg, user, client_id, client_secret, print_fn)` | Adiciona a agenda de uma conta Google via device code (2FA do provedor, sem senha) e valida o acesso somente leitura. |
 | `register_mcp(cfg)` | Registra o servidor MCP 'agenda' (secrets via env — nada no config). |
 | `status(cfg)` | — |
-| `setup_interactive(cfg)` | `betterme agenda oauth` — assistente device code (uma vez por conta). |
+| `setup_interactive(cfg)` | `pluto agenda oauth` — assistente device code (uma vez por conta). |
 
-### betterme/contratos.py — 📜 o vocabulário canônico do app (fonte única): níveis de autonomia, tipos de task, especialistas, checks do doctor e marcas DLP — mais normalizadores tolerantes (Postel's Law)
+### pluto/contratos.py — 📜 o vocabulário canônico do app (fonte única): níveis de autonomia, tipos de task, especialistas, checks do doctor e marcas DLP — mais normalizadores tolerantes (Postel's Law)
 
 | Função | O que faz |
 |---|---|
@@ -993,7 +994,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `especialista_de(txt)` | Nome canônico de especialista — aceita 'Segurança', 'REVISOR'… None se não existir. |
 | `acao_de(args, padrao)` | Ação de um subcomando CLI: leitura tolerante e uniforme (falta o atributo ou vazio → padrão; sempre strip+lower). |
 
-### betterme/mencoes.py — 📎 as @menções (v7.0.0): @arquivo/@pasta no pedido → o Betterme lê o disco e anexa o conteúdo REAL (padrão Cursor/OpenCode, com orçamento anti-estouro)
+### pluto/mencoes.py — 📎 as @menções (v7.0.0): @arquivo/@pasta no pedido → o Pluto lê o disco e anexa o conteúdo REAL (padrão Cursor/OpenCode, com orçamento anti-estouro)
 
 | Função | O que faz |
 |---|---|
@@ -1002,13 +1003,13 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `_listar_pasta(p)` | — |
 | `expandir(cfg, texto)` | Bloco de anexos para a mensagem ("" se não há menções válidas). |
 
-### betterme/comandos.py — ⌘ o dispatcher único de /comandos do chat (v7.0.0): /dossie, /prazo, /ajuda — zero tokens, GUI e TUI
+### pluto/comandos.py — ⌘ o dispatcher único de /comandos do chat (v7.0.0): /dossie, /prazo, /ajuda — zero tokens, GUI e TUI
 
 | Função | O que faz |
 |---|---|
 | `executar(cfg, cmd, args, session_id)` | Responde o comando (str) ou devolve None se não for deste módulo. |
 
-### betterme/dossie.py — 🗂️ o dossiê de task (v6.8.0): PLANO + EVIDÊNCIA + ENTREGA por task em data_dir/dossies/ — revisão por artefatos (modelo Antigravity, nativo e local-first)
+### pluto/dossie.py — 🗂️ o dossiê de task (v6.8.0): PLANO + EVIDÊNCIA + ENTREGA por task em data_dir/dossies/ — revisão por artefatos (modelo Antigravity, nativo e local-first)
 
 | Função | O que faz |
 |---|---|
@@ -1020,7 +1021,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `fechar(cfg, tid, veredito=?, problema=?, status=?, execucoes=?, dur=?, entrega=?, entregue=?)` | Fecha o dossiê com a seção ENTREGA (veredito + texto auditável). |
 | `ler(cfg, tid)` | Dossiê completo ("" se a task não tiver — tasks antigas, p.ex.). |
 
-### betterme/fluxo.py — ⚡ o fluxo adaptativo em 3 níveis (v6.6.0): conversa → resposta direta; tarefa → ciclo clássico; complexa → etapas focadas com contexto acumulado (padrão Plandex, nativo e leve)
+### pluto/fluxo.py — ⚡ o fluxo adaptativo em 3 níveis (v6.6.0): conversa → resposta direta; tarefa → ciclo clássico; complexa → etapas focadas com contexto acumulado (padrão Plandex, nativo e leve)
 
 | Função | O que faz |
 |---|---|
@@ -1030,19 +1031,19 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `tem_tool_call_texto(texto)` | v6.6.1 (achado de campo T0013): o modelo imprimiu a chamada de ferramenta ({"function": "write_file", "arguments": {...… |
 | `entrega_vazia(texto)` | v7.2.0 (achado da bateria de uso real): o executor devolveu resposta sem conteúdo (só pontuação/whitespace) e o revisor… |
 
-### betterme/extrair.py — 🧾 o extrator ÚNICO de JSON da resposta de modelos (chaves balanceadas com consciência de strings) — usado por orquestrador, especialistas, revisor e arena
+### pluto/extrair.py — 🧾 o extrator ÚNICO de JSON da resposta de modelos (chaves balanceadas com consciência de strings) — usado por orquestrador, especialistas, revisor e arena
 
 | Função | O que faz |
 |---|---|
 | `json_de(texto)` | Primeiro objeto JSON balanceado do texto (modelos pequenos cercam o JSON de prosa) — None se não achar nada válido. |
 
-### betterme/activity.py — 📝 registro de atividade (o que aconteceu e quando)
+### pluto/activity.py — 📝 registro de atividade (o que aconteceu e quando)
 
 | Função | O que faz |
 |---|---|
 | `log(cfg, source, message, max_bytes)` | Anexa uma linha de atividade ao agent.log (best-effort). |
 
-### betterme/audit.py — 🧾 auditoria de ações do agente
+### pluto/audit.py — 🧾 auditoria de ações do agente
 
 | Função | O que faz |
 |---|---|
@@ -1051,7 +1052,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `query(cfg, agent, tool, limit, day, month)` | Lê os registros mais recentes (filtros opcionais). |
 | `tools_summary(cfg)` | Contagem por ferramenta no mês (para o topo da página Auditoria). |
 
-### betterme/backups.py — 💾 backups automáticos dos dados
+### pluto/backups.py — 💾 backups automáticos dos dados
 
 | Função | O que faz |
 |---|---|
@@ -1064,7 +1065,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `prune(cfg, origin, keep)` | Mantém apenas os N backups mais recentes de `origin`; devolve os apagados. |
 | `tool_backups(args, cfg)` | — |
 
-### betterme/metrics.py — 📊 métricas de uso (jsonl)
+### pluto/metrics.py — 📊 métricas de uso (jsonl)
 
 | Função | O que faz |
 |---|---|
@@ -1072,7 +1073,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `recent(cfg, limit, agent)` | — |
 | `summary(cfg)` | Médias das últimas N respostas (para o painel). |
 
-### betterme/notify.py — 🔔 notificações ao operador
+### pluto/notify.py — 🔔 notificações ao operador
 
 | Função | O que faz |
 |---|---|
@@ -1081,10 +1082,10 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `unread_count(cfg)` | — |
 | `mark_all_read(cfg)` | — |
 
-### betterme/recipes.py — 📋 receitas: fluxos prontos de uso
+### pluto/recipes.py — 📋 receitas: fluxos prontos de uso
 
 
-### betterme/stt.py — 🎤 ditado por voz (Whisper local)
+### pluto/stt.py — 🎤 ditado por voz (Whisper local)
 
 | Função | O que faz |
 |---|---|
@@ -1092,7 +1093,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `_get_model(name)` | Carrega (e cacheia) o modelo Whisper — download no primeiro uso. |
 | `transcribe(cfg, data)` | Transcreve o áudio (bytes webm/ogg/wav/mp3…) e devolve {ok, text}. |
 
-### betterme/supervisor.py — 👁 supervisor: vigia e reinicia processos
+### pluto/supervisor.py — 👁 supervisor: vigia e reinicia processos
 
 **classe `McpSupervisor`** — —
 
@@ -1113,7 +1114,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `checkOnline()` | v3.11.1 — detecta servidor offline e exibe o banner vermelho (casca em cache) |
 | `store()` | persistência leve no localStorage (preferências da GUI) |
 | `toast()` | aviso flutuante |
-| `api()` | fetch com token X-Betterme-Token embutido |
+| `api()` | fetch com token X-Pluto-Token embutido |
 | `esc()` | escape de HTML (anti-injeção na renderização) |
 | `mdFmt()` | renderização markdown leve das respostas |
 | `copyCode()` | copiar bloco de código |
@@ -1156,14 +1157,14 @@ renderização e utilidade (`mdFmt`, `bubble`, `toolBlock`, `fmtUp`…).*
 
 ## 7. Segurança
 
-- **token** opcional (`betterme server --token` / `auth_token`) — header
-  `X-Betterme-Token`; **anti-CSRF**: POST cross-origin sem token é 403;
+- **token** opcional (`pluto server --token` / `auth_token`) — header
+  `X-Pluto-Token`; **anti-CSRF**: POST cross-origin sem token é 403;
 - **denylist** de comandos perigosos no `tools.py` (shutdown, dd em
   disco, /dev/sd*, fork bomb…);
 - **secrets/** com chmod 600 — credenciais NUNCA passam pelo modelo,
   config versionado, logs ou auditoria;
 - e-mail e agenda **somente leitura** por padrão;
-- `betterme skills audit` — anti-prompt-injection no catálogo;
+- `pluto skills audit` — anti-prompt-injection no catálogo;
 - `git grep` anti-segredo antes de todo push; repo sem dados pessoais.
 
 ## 8. Solução de problemas
@@ -1174,7 +1175,7 @@ renderização e utilidade (`mdFmt`, `bubble`, `toolBlock`, `fmtUp`…).*
 | GUI "abre" com servidor desligado | casca em cache do service worker | banner vermelho acusa (v3.11.1); F12 → Application → Unregister + Clear site data |
 | aba Ollama vazia com servidor off | normal — cache expira | ligue o Ollama (aba Ollama ▶) e recarregue |
 | "não recebo a resposta do agente" | era bug v3.4, corrigido v3.5 | se voltar, reporte (garantidor do done ativo) |
-| update falha (sem internet) | GitHub inacessível | `betterme update --check`; ou unzip manual do zip da release |
+| update falha (sem internet) | GitHub inacessível | `pluto update --check`; ou unzip manual do zip da release |
 | Ollama lento | modelo pesado p/ a máquina | aba Ollama → ver tok/s no Painel; troque por modelo menor |
 
 ---

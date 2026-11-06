@@ -6,7 +6,7 @@ description: Usar o notebook do operador (clone local do NotebookLM) — as font
 # Notebook — o conhecimento que o operador passou
 
 O notebook é onde o operador deposita conhecimento para você USAR:
-`betterme notebook add <arquivo>` (PDF, imagem escaneada, .md, .txt —
+`pluto notebook add <arquivo>` (PDF, imagem escaneada, .md, .txt —
 OCR automático quando precisar).
 
 ## Regras duras
@@ -20,7 +20,7 @@ OCR automático quando precisar).
 
 ## Materiais (estruturas prontas)
 
-`betterme notebook material resumo|faq|guia|flashcards [tema]` GERA
+`pluto notebook material resumo|faq|guia|flashcards [tema]` GERA
 o material com o cérebro do app (estruturas abaixo, regras da skill
 ensino-cbta) e SALVA em `<data>/notebook/materiais/` — nativo. Ao
 gerar pelo chat, siga as mesmas estruturas (competência primeiro,
@@ -37,7 +37,7 @@ teor 75%, exemplo antes de teoria longa):
 Imagens e PDFs escaneados viram texto no `add`: engine
 **unlimited-ocr** (baidu/Unlimited-OCR — PDF inteiro numa passada,
 multi-página com contexto cruzado) quando instalado; senão
-**tesseract** (leve, CPU). Instalação NATIVA: `betterme ocr instalar
+**tesseract** (leve, CPU). Instalação NATIVA: `pluto ocr instalar
 tesseract` (detecta o gestor de pacotes e confirma) e
-`betterme ocr instalar unlimited` (avisa os ~2–6 GB antes). Sem
+`pluto ocr instalar unlimited` (avisa os ~2–6 GB antes). Sem
 nenhum engine, o `add` devolve as instruções — repasse ao operador.

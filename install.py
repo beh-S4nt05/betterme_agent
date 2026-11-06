@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""🧩 Instalador universal do Betterme Agent — Windows | macOS | Linux.
+"""🧩 Instalador universal do Pluto Agente — Windows | macOS | Linux.
 
 Roda em QUALQUER dispositivo com Python 3.9+ (x86-64 ou ARM64: PC,
 notebook, Mac, mini PC, Raspberry Pi…). Python puro — nada de bash.
@@ -9,7 +9,7 @@ O que faz:
   1. Confere o Python (>= 3.9) e o sistema operacional
   2. Cria o .venv do projeto
   3. Atualiza pip/setuptools (setuptools >= 64 = instalação editável)
-  4. Instala o Betterme (pip install -e .) — comandos betterme + hermes
+  4. Instala o Pluto (pip install -e .) — comandos pluto + hermes
   5. Checa o Ollama e orienta a instalação POR SO se faltar
   6. Imprime os próximos passos
 
@@ -59,7 +59,7 @@ def rodar(cmd: list[str], **kw) -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Instalador do Betterme Agent")
+    ap = argparse.ArgumentParser(description="Instalador do Pluto Agente")
     ap.add_argument("--model", default="hermes3:8b",
                     help="modelo sugerido ao final (default hermes3:8b)")
     ap.add_argument("--skip-ollama-check", action="store_true",
@@ -77,7 +77,7 @@ def main() -> int:
                          "(faster-whisper, ~200 MB)")
     args = ap.parse_args()
 
-    print("🧩 Betterme Agent — instalador universal")
+    print("🧩 Pluto Agente — instalador universal")
     if sys.version_info < MIN_PY:
         print(f"✖ Python {MIN_PY[0]}.{MIN_PY[1]}+ necessário "
               f"(atual: {platform.python_version()})")
@@ -101,15 +101,16 @@ def main() -> int:
     rodar([py, "-m", "pip", "install", "-q", "--upgrade",
            "pip", "setuptools"])
 
-    # 3) o Betterme em si
-    print("  ✔ instalando o Betterme (editável) …")
+    # 3) o Pluto em si
+    print("  ✔ instalando o Pluto (editável) …")
     rc = rodar([py, "-m", "pip", "install", "-q", "-e", "."],
                cwd=str(RAIZ))
     if rc != 0:
         print("✖ falha no pip — rode manualmente: "
               f"{py} -m pip install -e .")
         return 1
-    print("  ✔ comandos registrados: betterme (+ alias hermes)")
+    print("  ✔ comandos registrados: pluto "
+          "(+ aliases betterme e hermes)")
 
     # 4) Ollama (opcional — só orienta, nunca instala por conta própria)
     if not args.skip_ollama_check:
@@ -120,7 +121,7 @@ def main() -> int:
             print("  ℹ Ollama não encontrado (o cérebro local). Instale:")
             print(f"     {HINTS['ollama'][sis]}")
             print("     (sem Ollama agora? Tudo bem — o modo demo "
-                  "(BETTERME_MOCK=1) e o pool grátis funcionam)")
+                  "(PLUTO_MOCK=1) e o pool grátis funcionam)")
 
     # ── --full: carregar TUDO para iniciar plenamente ──────────────
     if args.full:
@@ -164,25 +165,25 @@ def main() -> int:
         # (d) n8n (aba ⚙ Fluxos) — instala no data-dir e sobe
         if not args.skip_n8n:
             print("  ✔ n8n (fluxos) — instalando no data-dir …")
-            r1 = rodar([py, "-m", "betterme", "fluxos", "setup"])
+            r1 = rodar([py, "-m", "pluto", "fluxos", "setup"])
             if r1 == 0:
-                rodar([py, "-m", "betterme", "fluxos", "start"])
+                rodar([py, "-m", "pluto", "fluxos", "start"])
             else:
                 print("  ℹ n8n precisa do Node.js 20.19–24.x — "
                       "instale (ex.: winget install OpenJS.NodeJS.LTS / "
-                      "brew install node) e rode: betterme fluxos setup")
+                      "brew install node) e rode: pluto fluxos setup")
         # (e) veredito final
         print("\n🩺 veredito do ambiente:")
-        rodar([py, "-m", "betterme", "doctor"])
+        rodar([py, "-m", "pluto", "doctor"])
 
     # 5) próximos passos
     ativa = (r".venv\Scripts\activate" if sis == "windows"
              else "source .venv/bin/activate")
     print("\n🎉 pronto! Próximos passos:")
     print(f"    {ativa}")
-    print("    betterme doctor     # checa dispositivo, Ollama e modelo")
-    print("    betterme server     # GUI web em http://127.0.0.1:8080")
-    print("    betterme chat       # chat no terminal")
+    print("    pluto doctor     # checa dispositivo, Ollama e modelo")
+    print("    pluto server     # GUI web em http://127.0.0.1:8080")
+    print("    pluto chat       # chat no terminal")
     return 0
 
 

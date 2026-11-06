@@ -3,15 +3,15 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "betterme-agent"
-version = "8.2.0"
+name = "pluto-agent"
+version = "8.3.0"
 classifiers = [
   "Operating System :: POSIX :: Linux",
   "Operating System :: MacOS",
   "Operating System :: Microsoft :: Windows",
   "Programming Language :: Python :: 3",
 ]
-description = "Agente local via terminal com Ollama (Betterme) e GUI web — Windows | macOS | Linux"
+description = "Agente local via terminal com Ollama (Pluto) e GUI web — Windows | macOS | Linux"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -27,11 +27,12 @@ dependencies = [
 whatsapp = ["playwright>=1.40"]
 
 [project.scripts]
-betterme = "betterme.cli:main"
-hermes = "betterme.cli:main"        # alias legado (v4.0 e anteriores)
+pluto = "pluto.cli:main"
+betterme = "pluto.cli:main"      # alias legado (v4.0–v8.2)
+hermes = "pluto.cli:main"        # alias legado (v4.0 e anteriores)
 
 [tool.setuptools.packages.find]
-include = ["betterme*"]
+include = ["pluto*"]
 
 [tool.setuptools.package-data]
-"betterme.server" = ["templates/*.html"]
+"pluto.server" = ["templates/*.html"]

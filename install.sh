@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ============================================================================
-#  Betterme Agent — instalador (Debian/Ubuntu/Fedora/Arch e derivados)
+#  Pluto Agente — instalador (Debian/Ubuntu/Fedora/Arch e derivados)
 #
 #  O que faz:
 #    1. Instala dependências do sistema (python3, pip, venv, curl)
 #    2. Instala o Ollama (se não houver)
-#    3. Baixa o modelo Betterme (hermes3:8b por padrão)
-#    4. Cria o ambiente Python do Betterme e instala a CLI `betterme`
+#    3. Baixa o modelo Pluto (hermes3:8b por padrão)
+#    4. Cria o ambiente Python do Pluto e instala a CLI `pluto`
 #    5. (opcional) Instala serviços systemd para GUI + agente
 #
 #  Uso:
@@ -36,7 +36,7 @@ warn() { printf '\033[93m⚠ %s\033[0m\n' "$*"; }
 
 cd "$(dirname "$0")"
 HERMES_DIR="$(pwd)"
-say "Betterme Agent — instalação em $HERMES_DIR"
+say "Pluto Agente — instalação em $HERMES_DIR"
 
 # ---------------------------------------------------------------- 1. básico
 say "[1/5] dependências do sistema…"
@@ -82,47 +82,47 @@ else
 fi
 
 # --------------------------------------------------------------- 4. python
-say "[4/5] ambiente Python do Betterme…"
+say "[4/5] ambiente Python do Pluto…"
 python3 -m venv .venv
 ./.venv/bin/pip install --upgrade pip >/dev/null
 ./.venv/bin/pip install -e .
-ok "CLI instalada: $HERMES_DIR/.venv/bin/betterme"
+ok "CLI instalada: $HERMES_DIR/.venv/bin/pluto"
 
 # link global prático
 if [[ -w /usr/local/bin ]]; then
-  ln -sf "$HERMES_DIR/.venv/bin/betterme" /usr/local/bin/betterme && ok "atalho global: betterme"
+  ln -sf "$HERMES_DIR/.venv/bin/pluto" /usr/local/bin/pluto && ok "atalho global: pluto"
 else
-  sudo ln -sf "$HERMES_DIR/.venv/bin/betterme" /usr/local/bin/betterme && ok "atalho global: betterme"
+  sudo ln -sf "$HERMES_DIR/.venv/bin/pluto" /usr/local/bin/pluto && ok "atalho global: pluto"
 fi
 
 # ------------------------------------------------------------ 5. systemd
 if [[ "$WITH_SYSTEMD" == "yes" ]]; then
   say "[5/5] serviços systemd…"
   if command -v systemctl >/dev/null; then
-    sudo tee /etc/systemd/system/betterme-server.service >/dev/null <<EOF
+    sudo tee /etc/systemd/system/pluto-server.service >/dev/null <<EOF
 [Unit]
-Description=Betterme Agent — GUI web de controle
+Description=Pluto Agente — GUI web de controle
 After=network.target ollama.service
 
 [Service]
 Type=simple
 WorkingDirectory=$HERMES_DIR
-ExecStart=$HERMES_DIR/.venv/bin/betterme server --host 0.0.0.0 --port $PORT
+ExecStart=$HERMES_DIR/.venv/bin/pluto server --host 0.0.0.0 --port $PORT
 Restart=always
 RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 EOF
-    sudo tee /etc/systemd/system/betterme-agent.service >/dev/null <<EOF
+    sudo tee /etc/systemd/system/pluto-agent.service >/dev/null <<EOF
 [Unit]
-Description=Betterme Agent — daemon do agente (fila de tarefas)
-After=network.target ollama.service betterme-server.service
+Description=Pluto Agente — daemon do agente (fila de tarefas)
+After=network.target ollama.service pluto-server.service
 
 [Service]
 Type=simple
 WorkingDirectory=$HERMES_DIR
-ExecStart=$HERMES_DIR/.venv/bin/betterme daemon
+ExecStart=$HERMES_DIR/.venv/bin/pluto daemon
 Restart=on-failure
 RestartSec=3
 
@@ -130,10 +130,10 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
     sudo systemctl daemon-reload
-    sudo systemctl enable --now betterme-server betterme-agent
-    ok "serviços betterme-server e betterme-agent ativos (inicializam junto do sistema)"
+    sudo systemctl enable --now pluto-server pluto-agent
+    ok "serviços pluto-server e pluto-agent ativos (inicializam junto do sistema)"
   else
-    warn "systemd não disponível — rode manualmente: betterme server"
+    warn "systemd não disponível — rode manualmente: pluto server"
   fi
 else
   say "[5/5] systemd pulado (use --with-systemd para instalar como serviço)"
@@ -145,12 +145,12 @@ cat <<EOF
 
   Próximos passos:
 
-    betterme status              # conferir agente + Ollama
-    betterme chat                # conversar no terminal
-    betterme server --host 0.0.0.0 --port $PORT --token SUA-SENHA
+    pluto status              # conferir agente + Ollama
+    pluto chat                # conversar no terminal
+    pluto server --host 0.0.0.0 --port $PORT --token SUA-SENHA
                               # GUI web de controle (ligar/desligar)
 
   Dica: em máquina com pouca RAM (≤ 8 GB) prefira o modelo leve:
-    ollama pull hermes3:3b && betterme config set model hermes3:3b
+    ollama pull hermes3:3b && pluto config set model hermes3:3b
 
 EOF

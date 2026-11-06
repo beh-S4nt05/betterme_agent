@@ -1,5 +1,35 @@
 # Changelog
 
+## v8.3.0 — 🐕 PLUTO AGENTE (RENOME FINAL)
+
+Nome final do produto: **Pluto Agente** (o companheiro fiel). Decisão
+do operador; identificadores técnicos `pluto`.
+
+- **Pacote `pluto/`, comando `pluto`** (era `betterme/`): git mv +
+  93 arquivos reescritos — módulos, skills, GUI (todos os templates),
+  docs, testes, instalador, update.
+- **Compatibilidade total — nada quebra**:
+  - binários `betterme` e `hermes` seguem como aliases legados;
+  - env `PLUTO_*` com fallback `BETTERME_*`/`HERMES_*`;
+  - migração automática `~/.betterme` (e `~/.hermes`) → `~/.pluto`,
+    uma única vez, só no caminho default;
+  - contexto de projeto: `PLUTO.md` > `BETTERME.md` > `HERMES.md` >
+    `AGENTS.md`; `pluto init` respeita BETTERME.md legado existente;
+  - `AGENDA_API` legada também vale (agendacfg).
+- **Identidade**: system prompt apresenta o Pluto; serviço systemd
+  `pluto-agent.service` (**rode `pluto daemon boot` para
+  re-registrar**); repo GitHub `beh-S4nt05/pluto-agente` (redirect do
+  nome antigo mantém update/push funcionando).
+- **Fix incluído (pendente da v8.2.0, validado)**: `_gerar` do
+  notebook embute o system de grounding no user (Agent.run descarta
+  role system) e veta tools em perguntar/material — tarefa de texto.
+- **Fix de higiene**: T233 agora RESTAURA o Agent real após o
+  monkeypatch (o `del AG.Agent` deletava a classe do módulo — mina
+  que o T236 pisou primeiro).
+- T236 (renome v8.3.0: identidade Pluto, fallback BETTERME_MOCK,
+  alias binário, migração ~/.betterme→~/.pluto, PLUTO.md vence
+  BETTERME.md no contexto).
+
 ## v8.2.0 — 🧠 NOTEBOOK + OCR NATIVOS (O APP FAZ, NÃO INSTRUI)
 
 Correção de curso do operador: "integrar tudo isso de forma nativa" —

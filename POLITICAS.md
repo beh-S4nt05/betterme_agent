@@ -16,7 +16,7 @@
 | Backup antes de sobrescrever | toda escrita tem volta | retrabalho zero |
 | Sandbox de kernel (bwrap+seccomp) | comandos rodam enjaulados quando disponível | defesa em profundidade |
 
-## Flags calibráveis (config.yaml / `betterme config set`)
+## Flags calibráveis (config.yaml / `pluto config set`)
 
 | Flag | Padrão | Faz | Nasceu de | Risco de afrouxar |
 |---|---|---|---|---|

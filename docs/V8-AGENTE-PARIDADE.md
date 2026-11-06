@@ -1,6 +1,6 @@
 # ◈ V8.0.0 — Plano de Paridade de Agente
 
-> Estrutura completa do que o Betterme JÁ POSSUI e do que PRECISAVA,
+> Estrutura completa do que o Pluto JÁ POSSUI e do que PRECISAVA,
 > para dar ao orquestrador o mesmo padrão de funcionamento de um
 > agente de ponta (o "modelo de referência" que o operador usou na
 > conversa) — sem herdar limites indevidos: mecanismo no código,
@@ -47,7 +47,7 @@
 |---|---|---|
 | Edição cirúrgica | `edit_file` | substitui o PRIMEIRO trecho que casa com `old_text` (exato; fallback tolerante a indentação); backup automático; recusa caminho fora da política de escrita |
 | Processos em background | `proc_start`/`proc_logs`/`proc_stop` | subprocess em sessão própria (killpg derruba filhos), log em deque(400) + `<data>/procs/<nome>.log`, teto 5 vivos, MESMA denylist do run_command, atexit |
-| Perguntar em vez de adivinhar | `perguntar_operador` | pergunta + 2–4 opções estruturadas; BLOQUEIA com timeout (600 s) e cancel; evento `{"type":"pergunta"}` no stream; resposta via `POST /api/pergunta/<id>` ou `betterme responder <id> <texto>`; sem resposta → segue com suposição DECLARADA |
+| Perguntar em vez de adivinhar | `perguntar_operador` | pergunta + 2–4 opções estruturadas; BLOQUEIA com timeout (600 s) e cancel; evento `{"type":"pergunta"}` no stream; resposta via `POST /api/pergunta/<id>` ou `pluto responder <id> <texto>`; sem resposta → segue com suposição DECLARADA |
 | Políticas explícitas | `POLITICAS.md` | catálogo de regras de lei × flags calibráveis + os 8 achados de campo que viraram portões |
 | Eventos de tool | `set_event_sink`/`emit_event` | threading.local (padrão `_TASK_SINK`); qualquer tool flui eventos no chat |
 
@@ -65,7 +65,7 @@ usuário → Agent.run (wrapper: camada 🐴) → _run_core
 
 ## 5. Fase 2 (pós-v8, opcionais)
 
-- **TTS local** (Piper/espeak-ng): `betterme falar` — sem dependência
+- **TTS local** (Piper/espeak-ng): `pluto falar` — sem dependência
   nova obrigatória; validar qualidade na máquina do operador.
 - **Card de pergunta na GUI** (hoje: evento + CLI/HTTP; amanhã:
   botões no chat).

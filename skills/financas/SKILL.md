@@ -31,7 +31,7 @@ description: Controlar os gastos e finanças do operador (PF e PJ) — registrar
 ## Importar extrato (via run_command)
 
 ```
-betterme financas importar <arquivo.csv> --conta bb|bradesco|sumup [--so-saidas]
+pluto financas importar <arquivo.csv> --conta bb|bradesco|sumup [--so-saidas]
 ```
 
 Formatos aceitos por FAMÍLIA de coluna (delimitador `;`, `,` ou tab):
@@ -42,22 +42,22 @@ reconhecido, a saída mostra as colunas lidas — reporte-as ao operador.
 
 ## SumUp — entradas automáticas (uma vez)
 
-1. `betterme financas sumup setup <api-key>` — chave em
+1. `pluto financas sumup setup <api-key>` — chave em
    developer.sumup.com (Settings → API key); fica em secrets/ 600.
-2. `betterme financas sumup sync` — vendas `SUCCESSFUL` viram entradas
+2. `pluto financas sumup sync` — vendas `SUCCESSFUL` viram entradas
    (conta sumup-vendas); falhadas/canceladas são ignoradas (nunca
    tocaram a conta); repasses são só informativos (a venda já entrou).
 
 ## Faturas e boletos
 
-- `betterme financas fatura <valor> <dd/mm/aaaa> <conta>` — o painel
+- `pluto financas fatura <valor> <dd/mm/aaaa> <conta>` — o painel
   avisa vencimento e dias restantes (🔴 HOJE no dia).
 - Boletos no DDA sem via automática: o operador informa ("boleto da
   luz vence 10/12, R$ 230") → registre como fatura.
 
 ## Quem participa do Open Finance
 
-`betterme financas participantes <banco>` responde com a lista
+`pluto financas participantes <banco>` responde com a lista
 OFICIAL (cache 24 h) — use antes de prometer acesso automático a
 uma instituição. Papel "detentora de conta" = pode compartilhar
 dados da conta; instituição fora da lista = só via registro manual,

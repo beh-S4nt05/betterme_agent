@@ -1,4 +1,4 @@
-# ✅ Checklist pré-release — Betterme
+# ✅ Checklist pré-release — Pluto
 
 > Lição dos 4 achados de campo (#1 entry points, #2 PEP 660, #3
 > performance, #4 agente mudo/alucinado): **testes de happy path verde
@@ -28,7 +28,7 @@
       + dados reais no arquivo) antes de declarar "pronto".
 
 ## 5. Qualidade e release
-- [ ] ruff `E9,F,B,PLE` limpo · `betterme varredura` sem críticos ·
+- [ ] ruff `E9,F,B,PLE` limpo · `pluto varredura` sem críticos ·
       `gen_doc.py` regenerado.
 - [ ] config.VERSION + pyproject + CHANGELOG + MAPA alinhados · tag +
       push + zip + demo com curl de verificação.
