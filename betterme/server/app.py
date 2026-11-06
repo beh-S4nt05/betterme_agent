@@ -272,6 +272,18 @@ self.addEventListener("fetch", (e) => {
                         headers={"Cache-Control": "public, max-age=86400"})
 
     # ------------------------------------------- orquestrador (v3.3)
+    @app.get("/api/perguntas")
+    def perguntas_pendentes():
+        from ..perguntas import pendentes
+        return jsonify(pendentes())
+
+    @app.post("/api/pergunta/<pid>")
+    def pergunta_responder(pid):
+        from ..perguntas import responder
+        dados = request.get_json(force=True, silent=True) or {}
+        r = responder(pid, str(dados.get("resposta", "")))
+        return (jsonify(r), (200 if r.get("ok") else 404))
+
     @app.get("/api/orchestrator/tasks")
     @protected
     def orchestrator_tasks():

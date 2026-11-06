@@ -9474,6 +9474,191 @@ def T225_skill_ensino_cbta():
     assert problemas == [], problemas
 
 
+@case
+def T226_edit_file_cirurgico():
+    """v8.0.0: edição cirúrgica — casamento exato PRIMEIRO, fallback
+    tolerante a indentação, só a 1ª ocorrência, new_text vazio apaga,
+    backup automático, não-achado devolve erro que ENSINA, caminho
+    fora da política de escrita é recusado."""
+    from betterme.tools import edit_file
+
+    cfg = fresh()
+    d = Path(cfg.workdir)          # workdir da cfg (fora do deny)
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / "app.py"
+    if True:
+        f.write_text("def soma(a, b):\n    return a + b\n\n"
+                     "def sub(a, b):\n    return a - b\n",
+                     encoding="utf-8")
+        r = edit_file({"path": "app.py",
+                       "old_text": "return a + b",
+                       "new_text": "return a + b + 0"}, cfg)
+        assert r.startswith("OK"), r
+        assert "return a + b + 0" in f.read_text(encoding="utf-8")
+        assert "def sub" in f.read_text(encoding="utf-8")  # intacto
+
+        # tolerante a indentação (old_text com indentação diferente)
+        r2 = edit_file({"path": "app.py",
+                        "old_text": "def sub(a, b):\nreturn a - b",
+                        "new_text": "def sub(a, b):\n    return a - b - 0"},
+                       cfg)
+        assert r2.startswith("OK"), r2
+        assert "return a - b - 0" in f.read_text(encoding="utf-8")
+
+        # 1ª ocorrência apenas
+        g = d / "dup.txt"
+        g.write_text("X\nmeio\nX\n", encoding="utf-8")
+        edit_file({"path": "dup.txt", "old_text": "X",
+                   "new_text": "Y"}, cfg)
+        assert g.read_text(encoding="utf-8") == "Y\nmeio\nX\n"
+
+        # apagar trecho (new_text vazio)
+        edit_file({"path": "dup.txt", "old_text": "meio\n",
+                   "new_text": ""}, cfg)
+        assert g.read_text(encoding="utf-8") == "Y\nX\n"
+
+        # não achado → erro que ensina
+        r3 = edit_file({"path": "app.py", "old_text": "NAO_EXISTE_123",
+                        "new_text": "x"}, cfg)
+        assert r3.startswith("ERRO") and "read_file" in r3
+
+        # backup existiu (backups/ tem arquivo)
+        bdir = Path(cfg.data_dir) / "backups"
+        assert bdir.exists() and list(bdir.glob("*"))
+
+    # fora da política de escrita → recusado
+    r4 = edit_file({"path": "/etc/hosts", "old_text": "x",
+                    "new_text": "y"}, cfg)
+    assert r4.startswith("ERRO")
+
+
+@case
+def T227_procs_background():
+    """v8.0.0: trio de processos — start/logs/stop com log em memória
+    + arquivo; denylist do run_command vale; nome duplicado vivo é
+    recusado; teto de 5; stop derruba (e reporta ja_morto)."""
+    import time as _t
+    from betterme import procs
+    from betterme.tools import TOOL_NAMES
+
+    for n in ("proc_start", "proc_logs", "proc_stop"):
+        assert n in TOOL_NAMES, n
+    cfg = fresh()
+    try:
+        r = procs.start(cfg, "tico", "rm -rf /")
+        assert "BLOQUEADO" in r["erro"], r
+        r = procs.start(cfg, "tico", "cat /home/user/.betterme/secrets/x")
+        assert "BLOQUEADO" in r["erro"] or "secrets" in r["erro"], r
+        r = procs.start(cfg, "bad name!", "echo oi")
+        assert "nome inválido" in r["erro"]
+
+        r = procs.start(cfg, "loop",
+                        "for i in $(seq 1 100); do echo tick $i; "
+                        "sleep 0.05; done")
+        assert r.get("ok"), r
+        _t.sleep(0.6)
+        lg = procs.logs("loop", tail=10)
+        assert lg["vivo"] and any("tick" in l for l in lg["linhas"]), lg
+        log_arq = Path(r["log"])
+        assert log_arq.exists() and "tick" in log_arq.read_text()
+
+        # duplicado vivo recusado
+        r2 = procs.start(cfg, "loop", "echo outro")
+        assert "já existe" in r2["erro"], r2
+
+        # teto de 5
+        for i in range(4):
+            procs.start(cfg, f"extra{i}", "sleep 30")
+        r3 = procs.start(cfg, "extra4", "sleep 30")
+        assert "limite de 5" in r3["erro"], r3
+
+        # stop derruba
+        st = procs.stop("loop")
+        assert st.get("ok") and not st.get("ja_morto"), st
+        # já morto
+        procs.start(cfg, "curto", "true")
+        _t.sleep(0.3)
+        st2 = procs.stop("curto")
+        assert st2.get("ok") and st2.get("ja_morto"), st2
+    finally:
+        for it in procs.status():
+            procs.stop(it["nome"])
+
+
+@case
+def T228_perguntar_operador():
+    """v8.0.0: pergunta estruturada BLOQUEANTE — evento {type:
+    pergunta} com id/opcoes no stream; resposta via responder()
+    desbloqueia e devolve o texto; cancelamento retorna instrução de
+    parada honesta; id desconhecido → erro; registro em EXECUTORS."""
+    import threading
+    import time as _t
+    from betterme import perguntas as P
+    from betterme.tools import TOOL_NAMES, EXECUTORS
+
+    assert "perguntar_operador" in TOOL_NAMES
+    assert EXECUTORS["perguntar_operador"] is not None
+    eventos, resultado = [], []
+
+    def _pergunta():
+        resultado.append(P.perguntar(
+            "Qual banco usar no relatório?",
+            [{"id": "bb", "label": "Banco do Brasil"},
+             {"id": "bradesco", "label": "Bradesco"}],
+            timeout=30, on_event=eventos.append))
+
+    th = threading.Thread(target=_pergunta)
+    th.start()
+    _t.sleep(0.4)
+    pend = P.pendentes()
+    assert len(pend) == 1 and "banco" in pend[0]["pergunta"].lower()
+    assert pend[0]["opcoes"][0]["id"] == "bb"
+    assert eventos and eventos[0]["type"] == "pergunta"
+    pid = pend[0]["id"]
+    r = P.responder(pid, "Banco do Brasil")
+    assert r.get("ok"), r
+    th.join(timeout=10)
+    assert "Banco do Brasil" in resultado[0]
+    assert "resposta do operador" in resultado[0]
+
+    # id desconhecido
+    assert "erro" in P.responder("qinexistente", "x")
+
+    # cancelamento → parada honesta (sem travar)
+    import threading as _th
+    cancel = _th.Event()
+    cancel.set()
+    out = P.perguntar("alguma coisa", [], timeout=30,
+                      on_event=None, cancel=cancel)
+    assert "cancelado" in out
+
+
+@case
+def T229_politicas_e_plano_v8():
+    """v8.0.0: POLITICAS.md cataloga as flags calibráveis (mecanismo ×
+    política) e docs/V8-AGENTE-PARIDADE.md estrutura o inventário
+    temos/precisamos — guardas de documentação (regra do README em
+    dia)."""
+    pol = Path("POLITICAS.md")
+    assert pol.exists()
+    pt = pol.read_text(encoding="utf-8")
+    for flag in ("creation_approval", "planejamento_verificado",
+                 "certeza_on", "sandbox", "confirm_dangerous",
+                 "max_tool_calls", "num_ctx"):
+        assert flag in pt, flag
+    assert "NÃO são flags" in pt            # regras de lei separadas
+    assert "honestidade" in pt.lower()      # portões sem flag
+
+    v8 = Path("docs/V8-AGENTE-PARIDADE.md")
+    assert v8.exists()
+    vt = v8.read_text(encoding="utf-8")
+    for marco in ("edit_file", "proc_start", "perguntar_operador",
+                  "POLITICAS", "vault", "Fase 2"):
+        assert marco in vt, marco
+    rd = Path("README.md").read_text(encoding="utf-8")
+    assert "POLITICAS.md" in rd             # referenciado no README
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

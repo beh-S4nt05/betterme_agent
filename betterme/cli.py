@@ -98,6 +98,39 @@ def cmd_belvo(args) -> None:
     _bcmd(args, _cfg(args))
 
 
+def cmd_responder(args) -> None:
+    """❓ Responde uma pergunta pendente do agente (v8.0.0)."""
+    import requests
+    cfg = _cfg(args)
+    base = f"http://{cfg.host or '127.0.0.1'}:{cfg.port or 8090}"
+    headers = {"Authorization": f"Bearer {cfg.auth_token}"} if getattr(
+        cfg, "auth_token", "") else {}
+    try:
+        if getattr(args, "listar", False) or not getattr(args, "id", None):
+            r = requests.get(f"{base}/api/perguntas", headers=headers,
+                             timeout=10).json()
+            if not r:
+                print("ℹ nenhuma pergunta pendente")
+            for q in r:
+                print(f"[{q['id']}] {q['pergunta']}")
+                for o in q["opcoes"]:
+                    d = f" — {o['descricao']}" if o.get("descricao") else ""
+                    print(f"   · {o['id']}: {o['label']}{d}")
+            return
+        txt = " ".join(args.texto).strip()
+        if not txt:
+            print("✖ informe a resposta: betterme responder <id> <resposta>")
+            return
+        r = requests.post(f"{base}/api/pergunta/{args.id}",
+                          json={"resposta": txt}, headers=headers,
+                          timeout=10).json()
+        print("✔ resposta entregue ao agente" if r.get("ok")
+              else f"✖ {r.get('erro', r)}")
+    except requests.RequestException as exc:
+        print(f"✖ sem contato com o servidor ({exc}) — o agente precisa "
+              "estar rodando (betterme server) para responder por aqui")
+
+
 def cmd_vault(args) -> None:
     """🗄️ Vault Obsidian — memória externa (v7.7.0)."""
     from .vault import cmd as _vcmd
@@ -1021,6 +1054,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("novo_modo", nargs="?", default=None,
                    help="[com 'modo'] 'envio' libera o envio; 'leitura' volta a somente ver")
     p.set_defaults(fn=cmd_email)
+
+    p = sub.add_parser("responder",
+                       help="❓ responde uma pergunta pendente do agente "
+                            "(v8.0.0; sem argumentos lista as pendentes)")
+    p.add_argument("id", nargs="?", default=None,
+                   help="id da pergunta (ex.: q1a2b3c4d)")
+    p.add_argument("texto", nargs="*", help="a resposta")
+    p.set_defaults(fn=cmd_responder)
 
     p = sub.add_parser("vault",
                        help="🗄️ vault Obsidian — memória de longo prazo "

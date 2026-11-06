@@ -1,5 +1,41 @@
 # Changelog
 
+## v8.0.0 — 🧰 PARIDADE DE AGENTE: EDIT_FILE, PROCESSOS, PERGUNTAS
+
+Marco maior (pedido do operador: "as mesmas funções e poder de
+processamento do agente de referência, sem herdar limites — regras
+específicas vêm depois"). Estrutura completa em
+`docs/V8-AGENTE-PARIDADE.md`; políticas em `POLITICAS.md`.
+
+- **`edit_file`**: edição cirúrgica — primeiro casamento EXATO,
+  fallback tolerante a indentação (sequência de linhas por conteúdo
+  strip), só a 1ª ocorrência, `new_text` vazio apaga, backup
+  automático, não-achado ensina a copiar com read_file, caminho fora
+  da política de escrita é recusado (T226).
+- **`proc_start`/`proc_logs`/`proc_stop`** (`procs.py`): processos em
+  background em sessão própria (killpg derruba filhos), log em
+  deque(400) + `<data>/procs/<nome>.log`, teto de 5 vivos, MESMA
+  denylist do run_command (comando perigoso/secrets não nasce),
+  atexit limpa tudo. Bug do leitor (log texto × bytes) pego pelo
+  T227 e corrigido (T227).
+- **`perguntar_operador`** (`perguntas.py`): pergunta estruturada
+  (2–4 opções) que BLOQUEIA pela resposta — evento `pergunta` no
+  stream do chat (via `set_event_sink`/`emit_event`, threading.local
+  no padrão `_TASK_SCOPE`), canais `POST /api/pergunta/<id>` +
+  `betterme responder <id> <texto>` (fala com o servidor por HTTP);
+  timeout 600 s → segue com suposição DECLARADA; cancelamento →
+  parada honesta (T228).
+- **`POLITICAS.md`**: regras de lei (denylist, secrets, D2, escopo,
+  backup, sandbox) × flags calibráveis (creation_approval,
+  planejamento_verificado, certeza_on, sandbox, confirm_dangerous,
+  max_tool_calls, num_ctx…), cada uma com origem e risco — os 8
+  achados de campo que viraram portões documentados.
+- **`docs/V8-AGENTE-PARIDADE.md`**: inventário temos (85%) ×
+  precisávamos (15% fechado agora) + arquitetura + fase 2 (TTS
+  local, card de pergunta na GUI, pergunta via WhatsApp, proc no
+  sandbox de kernel).
+- T226 · T227 · T228 · T229 — **229/229**.
+
 ## v7.7.0 — 🗄️ VAULT OBSIDIAN + 🎓 ENSINO CBTA (IS 141-007, TEOR 75%)
 
 Pedido do operador: memória que não vive "em variáveis e RAM", e

@@ -67,6 +67,121 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "edit_file",
+            "description": (
+                "Edita um arquivo de forma CIRÚRGICA: substitui o "
+                "primeiro trecho que casa com old_text por new_text "
+                "(tolerante a diferenças de indentação). Muito mais "
+                "seguro que regravar o arquivo inteiro com write_file "
+                "em arquivos grandes. Backup automático da versão "
+                "anterior."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "old_text": {"type": "string",
+                                 "description": "trecho exato a substituir "
+                                                "(copie com read_file)"},
+                    "new_text": {"type": "string",
+                                 "description": "texto novo (vazio = "
+                                                "apagar o trecho)"}
+                },
+                "required": ["path", "old_text"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "proc_start",
+            "description": (
+                "Inicia um processo em BACKGROUND (servidor de dev, "
+                "watcher, suíte longa) sem travar o agente. Depois "
+                "acompanhe com proc_logs e finalize com proc_stop. "
+                "Máx. 5 processos; mesma política de segurança do "
+                "run_command."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "nome": {"type": "string",
+                             "description": "identificador (a-z, 0-9, -)"},
+                    "comando": {"type": "string"},
+                    "cwd": {"type": "string",
+                            "description": "pasta de trabalho (opcional)"}
+                },
+                "required": ["nome", "comando"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "proc_logs",
+            "description": (
+                "Últimas linhas de log de um processo em background "
+                "(iniciado com proc_start) + se ainda está vivo."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "nome": {"type": "string"},
+                    "tail": {"type": "number",
+                             "description": "linhas (padrão 30, máx 200)"}
+                },
+                "required": ["nome"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "proc_stop",
+            "description": (
+                "Finaliza um processo em background (SIGTERM, espera, "
+                "SIGKILL se preciso — derruba o grupo inteiro, filhos "
+                "inclusive)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"nome": {"type": "string"}},
+                "required": ["nome"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "perguntar_operador",
+            "description": (
+                "PERGUNTA ao operador quando o pedido está ambíguo e a "
+                "escolha muda o resultado — com opções estruturadas. "
+                "Bloqueia até a resposta (timeout generoso); sem "
+                "resposta, siga com a suposição DECLARADA. Use ANTES de "
+                "assumir algo importante; NÃO use para decisões "
+                "óbvias ou baratas de reverter."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pergunta": {"type": "string"},
+                    "opcoes": {"type": "array",
+                               "description": "2 a 4 opções",
+                               "items": {"type": "object",
+                                         "properties": {
+                                             "id": {"type": "string"},
+                                             "label": {"type": "string"},
+                                             "descricao": {"type": "string"}
+                                         }}}
+                },
+                "required": ["pergunta"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "vault_salvar",
             "description": (
                 "Guarda conhecimento duradouro no vault Obsidian do "
@@ -567,6 +682,23 @@ _SENSITIVE_READ = ["~/.betterme/secrets", "~/.ssh", "~/.gnupg", "~/.config",
 _SCOPE_DENY = ("/tmp", "/proc", "/sys", "/dev", "/etc", "/var", "/usr",
                "/boot", "/run", "/snap")
 _TASK_SCOPE = threading.local()
+_EVENT_SINK = threading.local()      # v8.0.0: ferramenta emite evento
+
+
+def set_event_sink(fn) -> None:
+    """Registra o emissor de eventos do run corrente (agent._run_core
+    chama no início de cada execução — tools como perguntar_operador
+    precisam fluir eventos no stream do chat)."""
+    _EVENT_SINK.fn = fn
+
+
+def emit_event(e: dict) -> None:
+    fn = getattr(_EVENT_SINK, "fn", None)
+    if fn:
+        try:
+            fn(e)
+        except Exception:  # noqa: BLE001 — evento é best-effort
+            pass
 
 
 def validar_escopo_projeto(path, cfg=None) -> Path:
@@ -1185,7 +1317,90 @@ def vault_buscar(args: dict, cfg) -> str:
                      for a in r["achados"])
 
 
+def edit_file(args: dict, cfg) -> str:
+    from .backups import backup_file
+
+    try:
+        p = resolve_path(str(args.get("path", "")), cfg, write=True)
+    except ToolError as exc:
+        return f"ERRO: {exc}"
+    velho = str(args.get("old_text") or "")
+    novo = str(args.get("new_text", ""))
+    if not velho:
+        return "ERRO: informe 'old_text' (o trecho a substituir)."
+    try:
+        conteudo = p.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return f"ERRO ao ler {p}: {exc}"
+    i = conteudo.find(velho)
+    if i >= 0:                       # 1) casamento exato
+        j = i + len(velho)
+    else:                            # 2) tolerante a indentação
+        alvo = [l.strip() for l in velho.splitlines() if l.strip()]
+        linhas = conteudo.splitlines(keepends=True)
+        stripp = [l.strip() for l in linhas]
+        achou = -1
+        for k in range(len(stripp) - len(alvo) + 1) if alvo else []:
+            if stripp[k:k + len(alvo)] == alvo:
+                achou = k
+                break
+        if achou < 0:
+            return ("ERRO: 'old_text' não encontrado (nem com indentação "
+                    "flexível). Use read_file e copie o trecho exato.")
+        i = sum(len(l) for l in linhas[:achou])
+        j = i + sum(len(l) for l in linhas[achou:achou + len(alvo)])
+    try:
+        backup = backup_file(cfg, p)
+        p.write_text(conteudo[:i] + novo + conteudo[j:], encoding="utf-8")
+    except OSError as exc:
+        return f"ERRO ao gravar {p}: {exc}"
+    nota = f" (backup: {backup.name})" if backup else ""
+    return (f"OK: trecho editado em {p}{nota} — {j - i} chars "
+            f"substituídos por {len(novo)}")
+
+
+def proc_start(args: dict, cfg) -> str:
+    from . import procs
+    r = procs.start(cfg, args["nome"], args["comando"],
+                    cwd=args.get("cwd", ""))
+    if r.get("erro"):
+        return "ERRO: " + r["erro"]
+    return (f"OK: processo '{r['nome']}' rodando (pid {r['pid']}) — "
+            f"log: {r['log']}")
+
+
+def proc_logs(args: dict, cfg) -> str:
+    from . import procs
+    r = procs.logs(args["nome"], tail=int(args.get("tail") or 30))
+    if r.get("erro"):
+        return "ERRO: " + r["erro"]
+    estado = "vivo" if r["vivo"] else "MORTO (exit)"
+    return (f"📡 '{args['nome']}' ({estado}) — últimas {len(r['linhas'])} "
+            f"linha(s):\n" + "\n".join(r["linhas"][-30:]))
+
+
+def proc_stop(args: dict, cfg) -> str:
+    from . import procs
+    r = procs.stop(args["nome"])
+    if r.get("erro"):
+        return "ERRO: " + r["erro"]
+    extra = " (já estava morto)" if r.get("ja_morto") else ""
+    return f"OK: processo finalizado{extra} (exit {r['exit']})"
+
+
+def perguntar_operador(args: dict, cfg) -> str:
+    from .perguntas import perguntar
+    return perguntar(str(args.get("pergunta", "")),
+                     args.get("opcoes") or [],
+                     on_event=emit_event)
+
+
 EXECUTORS = {
+    "edit_file": edit_file,
+    "proc_start": proc_start,
+    "proc_logs": proc_logs,
+    "proc_stop": proc_stop,
+    "perguntar_operador": perguntar_operador,
     "vault_salvar": vault_salvar,
     "vault_buscar": vault_buscar,
     "financas_lancar": financas_lancar,

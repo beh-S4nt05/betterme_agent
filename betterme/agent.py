@@ -447,6 +447,11 @@ class Agent:
         o retorno preserva o texto parcial já gerado.
         """
         ev = on_event or (lambda _e: None)
+        try:                          # v8.0.0: tools podem emitir eventos
+            from .tools import set_event_sink
+            set_event_sink(ev)
+        except Exception:  # noqa: BLE001
+            pass
         cfg = self.cfg
 
         # Ollama desligado? Tenta subir sozinho se o operador ativou o arranjo

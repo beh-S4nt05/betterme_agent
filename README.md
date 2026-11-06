@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v7.7.0** · 225 testes · CHANGELOG com todo o histórico.
+**v8.0.0** · 229 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
 
 ```
                         ┌─────────────────────────────┐
@@ -178,6 +178,24 @@ focadas** com contexto acumulado e 1 revisão única no consolidado
 pessoal). Do chat: "quais são meus fluxos?" e "dispare o X". Do n8n: POST
 em `/api/hooks/<id>` dispara o agente. Guia completo com templates
 prontos: **N8N_PASSOAPASSO.md**.
+
+## 🧰 Paridade de agente completo (v8.0.0)
+
+O orquestrador ganha o padrão de funcionamento dos agentes de ponta —
+29 ferramentas, mecanismos no código e **política em flags**
+(`POLITICAS.md` cataloga cada limite, por que existe e como calibrar):
+
+- **`edit_file`** — edição cirúrgica (casa o trecho exato ou
+  tolerante a indentação; backup automático; 1ª ocorrência)
+- **`proc_start` / `proc_logs` / `proc_stop`** — processos em
+  background (servidor, watcher, suíte longa) sem travar o agente;
+  log em memória + arquivo; teto 5; mesma denylist do run_command
+- **`perguntar_operador`** — pergunta ESTRUTURADA com opções quando o
+  pedido é ambíguo, bloqueia pela resposta (evento no chat;
+  `betterme responder <id> <texto>` ou `POST /api/pergunta/<id>`);
+  sem resposta → segue com a suposição DECLARADA
+- **Estrutura completa** do que existe × o que faltava:
+  `docs/V8-AGENTE-PARIDADE.md` (inventário + especificações + fase 2)
 
 ## 🗄️ Vault Obsidian + ensino CBTA (v7.7.0)
 
@@ -563,6 +581,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.7.0) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v8.0.0) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.
