@@ -32,6 +32,7 @@ _ACAO_RE = re.compile(
     r"mostre|mostr\w*|analis\w*|diagnostic\w*|corrig\w*|consert\w*|"
     r"faç\w*|faca|faz\w*|faça|ger\w*|gere|pesquis\w*|busc\w*|procur\w*|"
     r"copi\w*|mov\w*|renomei\w*|format\w*|convert\w*|limp\w*|limpe|"
+    r"registr\w*|lanc\w*|apont\w*|"
     r"agend\w*|dispar\w*|monitor\w*|observ\w*|vigie|assist\w*|"
     r"commit\w*|public\w*|publique|edite|editar|abra|abrir|feche|"
     r"fechar|reinicie|reiniciar|desligue|ligue|ligar|desligar|"
@@ -45,6 +46,7 @@ _INTENSO_RE = re.compile(
     r"tarefa|relatório|relatorio|documento|arquivo|script|código|"
     r"codigo|site|app|sistema|servidor|backup|planilha|banco|"
     r"disco|memória|memoria|processo|rede|porta|log|erro|bug|"
+    r"gasto|gastei|recebi|despesa|financ\w*|orçamento|orcamento|"
     r"instal\w*|versão|versao|modelo|docker|git)\b",
     re.IGNORECASE)
 

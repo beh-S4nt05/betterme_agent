@@ -56,10 +56,23 @@ def volatil(txt: str) -> bool:
     return bool(_RE_VOLATIL.search(_norm(txt)))
 
 
+def _resposta_valida(resposta: str) -> bool:
+    r = str(resposta or "").strip()
+    # 7º achado de campo (bateria de tester): o cache gravou uma
+    # MENSAGEM DE ERRO do fallback e a repetiu como "certeza". Erro
+    # nunca é certeza.
+    if (r.startswith("[erro]") or r.startswith("[ERRO]")
+            or "não consegui falar com o Ollama" in r
+            or "não consegui falar com o provedor" in r):
+        return False
+    return True
+
+
 def cacheavel(msg: str, resposta: str) -> bool:
     n = _norm(msg)
     return (8 <= len(n) <= 80        # "oi"/"bom dia" não é certeza
             and not volatil(n)
+            and _resposta_valida(resposta)
             and 20 <= len(str(resposta or "").strip()) <= 600)
 
 
@@ -87,6 +100,10 @@ def buscar(cfg, msg: str) -> str | None:
     d = _carregar(cfg)
     item = d.get(chave(msg))
     if not item:
+        return None
+    if not _resposta_valida(str(item.get("r", ""))):   # cache envenenado
+        d.pop(chave(msg), None)                        # (7º achado):
+        _gravar(cfg, d)                                # descarta e segue
         return None
     if time.time() - float(item.get("ts", 0)) > _TTL_S:
         d.pop(chave(msg), None)

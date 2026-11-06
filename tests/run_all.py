@@ -9210,6 +9210,19 @@ def T220_certeza_camada_ponytail():
     assert not C.volatil("qual o prazo do projeto")
     assert not C.cacheavel("prazo?", "curto")           # resposta < 20
     assert not C.cacheavel("oi", "uma resposta de tamanho razoável")  # curta
+    # 7º achado: mensagem de ERRO nunca é certeza (nos 2 sentidos)
+    assert not C.cacheavel("qual o prazo do projeto",
+                           "[erro] não consegui falar com o Ollama local")
+    cfg_p = fresh()
+    from pathlib import Path as _P2
+    arq_p = _P2(cfg_p.data_dir) / "certezas.json"
+    arq_p.parent.mkdir(parents=True, exist_ok=True)
+    arq_p.write_text(json.dumps(
+        {"qual o prazo do projeto":
+         {"r": "[erro] não consegui falar com o Ollama", "ts": 1e9}}),
+        encoding="utf-8")
+    assert C.buscar(cfg_p, "qual o prazo do projeto") is None  # descarta
+    assert C.tamanho(cfg_p) == 0
     assert not C.cacheavel("ok", "x" * 700)             # resposta > 600
     assert not C.cacheavel("que horas sao", "x" * 100)  # volátil
     assert C.cacheavel("qual o prazo do projeto", "x" * 100)
@@ -9313,6 +9326,61 @@ def T221_agent_atalho_certeza_e_concisao():
     ag3 = Agent(cfg3, client=Eco())
     ag3.run([{"role": "user", "content": "verifique o disco"}])
     assert C.tamanho(cfg3) == 0
+
+
+@case
+def T222_fluxo_financeiro_e_acao():
+    """v7.6.1 (8º achado de campo, bateria de tester real): 'gastei
+    42,50 no almoço, registre' era classificado como CONVERSA leve —
+    fluxo sem ferramentas, livro-caixa nunca gravado. Registro
+    financeiro tem efeito real: é AÇÃO (registra/lança/aponta no
+    _ACAO_RE; gasto/gastei/recebi/despesa/finanças no _INTENSO_RE).
+    Conversa de verdade continua leve."""
+    from betterme.fluxo import eh_conversa
+
+    for msg in ("Gastei 42,50 no almoço de hoje, registre nos meus gastos",
+                "recebi 500 da consultoria, lança aí",
+                "aponte a despesa de 30 do uber",
+                "meu gasto de ontem foi 60 no mercado, registra",
+                "quanto gastei este mês? mostra o painel"):
+        assert not eh_conversa(msg), msg
+    for msg in ("bom dia, tudo bem com você?",
+                "oi, quem é você?",
+                "obrigado, ajudou demais"):
+        assert eh_conversa(msg), msg
+
+
+@case
+def T223_financas_frase_natural():
+    """v7.6.1 (9º achado de campo, bateria real com 0.5b): o modelo
+    mandou a frase inteira em 'command' (estilo run_command) e a tool
+    morreu com KeyError. Agora a frase é parseada DETERMINÍSTICAMENTE
+    (gastei/recebi + valor + descrição); sem match, erro que ENSINA o
+    formato (não 'erro inesperado')."""
+    from betterme.tools import financas_lancar
+    from decimal import Decimal
+    from betterme import financas as F
+
+    cfg = fresh()
+    out = financas_lancar({"command": "gastei 42,50 no almoço"}, cfg)
+    assert out.startswith("✔"), out
+    lanc = F._todos(cfg)
+    assert len(lanc) == 1
+    assert Decimal(lanc[0]["valor"]) == Decimal("42.50")
+    assert lanc[0]["tipo"] == "saida" and lanc[0]["categoria"] == "alimentacao"
+    assert "almoço" in lanc[0]["descricao"]
+
+    out2 = financas_lancar({"command": "recebi 500 da consultoria"}, cfg)
+    assert out2.startswith("✔"), out2
+    assert F._todos(cfg)[1]["tipo"] == "entrada"
+
+    out3 = financas_lancar({"valor": "10", "descricao": "uber",
+                            "tipo": "saida"}, cfg)
+    assert out3.startswith("✔") and len(F._todos(cfg)) == 3
+
+    out4 = financas_lancar({"command": "registrar gasto"}, cfg)
+    assert "ERRO" in out4 and "valor" in out4 and "gastei" in out4
+    assert len(F._todos(cfg)) == 3
 
 
 if __name__ == "__main__":

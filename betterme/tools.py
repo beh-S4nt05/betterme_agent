@@ -1066,9 +1066,33 @@ def grafo_query(args: dict, cfg) -> str:
     return grafo.query_text(cfg, termo)
 
 
+_FRASE_FIN_RE = re.compile(
+    r"(gastei|paguei|recebi|gasto de|entrada de)\s*(?:r\$)?\s*"
+    r"([0-9][0-9.,]*)\s*(?:no|na|em|com|de|:\s*)?\s*(.*)", re.I)
+
+
 def financas_lancar(args: dict, cfg) -> str:
     from . import financas as F
-    r = F.lancar(cfg, args["valor"], args["descricao"],
+    # 9º achado de campo (bateria real, 0.5b): o modelo manda a FRASE
+    # inteira em 'command' (imitando run_command) em vez dos campos.
+    # Parse determinístico da frase — números lê o código, não o modelo.
+    if not args.get("valor"):
+        frase = str(args.get("command") or args.get("texto")
+                    or args.get("message") or "")
+        m = _FRASE_FIN_RE.search(frase)
+        if m:
+            tipo = ("entrada" if m.group(1).lower() in ("recebi", "entrada de")
+                    else "saida")
+            args = {"valor": m.group(2),
+                    "descricao": (m.group(3).strip() or frase)[:80],
+                    "tipo": tipo,
+                    "categoria": args.get("categoria", ""),
+                    "conta": args.get("conta", "manual")}
+    if not args.get("valor"):
+        return ("ERRO: informe 'valor' (ex.: 42,50), 'descricao' e 'tipo' "
+                "(saida|entrada) — ou a frase completa em 'command' "
+                '(ex.: "gastei 42,50 no almoço").')
+    r = F.lancar(cfg, args["valor"], args.get("descricao") or "lançamento",
                  categoria=args.get("categoria", ""),
                  tipo=args.get("tipo", "saida"),
                  conta=args.get("conta", "manual"))

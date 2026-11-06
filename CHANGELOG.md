@@ -1,5 +1,35 @@
 # Changelog
 
+## v7.6.1 — 🧪 BATERIA DE TESTER REAL: 3 ACHADOS → 3 FIXES
+
+Bateria real como tester (cérebros: llm7 via HTTPS + Ollama local
+0.5b/1.5b, @8k ctx), executando tarefas variadas e validando no
+disco. 3 achados de campo, todos corrigidos com teste:
+
+- **7º — cache de certeza gravava ERRO** (visto ao vivo: resposta
+  "[erro] não consegui falar com o Ollama..." repetida como "🐴
+  certeza local"). Agora: resposta de erro nunca é gravada E caches
+  envenenados são descartados na leitura (T220).
+- **8º — "gastei 42,50 no almoço, registre" era classificado como
+  CONVERSA leve** — fluxo sem ferramentas, livro-caixa nunca gravado.
+  Registro financeiro tem efeito real: é AÇÃO (`registr\w*|lanc\w*|`
+  `apont\w*` no _ACAO_RE; `gasto|gastei|recebi|despesa|financ\w*` no
+  _INTENSO_RE). Conversa de verdade continua leve (T222).
+- **9º — modelo pequeno manda a frase inteira em 'command'** (audit:
+  `financas_lancar {"command": "gastei 42,50 no almoço"}` → KeyError
+  → "ERRO inesperado" 3×). Agora a frase é parseada
+  DETERMINISTICAMENTE (gastei/recebi + valor + descrição → lançamento
+  com categoria inferida); sem match, o erro ENSINA o formato (T223).
+- **Validação end-to-end ao vivo** (0.5b + 8k ctx): "Gastei 42,50 no
+  almoço" → roteamento → skill financas → task → tool → livro-caixa
+  `2026-11-06 · saida R$ 42.50 · alimentacao · almoço` ✔ (181 s).
+- Achados ambientais documentados: llm7 anônimo com cota de RAJADA
+  por tokens (payloads pequenos passam, prompt de 5k toma 429 — o
+  retry v7.2.0 segura e degrada honesto); prompt de pipeline estoura
+  ctx 4096 em modelos pequenos (usar num_ctx 8192); 1.5b + 8k ctx
+  excede a RAM do sandbox (runner cai) — 0.5b + 8k cabe.
+- **223/223**.
+
 ## v7.6.0 — 🐴 CERTEZA DETERMINÍSTICA + CONCISÃO (PONYTAIL)
 
 O operador pediu o conceito ponytail: "se a IA já souber com 100% de
