@@ -9065,6 +9065,132 @@ def T217_financas_participantes_oficial():
     assert "informe o nome" in t4
 
 
+@case
+def T218_plano_verificado_egm_gate():
+    """v7.5.0 (Elephant-Goldfish Model): o plano é VERIFICADO antes
+    de virar task. Estrutural (0 tokens): criação sem critérios →
+    replan 1× com o problema apontado. Goldfish (contexto zero):
+    1 chamada pequena SÓ para criação — leitura não paga pedágio,
+    fast lane não ganha nenhuma chamada, flag desliga tudo."""
+    from betterme import orchestrator as orc
+
+    cfg = fresh(creation_approval=False)
+    _plan_o, _fast_o = orc.plan, orc._fast
+    plan_calls, fast_calls, fila = [], [], []
+
+    def _plan(cfg, msg, history=None):
+        plan_calls.append(msg)
+        if fila:
+            return dict(fila.pop(0))
+        return {"rota": "executar", "tipo": "leitura",
+                "objetivo": "listar", "passos": [],
+                "criterios": ["ver lista"]}
+
+    def _fast(cfg, system, user, ntok=200, stage="", model=None, **k):
+        fast_calls.append(stage)
+        assert "CONTEXTO ZERO" in system    # goldfish de verdade
+        assert "PEDIDO" in user and "PLANO" in user
+        return '{"ok": true}'
+
+    class Ag:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            return "resultado real com evidência"
+
+    orc.plan = _plan
+    orc._fast = _fast
+    orc.review = lambda *a, **k: {"veredito": "ok"}
+    try:
+        # 1ª rodada: leitura → sem replan, sem goldfish
+        fila.append({"rota": "executar", "tipo": "leitura",
+                     "objetivo": "listar", "passos": [],
+                     "criterios": ["ver lista"]})
+        orc.run_pipeline(Ag(), cfg, "faça o relatório", [],
+                         on_event=lambda e: None)
+        assert len(plan_calls) == 1, plan_calls
+        assert fast_calls == [], fast_calls
+
+        # 2ª rodada: criação sem critérios → replan + goldfish 1×
+        plan_calls.clear(); fast_calls.clear()
+        fila.append({"rota": "executar", "tipo": "criacao",
+                     "objetivo": "fazer", "passos": [],
+                     "criterios": []})
+        fila.append({"rota": "executar", "tipo": "criacao",
+                     "objetivo": "fazer", "passos": [],
+                     "criterios": ["arquivo criado"]})
+        evs = []
+        orc.run_pipeline(Ag(), cfg, "crie o arquivo", [],
+                         on_event=evs.append)
+        notas = [str(e.get("message", "")) for e in evs
+                 if e.get("type") == "note"]
+        assert len(plan_calls) == 2          # original + replan
+        assert "[corrija o plano:" in plan_calls[1]
+        assert fast_calls == ["🐟 plano"]    # goldfish só na criação
+        assert any("replanejando" in n for n in notas), notas
+
+        # flag desligada → zero interferência
+        plan_calls.clear(); fast_calls.clear()
+        fila.append({"rota": "executar", "tipo": "criacao",
+                     "objetivo": "fazer", "passos": [],
+                     "criterios": []})
+        cfg.update({"planejamento_verificado": False})
+        orc.run_pipeline(Ag(), cfg, "crie o arquivo", [],
+                         on_event=lambda e: None)
+        assert len(plan_calls) == 1 and fast_calls == []
+    finally:
+        orc.plan = _plan_o
+        orc._fast = _fast_o
+
+
+@case
+def T219_goldfish_pega_escopo_errado():
+    """v7.5.0: o goldfish (contexto zero) reprova plano que ignora
+    parte do pedido → replan acontece ANTES da task; se o replan
+    ainda falhar, segue com ressalva honesta (não trava)."""
+    from betterme import orchestrator as orc
+
+    cfg = fresh(creation_approval=False)
+    _plan_o, _fast_o = orc.plan, orc._fast
+    _rev_o = orc.review
+    plan_calls, respostas = [], [
+        '{"ok": false, "problema": "ignora a segunda parte do pedido"}',
+        '{"ok": false, "problema": "ainda incompleto"}',
+    ]
+
+    def _plan(cfg, msg, history=None):
+        plan_calls.append(msg)
+        return {"rota": "executar", "tipo": "criacao",
+                "objetivo": "fazer tudo", "passos": ["a"],
+                "criterios": ["entrega"]}
+
+    def _fast(cfg, system, user, ntok=200, stage="", model=None, **k):
+        return respostas.pop(0) if respostas else '{"ok": true}'
+
+    class Ag:
+        model_override = None
+
+        def run(self, msgs, on_event=None, cancel=None):
+            return "resultado real com evidência"
+
+    orc.plan = _plan
+    orc._fast = _fast
+    orc.review = lambda *a, **k: {"veredito": "ok"}
+    try:
+        evs = []
+        orc.run_pipeline(Ag(), cfg, "crie o arquivo E rode o teste", [],
+                         on_event=evs.append)
+        notas = [str(e.get("message", "")) for e in evs
+                 if e.get("type") == "note"]
+        assert len(plan_calls) == 2           # replan aconteceu
+        assert any("ignora a segunda parte" in n for n in notas), notas
+        assert any("ressalva" in n for n in notas), notas
+    finally:
+        orc.plan = _plan_o
+        orc._fast = _fast_o
+        orc.review = _rev_o
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

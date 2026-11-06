@@ -1,5 +1,28 @@
 # Changelog
 
+## v7.5.0 — 🐘🐟 PLANO VERIFICADO (ELEPHANT-GOLDFISH MODEL)
+
+O operador pediu avaliação do plugin google/elephant-goldfish-model
+para planejamento com loop em cada ponto. Análise honesta: ~70% do
+EGM já existia aqui (orquestrador elephant com contexto da conversa,
+revisor goldfish de contexto zero, loops de verificação, fast lane —
+que o próprio EGM recomenda manter para pedidos simples). O gap real
+era UM: o plano não era verificado antes de virar task.
+
+- **Gate de planejamento** (`plano_verificado` + wiring no
+  `run_pipeline`): estrutural (0 tokens) para toda execução —
+  objetivo vazio, criação sem critérios de aceite; goldfish
+  (contexto zero, ~100 tokens) SÓ para tarefas de criação — "o plano
+  cobre o pedido por completo?". Plano reprovado → REPLAN 1× com o
+  problema apontado, antes de criar a task; ainda ruim → segue com
+  ressalva honesta (o revisor de resultado continua no encargo).
+- Fast lane intocada: perguntas simples e leituras não pagam nada
+  (0 chamadas extras). Flag `planejamento_verificado` desliga tudo.
+- Fix de colisão: prompt goldfish renomeado `_GOLDFISH_JSON` (o
+  `_PLANO_JSON` do sênior já existia — pego pela suíte).
+- T218 (gate estrutural + goldfish só na criação + flag) · T219
+  (goldfish pega escopo errado → replan → ressalva) — **219/219**.
+
 ## v7.4.0 — 🔗 OPEN FINANCE: LISTA OFICIAL + BELVO MCP
 
 O operador trouxe o quadro regulatório (participação obrigatória

@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v7.4.0** · 217 testes · CHANGELOG com todo o histórico.
+**v7.5.0** · 219 testes · CHANGELOG com todo o histórico.
 
 ```
                         ┌─────────────────────────────┐
@@ -125,7 +125,18 @@ liga o modo prazo (contagem + revisão apertada + estado do roteador
 nuvem/local); `/dossie T0012` abre o artefato da task; `/ajuda`
 lista tudo.
 
-## 🧩 Orquestração inteligente (v6.6+)
+## 🧩 Orquestração inteligente (v6.6+) · plano VERIFICADO (v7.5.0)
+
+Cadeia completa com loop de melhoria em cada ponto (inspirada no
+Elephant-Goldfish Model do Google): **orquestrador → decisão/escopo →
+task → realização → verificação → resultado real**. O plano passa por
+um GATE antes de virar task — estrutural (0 tokens) para toda execução
+e revisão goldfish (contexto zero, 1 chamada pequena) para criações;
+plano reprovado é replanejado 1× ANTES da execução. O revisor de
+resultado já era goldfish (prompt fresco: objetivo + critérios +
+resultado, sem histórico). Pedidos simples seguem na fast lane (0
+chamadas extras) — como o próprio EGM recomenda. Desligue com
+`betterme config set planejamento_verificado false`.
 
 Toda tarefa passa pelo **fluxo adaptativo de 3 níveis**: conversa →
 resposta direta (1 chamada ao cérebro, planejamento pulado); tarefa →
@@ -523,6 +534,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.4.0) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.5.0) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

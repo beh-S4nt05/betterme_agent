@@ -91,6 +91,15 @@ _PLANO_JSON = (
 
 # v3.5: o REVISOR é o sênior que ASSINA embaixo — cobrar para não haver
 # retrabalho é o trabalho dele.
+_GOLDFISH_JSON = (
+    "Você é um revisor de planos com CONTEXTO ZERO (goldfish): não viu a "
+    "conversa anterior e não sabe nada além do que está abaixo. Avalie se "
+    "o PLANO cobre o PEDIDO por completo — sem sobras e sem faltas. "
+    "Responda SOMENTE JSON: {\"ok\": true} ou "
+    "{\"ok\": false, \"problema\": \"o que falta ou sobra, em uma frase\"}."
+)
+
+
 _REVISAO_JSON = (
     "Você é o REVISOR SÊNIOR do Betterme: um veterano exigente, 30 anos de "
     "operação, que assina embaixo do que aprova — e o operador não pode "
@@ -244,6 +253,40 @@ def _cache_invalidate(cfg) -> None:
     prefix = str(cfg.data_dir)
     for k in [k for k in _PLAN_CACHE if k[0] == prefix]:
         _PLAN_CACHE.pop(k, None)
+
+
+def plano_verificado(cfg, pedido: str, plano: dict,
+                     _fast_fn=None) -> str:
+    """🐟 v7.5.0 (Elephant-Goldfish Model): o plano cobre o pedido?
+    Devolve '' (ok) ou o problema. Gate ESTRUTURAL (0 tokens) para
+    toda execução; revisão goldfish (contexto zero, 1 chamada pequena)
+    SÓ para criação — leitura simples não paga pedágio. Nunca lança:
+    falha de revisão = plano segue (degradação honesta)."""
+    if plano.get("rota") != "executar":
+        return ""
+    if not str(plano.get("objetivo") or "").strip():
+        return "plano sem objetivo"
+    if plano.get("tipo") != TIPO_CRIACAO:
+        return ""
+    if not [c for c in (plano.get("criterios") or [])
+            if str(c).strip()]:
+        return "task de criação sem critérios de aceite"
+    fast = _fast_fn or _fast
+    try:
+        user = (f"PEDIDO: {str(pedido)[:600]}\n\nPLANO:\n"
+                f"- objetivo: {str(plano.get('objetivo'))[:300]}\n"
+                f"- passos: {len(plano.get('passos') or [])}\n"
+                f"- critérios: "
+                f"{'; '.join(str(c) for c in plano.get('criterios') or [])[:300]}")
+        texto = fast(cfg, _GOLDFISH_JSON, user, ntok=100,
+                     stage="🐟 plano", model=model_for(cfg, "reviewer"))
+        obj = _extract_json(texto)
+        if obj and obj.get("ok") is False:
+            return (str(obj.get("problema", "")).strip()[:300]
+                    or "plano não cobre o pedido")
+    except Exception:  # noqa: BLE001 — revisor fora não trava o plano
+        pass
+    return ""
 
 
 def plan(cfg, message: str, history: list[dict] | None = None) -> dict:
@@ -928,6 +971,25 @@ def run_pipeline(agent, cfg, message: str, history: list[dict],
                  "passos": [], "criterios": []}
     ev({"type": "brain", "stage": "🎯 orquestrador",
         "data": {"decisao": plano, "chamadas": list(TRACE)}})
+
+    # 🐘→🐟 v7.5.0 (EGM): plano VERIFICADO antes de virar task —
+    # escopo ruim não vira execução. Loop de planejamento: 1 replan
+    # com o problema apontado; ainda ruim → segue com ressalva
+    # (o revisor de resultado pega depois). Fast lane intocada.
+    if (plano.get("rota") == "executar"
+            and getattr(cfg, "planejamento_verificado", True)):
+        problema = plano_verificado(cfg, message, plano)
+        if problema:
+            ev({"type": "note",
+                "message": f"🎯 plano: {problema[:90]} — "
+                           "replanejando antes de criar a task"})
+            plano = plan(cfg,
+                         message + f"\n\n[corrija o plano: {problema}]",
+                         history)
+            if plano_verificado(cfg, message, plano):
+                ev({"type": "note",
+                    "message": "⚠ plano ainda com ressalva — seguindo "
+                               "(revisor de resultado continua no encargo)"})
 
     # rota direta: conversa comum — custo zero adicional
     if plano.get("rota") != "executar":

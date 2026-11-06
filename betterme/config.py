@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 APP_NAME = "betterme-agent"
-VERSION = "7.4.0"
+VERSION = "7.5.0"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULTS = {
@@ -57,6 +57,7 @@ DEFAULTS = {
                                    # ferramentas/critérios pula a revisão
                                    # (−1 ida ao modelo; False = sempre rever)
     "creation_approval": True,      # 🔒 criação exige aprovação do operador
+    "planejamento_verificado": True,  # 🎯 plano passa por gate antes de virar task (v7.5.0)
     "orchestrator_model": "",       # 🎯 modelo do orquestrador (vazio = cfg.model)
     "reviewer_model": "",           # 🔍 modelo do revisor (vazio = cfg.model)
     "executor_model": "",           # ⚡ modelo do executor (vazio = cfg.model)
@@ -95,7 +96,7 @@ DEFAULTS = {
 _INT_KEYS = {"max_steps", "cmd_timeout", "port", "num_ctx", "num_predict",
              "max_tool_calls", "backups_keep", "memory_top_k"}
 _FLOAT_KEYS = {"temperature", "max_model_b"}
-_BOOL_KEYS = {"sandbox", "sandbox_home_read", "confirm_dangerous", "auto_start_ollama", "claude_use_ollama", "orchestrator_on", "reviewer_on", "creation_approval", "web_access", "stt_autosend", "pipeline_single_model",
+_BOOL_KEYS = {"sandbox", "sandbox_home_read", "confirm_dangerous", "auto_start_ollama", "claude_use_ollama", "orchestrator_on", "reviewer_on", "creation_approval", "planejamento_verificado", "web_access", "stt_autosend", "pipeline_single_model",
               "mcp_autorestart", "tool_selector"}
 _STR_KEYS = {"ollama_url", "model", "host", "auth_token", "system_prompt_extra", "claude_model", "stt_model", "stt_language", "keep_alive"}
 

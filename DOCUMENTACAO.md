@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 7.4.0** · gerado em 05/11/2026 · este documento é extraído do
+**Versão 7.5.0** · gerado em 06/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -136,7 +136,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v7.4.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v7.5.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -144,6 +144,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v7.5.0** | 🐘🐟 PLANO VERIFICADO (ELEPHANT-GOLDFISH MODEL) |
 | **v7.4.0** | 🔗 OPEN FINANCE: LISTA OFICIAL + BELVO MCP |
 | **v7.3.0** | 💰 FINANÇAS: CONTROLE DE GASTOS (PEDIDO DO OPERADOR) |
 | **v7.2.1** | 🔓 6º ACHADO DE CAMPO: @menções × D2 (falso positivo) |
@@ -333,6 +334,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `_heuristic(message)` | — |
 | `_plan_key(cfg, message)` | — |
 | `_cache_invalidate(cfg)` | — |
+| `plano_verificado(cfg, pedido, plano, _fast_fn)` | 🐟 v7.5.0 (Elephant-Goldfish Model): o plano cobre o pedido? Devolve '' (ok) ou o problema. Gate ESTRUTURAL (0 tokens) p… |
 | `plan(cfg, message, history)` | 🎯 Orquestrador: decide a rota e monta o plano. Nunca lança — qualquer falha cai na heurística (o chat nunca quebra). |
 | `review(cfg, objetivo, criterios, resultado)` | 🔍 Revisor: o resultado cumpre o objetivo? Nunca lança — falha de parse devolve 'ok' (entrega sem travar o chat). |
 | `record(cfg, entry, tid)` | Anexa o registro da task (auditoria leve, sem banco). |
