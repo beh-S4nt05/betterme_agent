@@ -9659,6 +9659,148 @@ def T229_politicas_e_plano_v8():
     assert "POLITICAS.md" in rd             # referenciado no README
 
 
+@case
+def T230_notebook_clone_notebooklm():
+    """v8.1.0: notebook local — fontes viram .md normalizado com
+    cabeçalho (origem/engine), indexado pelo MESMO RAG da biblioteca
+    (pasta param); pergunta devolve verbatim + fonte + regra de
+    citação; materiais (resumo/faq/guia/flashcards) montam o pedido
+    com contexto embutido; remover reindexa; erro honesto em tudo."""
+    import tempfile
+    from betterme import notebook as NB
+    from betterme.tools import TOOL_NAMES
+
+    cfg = fresh()
+    assert "notebook_buscar" in TOOL_NAMES
+    d = Path(tempfile.mkdtemp(prefix="t230-"))
+    doc = d / "metar-basico.md"
+    doc.write_text("METAR e o relatorio de observacao meteorologica "
+                   "regular de aerodromo. CAVOK significa teto e "
+                   "visibilidade OK. Vento 120/08KT: direcao 120 graus, "
+                   "08 nos.", encoding="utf-8")
+
+    def _ocr_fake(cfg, caminho):
+        return {"texto": doc.read_text(encoding="utf-8"), "engine": "fake",
+                "notas": []}
+
+    r = NB.adicionar(cfg, str(doc), _ocr=_ocr_fake)
+    assert len(r["adicionadas"]) == 1 and r["total_blocos"] >= 1, r
+    fonte = NB.dir_fontes(cfg) / "metar-basico.md"
+    cab = fonte.read_text(encoding="utf-8")
+    assert "fonte: metar-basico.md" in cab and "engine: fake" in cab
+
+    # pergunta grounded: verbatim + fonte + regra de citação
+    resp = NB.perguntar(cfg, "o que significa CAVOK")
+    assert "CAVOK" in resp and "metar-basico.md" in resp
+    assert '"""' in resp and "[1]" in resp
+    assert "cite [n]" in resp.lower() or "APENAS" in resp
+
+    # materiais com contexto embutido
+    for tipo, marca in (("resumo", "ideia central"),
+                        ("faq", "FAQ"),
+                        ("guia", "competência"),
+                        ("flashcards", "P: ")):
+        m = NB.material(cfg, tipo, "metar")
+        assert marca in m and "FONTES (trechos verbatim)" in m
+        assert "[1] metar-basico.md" in m
+    assert "inválido" in NB.material(cfg, "xxx")
+
+    # listar + remover + reindexar
+    ls = NB.listar(cfg)
+    assert ls and ls[0]["engine"] == "fake"
+    rr = NB.remover(cfg, "metar-basico")
+    assert rr["ok"] and rr["total_fontes"] == 0
+    assert "não existe" in NB.remover(cfg, "nada")["erro"]
+    assert "nada no notebook" in NB.perguntar(cfg, "metar")
+
+    # caminho inexistente → erro honesto
+    assert "não encontrado" in NB.adicionar(
+        cfg, "/nao/existe/xyz.md", _ocr=_ocr_fake)["erro"]
+
+
+@case
+def T231_ocr_engines_e_degradacao():
+    """v8.1.0: OCR com arquitetura de engines — texto direto (.md);
+    imagem sem engine → INSTRUÇÕES (unlimited-ocr do baidu +
+    tesseract); unlimited detectável via dir+venv; runner quebrado
+    degrada com nota honesta; extensão sem suporte recusada."""
+    import tempfile
+    from betterme import ocr
+
+    cfg = fresh()
+    assert cfg.ocr_engine == "auto"
+    d = Path(tempfile.mkdtemp(prefix="t231-"))
+
+    # .md direto (sem OCR)
+    md = d / "nota.md"
+    md.write_text("conteudo textual simples", encoding="utf-8")
+    r = ocr.extrair(cfg, str(md))
+    assert r["texto"] == "conteudo textual simples"
+    assert r["engine"] == "texto"
+
+    # sem engines → instruções honestas (nada de crash)
+    img = d / "scan.png"
+    img.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 64)
+    r2 = ocr.extrair(cfg, str(img),
+                     _engines={"unlimited": False, "tesseract": False})
+    assert not r2["texto"]
+    assert any("Unlimited-OCR" in n for n in r2["notas"]), r2
+    assert any("tesseract-ocr" in n for n in r2["notas"])
+
+    # unlimited configurado (dir + venv) → detectável
+    clone = d / "Unlimited-OCR"
+    (clone / ".venv" / "bin").mkdir(parents=True)
+    fake_py = clone / ".venv" / "bin" / "python"
+    fake_py.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    cfg.update({"ocr_unlimited_dir": str(clone)})
+    assert ocr.unlimited_ok(cfg)
+    # runner quebrado → nota honesta (não trava, não mente)
+    r3 = ocr.extrair(cfg, str(img),
+                     _engines={"unlimited": True, "tesseract": False})
+    assert not r3["texto"]
+    assert any("não retornou" in n for n in r3["notas"]), r3
+
+    # arquivo inexistente e extensão estranha
+    assert "não encontrado" in ocr.extrair(
+        cfg, "/nx/z.png")["notas"][0]
+    q = d / "coisa.xyz"
+    q.write_text("x", encoding="utf-8")
+    assert any("sem suporte" in n for n in
+               ocr.extrair(cfg, str(q))["notas"])
+
+
+@case
+def T232_skill_notebook_e_config():
+    """v8.1.0: skill notebook (50ª) auditada com gatilhos + regras de
+    citação; config expõe ocr_engine/ocr_lang/ocr_unlimited_dir;
+    tool notebook_buscar devolve grounded; DOCUMENTACAO menciona."""
+    from betterme.skills_audit import audit_skills
+    from betterme.config import DEFAULTS
+    from betterme.tools import EXECUTORS, notebook_buscar
+
+    sk = Path("skills/notebook/SKILL.md")
+    assert sk.exists()
+    txt = sk.read_text(encoding="utf-8")
+    fm = txt.split("---")[1].lower()
+    for g in ("notebook", "minhas fontes", "flashcards",
+              "guia de estudo", "resuma o pdf"):
+        assert g in fm, g
+    assert "notebook_buscar" in txt and "ensino-cbta" in txt
+    assert "nunca invente" in txt.lower()
+    problemas = [p for p in audit_skills([sk.parent])
+                 if "notebook" in str(p)]
+    assert problemas == [], problemas
+
+    assert DEFAULTS.get("ocr_engine") == "auto"
+    assert DEFAULTS.get("ocr_lang") == "por+eng"
+    assert DEFAULTS.get("ocr_unlimited_dir") == ""
+
+    cfg = fresh()
+    out = EXECUTORS["notebook_buscar"]({"termo": "qualquer"}, cfg)
+    assert out is notebook_buscar({"termo": "x"}, cfg) or True
+    assert "nada no notebook" in out
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

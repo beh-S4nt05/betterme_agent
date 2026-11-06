@@ -131,6 +131,12 @@ def cmd_responder(args) -> None:
               "estar rodando (betterme server) para responder por aqui")
 
 
+def cmd_notebook(args) -> None:
+    """📚 Notebook (clone local do NotebookLM) — v8.1.0."""
+    from .notebook import cmd as _ncmd
+    _ncmd(args, _cfg(args))
+
+
 def cmd_vault(args) -> None:
     """🗄️ Vault Obsidian — memória externa (v7.7.0)."""
     from .vault import cmd as _vcmd
@@ -1054,6 +1060,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("novo_modo", nargs="?", default=None,
                    help="[com 'modo'] 'envio' libera o envio; 'leitura' volta a somente ver")
     p.set_defaults(fn=cmd_email)
+
+    p = sub.add_parser("notebook",
+                       help="📚 clone local do NotebookLM: fontes + RAG "
+                            "com citação + OCR (Unlimited-OCR/tesseract)")
+    p.add_argument("acao", nargs="?", default="status",
+                   help="add|listar|remover|perguntar|material|status")
+    p.add_argument("a1", nargs="?", default=None,
+                   help="[add] arquivo/pasta · [remover] fonte · "
+                        "[perguntar] pergunta · [material] "
+                        "resumo|faq|guia|flashcards")
+    p.add_argument("a2", nargs="?", default=None,
+                   help="[material] tema")
+    p.set_defaults(fn=cmd_notebook)
 
     p = sub.add_parser("responder",
                        help="❓ responde uma pergunta pendente do agente "

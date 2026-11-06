@@ -26,14 +26,14 @@ _OVERLAP = 180       # sobreposição entre blocos
 _WORD = re.compile(r"[a-zà-ú0-9]{3,}")
 
 
-def biblioteca_dir(cfg) -> Path:
-    d = Path(cfg.data_dir) / "biblioteca"
+def biblioteca_dir(cfg, pasta=None) -> Path:
+    d = Path(pasta) if pasta else Path(cfg.data_dir) / "biblioteca"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
-def _arquivos(cfg) -> list[Path]:
-    d = biblioteca_dir(cfg)
+def _arquivos(cfg, pasta=None) -> list[Path]:
+    d = biblioteca_dir(cfg, pasta)
     out = []
     for ext in ("*.md", "*.txt", "*.pdf"):
         out.extend(sorted(d.rglob(ext)))
@@ -80,12 +80,13 @@ def _tokens(texto: str) -> list[str]:
     return _WORD.findall(texto.lower())
 
 
-def indexar(cfg) -> dict:
-    """(Re)indexa a biblioteca; devolve estatísticas."""
-    dest = biblioteca_dir(cfg) / "indice.json"
+def indexar(cfg, pasta=None) -> dict:
+    """(Re)indexa a biblioteca (ou `pasta` alternativa — notebook);
+    devolve estatísticas."""
+    dest = biblioteca_dir(cfg, pasta) / "indice.json"
     indice: dict = {"gerado_em": time.strftime("%Y-%m-%d %H:%M"),
                     "livros": {}}
-    for arq in _arquivos(cfg):
+    for arq in _arquivos(cfg, pasta):
         texto = _ler(arq)
         if not texto.strip():
             continue
@@ -109,9 +110,9 @@ def indexar(cfg) -> dict:
             "tamanho": dest.stat().st_size if dest.exists() else 0}
 
 
-def _carregar(cfg) -> dict:
+def _carregar(cfg, pasta=None) -> dict:
     try:
-        dados = json.loads((biblioteca_dir(cfg) / "indice.json")
+        dados = json.loads((biblioteca_dir(cfg, pasta) / "indice.json")
                            .read_text(encoding="utf-8"))
         if isinstance(dados, dict) and "livros" in dados:
             return dados
@@ -120,9 +121,10 @@ def _carregar(cfg) -> dict:
     return {"livros": {}, "total_blocos": 0}
 
 
-def buscar(cfg, consulta: str, k: int = 3, max_chars: int = 1200) -> list[dict]:
+def buscar(cfg, consulta: str, k: int = 3, max_chars: int = 1200,
+            pasta=None) -> list[dict]:
     """Top-k blocos por TF-IDF; devolve [{texto, fonte, score}]."""
-    indice = _carregar(cfg)
+    indice = _carregar(cfg, pasta)
     blocos = [(arq, b) for arq, livro in indice["livros"].items()
               for b in livro["blocos"]]
     if not blocos or not consulta.strip():
@@ -154,8 +156,8 @@ def buscar(cfg, consulta: str, k: int = 3, max_chars: int = 1200) -> list[dict]:
     return resultados[:k]
 
 
-def status(cfg) -> dict:
-    indice = _carregar(cfg)
+def status(cfg, pasta=None) -> dict:
+    indice = _carregar(cfg, pasta)
     return {"livros": len(indice.get("livros", {})),
             "blocos": int(indice.get("total_blocos", 0)),
-            "arquivos": [Path(a).name for a in _arquivos(cfg)]}
+            "arquivos": [Path(a).name for a in _arquivos(cfg, pasta)]}

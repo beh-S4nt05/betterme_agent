@@ -67,6 +67,25 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "notebook_buscar",
+            "description": (
+                "Busca nas FONTES do notebook do operador (o "
+                "NotebookLM dele: PDFs, scans e documentos que ele "
+                "adicionou) e devolve trechos VERBATIM com a fonte. "
+                "Use para responder sobre o que o operador ensinou/"
+                "passou — cite [n] a cada afirmação; se não estiver "
+                "nas fontes, diga isso."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"termo": {"type": "string"}},
+                "required": ["termo"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "edit_file",
             "description": (
                 "Edita um arquivo de forma CIRÚRGICA: substitui o "
@@ -1395,7 +1414,13 @@ def perguntar_operador(args: dict, cfg) -> str:
                      on_event=emit_event)
 
 
+def notebook_buscar(args: dict, cfg) -> str:
+    from . import notebook
+    return notebook.perguntar(cfg, str(args.get("termo", "")))
+
+
 EXECUTORS = {
+    "notebook_buscar": notebook_buscar,
     "edit_file": edit_file,
     "proc_start": proc_start,
     "proc_logs": proc_logs,

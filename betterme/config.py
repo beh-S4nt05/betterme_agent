@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 APP_NAME = "betterme-agent"
-VERSION = "8.0.0"
+VERSION = "8.1.0"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DEFAULTS = {
@@ -79,6 +79,9 @@ DEFAULTS = {
     "confirm_dangerous": True,   # pede confirmação no terminal para comandos arriscados
     "system_prompt_extra": "",   # instruções extras anexadas ao prompt de sistema
     "vault_dir": "",           # 🗄️ vault Obsidian (memória externa em .md; v7.7.0)
+    "ocr_engine": "auto",      # 🔍 OCR: auto|tesseract|unlimited (v8.1.0)
+    "ocr_lang": "por+eng",     # 🔍 idiomas do tesseract
+    "ocr_unlimited_dir": "",   # 🔍 clone do baidu/Unlimited-OCR (com venv)
     # Conectores MCP (lista de {name, command, args, env} ou {name, url})
     "mcp_servers": [],
     "mcp_timeout": 120,          # timeout (s) de inicialização/chamadas MCP
@@ -100,7 +103,7 @@ _INT_KEYS = {"max_steps", "cmd_timeout", "port", "num_ctx", "num_predict",
 _FLOAT_KEYS = {"temperature", "max_model_b"}
 _BOOL_KEYS = {"sandbox", "sandbox_home_read", "confirm_dangerous", "auto_start_ollama", "claude_use_ollama", "orchestrator_on", "reviewer_on", "creation_approval", "planejamento_verificado", "certeza_on", "web_access", "stt_autosend", "pipeline_single_model",
               "mcp_autorestart", "tool_selector"}
-_STR_KEYS = {"ollama_url", "model", "host", "auth_token", "vault_dir", "system_prompt_extra", "claude_model", "stt_model", "stt_language", "keep_alive"}
+_STR_KEYS = {"ollama_url", "model", "host", "auth_token", "vault_dir", "ocr_engine", "ocr_lang", "ocr_unlimited_dir", "system_prompt_extra", "claude_model", "stt_model", "stt_language", "keep_alive"}
 
 
 def _env_flag(name: str) -> bool:

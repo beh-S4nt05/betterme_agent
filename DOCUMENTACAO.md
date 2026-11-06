@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 8.0.0** · gerado em 06/11/2026 · este documento é extraído do
+**Versão 8.1.0** · gerado em 06/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -116,6 +116,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 | `betterme rag` | biblioteca de livros (RAG local): indexa ou consulta |
 | `betterme doctor` | diagnostica a conexão Ollama↔Python (com geração de teste) |
 | `betterme email` | configura contas de e-mail (MCP email_*) |
+| `betterme notebook` | 📚 clone local do NotebookLM: fontes + RAG  |
 | `betterme responder` | ❓ responde uma pergunta pendente do agente  |
 | `betterme vault` | 🗄️ vault Obsidian — memória de longo prazo  |
 | `betterme belvo` | 🔗 Belvo MCP — Open Finance somente leitura:  |
@@ -138,7 +139,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v8.0.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v8.1.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -146,6 +147,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v8.1.0** | 📚 NOTEBOOK (CLONE DO NOTEBOOKLM) + OCR SEM LIMITES |
 | **v8.0.0** | 🧰 PARIDADE DE AGENTE: EDIT_FILE, PROCESSOS, PERGUNTAS |
 | **v7.7.0** | 🗄️ VAULT OBSIDIAN + 🎓 ENSINO CBTA (IS 141-007, TEOR 75%) |
 | **v7.6.1** | 🧪 BATERIA DE TESTER REAL: 3 ACHADOS → 3 FIXES |
@@ -508,6 +510,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `cmd_agent(args)` | — |
 | `cmd_belvo(args)` | 🔗 Belvo MCP — Open Finance somente leitura (v7.4.0). |
 | `cmd_responder(args)` | ❓ Responde uma pergunta pendente do agente (v8.0.0). |
+| `cmd_notebook(args)` | 📚 Notebook (clone local do NotebookLM) — v8.1.0. |
 | `cmd_vault(args)` | 🗄️ Vault Obsidian — memória externa (v7.7.0). |
 | `cmd_financas(args)` | 💰 Finanças — livro-caixa local (v7.3.0). |
 | `cmd_email(args)` | Configura contas de e-mail para o servidor MCP (credenciais locais). |
@@ -604,6 +607,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `proc_logs(args, cfg)` | — |
 | `proc_stop(args, cfg)` | — |
 | `perguntar_operador(args, cfg)` | — |
+| `notebook_buscar(args, cfg)` | — |
 | `execute_tool(name, arguments, cfg, source, agent)` | Executa uma ferramenta e devolve {'ok': bool, 'output': str}. v3.0: toda execução vai para a trilha de auditoria (data/… |
 | `tool_summary()` | — |
 

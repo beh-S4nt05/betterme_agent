@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v8.0.0** · 229 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
+**v8.1.0** · 232 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
 
 ```
                         ┌─────────────────────────────┐
@@ -178,6 +178,30 @@ focadas** com contexto acumulado e 1 revisão única no consolidado
 pessoal). Do chat: "quais são meus fluxos?" e "dispare o X". Do n8n: POST
 em `/api/hooks/<id>` dispara o agente. Guia completo com templates
 prontos: **N8N_PASSOAPASSO.md**.
+
+## 📚 Notebook — clone local do NotebookLM + OCR (v8.1.0)
+
+Passe ensino/conhecimento para a IA usar nos seus processos:
+
+```bash
+betterme notebook add manual.pdf      # PDF, scan (OCR), .md, .txt
+betterme notebook add pasta/          # lote inteiro
+betterme notebook perguntar "o que é CAVOK?"   # resposta GROUNDED:
+                                      # trecho verbatim + fonte + [n]
+betterme notebook material guia metar # resumo|faq|guia|flashcards
+                                      # com contexto embutido (CBTA)
+betterme notebook listar|remover|status
+```
+
+- **RAG determinístico** (mesmo da biblioteca, TF-IDF stdlib) —
+  citação é a lei: o que não está nas fontes, o agente DIZ que não
+  está (skill `notebook`, 50ª + tool `notebook_buscar`).
+- **OCR sem limites**: engine **unlimited-ocr** (baidu/Unlimited-OCR,
+  MIT — PDF inteiro multi-página numa passada, contexto cruzado) quando
+  instalado (`ocr_unlimited_dir`); degrada para **tesseract** (leve,
+  CPU); sem nenhum, instruções exatas de instalação. PDFs com camada
+  de texto nem usam OCR (pdftotext direto).
+- Sem "áudio overview" do NotebookLM (fase futura: TTS local).
 
 ## 🧰 Paridade de agente completo (v8.0.0)
 
@@ -581,6 +605,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v8.0.0) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v8.1.0) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

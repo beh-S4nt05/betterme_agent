@@ -1,5 +1,35 @@
 # Changelog
 
+## v8.1.0 — 📚 NOTEBOOK (CLONE DO NOTEBOOKLM) + OCR SEM LIMITES
+
+Pedido do operador: passar ensino/conhecimento para a IA usar nos
+processos — clone do NotebookLM no ambiente local.
+
+- **`betterme/notebook.py` + CLI `notebook`**: fontes (arquivo ou
+  pasta) viram .md normalizado com cabeçalho (origem/engine/data) em
+  `<data>/notebook/fontes/`, indexado pelo MESMO RAG da biblioteca
+  (knowledge ganhou parâmetro `pasta` — reuso, zero duplicação).
+  `perguntar` devolve trecho VERBATIM + fonte + regra de citação [n];
+  `material resumo|faq|guia|flashcards` monta o pedido com contexto
+  embutido (estruturas CBTA-friendly, geração pela skill ensino-cbta).
+- **Tool `notebook_buscar` + skill `notebook` (50ª)**: o agente
+  responde fundamentado nas fontes do operador — "não está nas
+  fontes" é resposta válida, inventar não.
+- **OCR (`betterme/ocr.py`)**: engine **unlimited** =
+  baidu/Unlimited-OCR (MIT) — one-shot long-horizon parsing (PDF
+  inteiro, multi-página, contexto cruzado; clone+venv apontado por
+  `ocr_unlimited_dir`); engine **tesseract** (binário local, leve);
+  `auto` degrada honesto com instruções exatas de instalação. PDF
+  com camada de texto → pdftotext (OCR só quando precisa). Config:
+  `ocr_engine`/`ocr_lang`/`ocr_unlimited_dir`.
+- **Demo ao vivo**: aula-metar.md → add → perguntar (verbatim+fonte)
+  → material guia com contexto — tudo pelo CLI real.
+- Fixes da sessão: genexp não-fatável no `remover` (T230 pegou);
+  cabeçalho interno não vaza mais no trecho recuperado.
+- T230 (fontes/RAG/material/grounded) · T231 (engines + degradação
+  honesta + unlimited detectável) · T232 (skill 50ª + config + tool)
+  — **232/232**.
+
 ## v8.0.0 — 🧰 PARIDADE DE AGENTE: EDIT_FILE, PROCESSOS, PERGUNTAS
 
 Marco maior (pedido do operador: "as mesmas funções e poder de
