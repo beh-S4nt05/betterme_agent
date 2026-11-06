@@ -1,5 +1,33 @@
 # Changelog
 
+## v7.7.0 — 🗄️ VAULT OBSIDIAN + 🎓 ENSINO CBTA (IS 141-007, TEOR 75%)
+
+Pedido do operador: memória que não vive "em variáveis e RAM", e
+ensino estruturado por competências sem ficar massante.
+
+- **`betterme/vault.py` + tools `vault_salvar`/`vault_buscar`**:
+  conhecimento duradouro em ARQUIVOS .md do vault Obsidian do
+  operador, em ESCOPOS (memoria · projetos · conhecimento ·
+  aprendizado). Frontmatter YAML + tags + MOC `_indice.md` com
+  wikilinks — 100% nativo Obsidian (humano lê/edita); Notion MCP é
+  a alternativa declarada. Busca devolve trecho VERBATIM com fonte
+  (anti-alucinação por construção). Desligado por padrão
+  (`betterme vault usar <caminho>`). Zero RAM: nada em memória — o
+  agente lê o arquivo quando precisa.
+- **Skill `ensino-cbta` (49ª)**: modelo CBTA/IS 141-007 a **75% de
+  teor** — competência observável primeiro, 2–5 blocos lógicos com
+  exemplo concreto, evidência de domínio observável, nível de
+  proficiência (PP × PLA) só quando o aluno indicar; termo técnico
+  exato uma vez (âncora anti-alucinação), sem cerimônia. Progresso
+  persiste no escopo `aprendizado` do vault — explicação CONTINUA
+  de onde parou, em nível mais técnico.
+- **Bug pego pelo T224**: `Path("")` vira `Path('.')` — vault
+  "desligado" apontava pro CWD e escreveria NO REPO. Sentinel
+  `None` na raiz (nunca mais CWD como vault).
+- T224 (escopos, frontmatter, MOC, verbatim, dedup de update,
+  sentinel, persistência entre instâncias) · T225 (skill CBTA
+  auditada com gatilhos e 75%) — **225/225**.
+
 ## v7.6.1 — 🧪 BATERIA DE TESTER REAL: 3 ACHADOS → 3 FIXES
 
 Bateria real como tester (cérebros: llm7 via HTTPS + Ollama local

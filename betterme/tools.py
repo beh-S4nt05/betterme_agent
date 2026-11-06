@@ -67,6 +67,62 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "vault_salvar",
+            "description": (
+                "Guarda conhecimento duradouro no vault Obsidian do "
+                "operador (arquivos .md locais, organizados em escopos "
+                "— nada fica só na conversa/RAM). Use para fatos "
+                "longos, decisões de projeto, conhecimento de domínio "
+                "e progresso de aprendizado que devem sobreviver entre "
+                "sessões."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "escopo": {"type": "string",
+                               "enum": ["memoria", "projetos",
+                                        "conhecimento", "aprendizado"],
+                               "description": "memoria=fatos do operador · "
+                                              "projetos=decisões/estado de "
+                                              "um projeto · conhecimento="
+                                              "domínio técnico · "
+                                              "aprendizado=progresso CBTA"},
+                    "titulo": {"type": "string"},
+                    "conteudo": {"type": "string",
+                                 "description": "corpo da nota em markdown"},
+                    "tags": {"type": "string",
+                             "description": "tags separadas por vírgula "
+                                            "(opcional)"}
+                },
+                "required": ["escopo", "titulo", "conteudo"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "vault_buscar",
+            "description": (
+                "Busca no vault Obsidian do operador e devolve TRECHO "
+                "VERBATIM com a fonte (nunca paráfrase). Use antes de "
+                "responder sobre temas que o operador já estudou/decidiu "
+                "— o conhecimento dele vem primeiro."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "termo": {"type": "string"},
+                    "escopo": {"type": "string",
+                               "description": "restringir a um escopo "
+                                              "(opcional)"}
+                },
+                "required": ["termo"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "financas_lancar",
             "description": (
                 "Registra um gasto ou entrada no livro-caixa local de "
@@ -1108,7 +1164,30 @@ def financas_painel(args: dict, cfg) -> str:
     return F.painel(cfg, args.get("mes") or None)
 
 
+def vault_salvar(args: dict, cfg) -> str:
+    from . import vault as V
+    r = V.salvar(cfg, args["escopo"], args["titulo"],
+                 args["conteudo"], tags=args.get("tags", ""))
+    if r.get("erro"):
+        return "✖ " + r["erro"]
+    return ("✔ nota " + ("criada" if r["novo"] else "atualizada") +
+            " em " + r["arquivo"] + " (legível no Obsidian)")
+
+
+def vault_buscar(args: dict, cfg) -> str:
+    from . import vault as V
+    r = V.buscar(cfg, args["termo"], escopo=args.get("escopo", ""))
+    if r.get("erro"):
+        return "✖ " + r["erro"]
+    if not r["achados"]:
+        return "ℹ nada no vault sobre isso (termo: " + args["termo"] + ")"
+    return "\n".join(f"📄 {a['nota']} — {a['trecho']}"
+                     for a in r["achados"])
+
+
 EXECUTORS = {
+    "vault_salvar": vault_salvar,
+    "vault_buscar": vault_buscar,
     "financas_lancar": financas_lancar,
     "financas_painel": financas_painel,
     "run_command": run_command,

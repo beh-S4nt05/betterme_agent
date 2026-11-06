@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 7.6.1** · gerado em 06/11/2026 · este documento é extraído do
+**Versão 7.7.0** · gerado em 06/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -116,6 +116,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 | `betterme rag` | biblioteca de livros (RAG local): indexa ou consulta |
 | `betterme doctor` | diagnostica a conexão Ollama↔Python (com geração de teste) |
 | `betterme email` | configura contas de e-mail (MCP email_*) |
+| `betterme vault` | 🗄️ vault Obsidian — memória de longo prazo  |
 | `betterme belvo` | 🔗 Belvo MCP — Open Finance somente leitura:  |
 | `betterme financas` | 💰 livro-caixa: gastos, entradas, extratos,  |
 | `betterme agenda` | agenda Google Calendar — somente leitura (MCP agenda_*) |
@@ -136,7 +137,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v7.6.1)
+## 3. Modificações — o que foi feito (v1.0.0 → v7.7.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -144,6 +145,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v7.7.0** | 🗄️ VAULT OBSIDIAN + 🎓 ENSINO CBTA (IS 141-007, TEOR 75%) |
 | **v7.6.1** | 🧪 BATERIA DE TESTER REAL: 3 ACHADOS → 3 FIXES |
 | **v7.6.0** | 🐴 CERTEZA DETERMINÍSTICA + CONCISÃO (PONYTAIL) |
 | **v7.5.0** | 🐘🐟 PLANO VERIFICADO (ELEPHANT-GOLDFISH MODEL) |
@@ -501,6 +503,7 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `cmd_status(args)` | — |
 | `cmd_agent(args)` | — |
 | `cmd_belvo(args)` | 🔗 Belvo MCP — Open Finance somente leitura (v7.4.0). |
+| `cmd_vault(args)` | 🗄️ Vault Obsidian — memória externa (v7.7.0). |
 | `cmd_financas(args)` | 💰 Finanças — livro-caixa local (v7.3.0). |
 | `cmd_email(args)` | Configura contas de e-mail para o servidor MCP (credenciais locais). |
 | `cmd_agenda(args)` | Agenda Google Calendar — somente leitura (MCP agenda_*). |
@@ -587,6 +590,8 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `grafo_query(args, cfg)` | v4.4.0 (PR#7): grafo de código — onde está a lógica de X? (zero tokens). |
 | `financas_lancar(args, cfg)` | — |
 | `financas_painel(args, cfg)` | — |
+| `vault_salvar(args, cfg)` | — |
+| `vault_buscar(args, cfg)` | — |
 | `execute_tool(name, arguments, cfg, source, agent)` | Executa uma ferramenta e devolve {'ok': bool, 'output': str}. v3.0: toda execução vai para a trilha de auditoria (data/… |
 | `tool_summary()` | — |
 

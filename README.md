@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v7.6.1** · 223 testes · CHANGELOG com todo o histórico.
+**v7.7.0** · 225 testes · CHANGELOG com todo o histórico.
 
 ```
                         ┌─────────────────────────────┐
@@ -178,6 +178,26 @@ focadas** com contexto acumulado e 1 revisão única no consolidado
 pessoal). Do chat: "quais são meus fluxos?" e "dispare o X". Do n8n: POST
 em `/api/hooks/<id>` dispara o agente. Guia completo com templates
 prontos: **N8N_PASSOAPASSO.md**.
+
+## 🗄️ Vault Obsidian + ensino CBTA (v7.7.0)
+
+**Memória de longo prazo em ARQUIVOS, não em RAM**: `betterme vault
+usar ~/Obsidian/SeuVault` liga o vault — o agente passa a guardar
+conhecimento duradouro em `.md` organizado por **escopos**
+(`memoria` · `projetos` · `conhecimento` · `aprendizado`), com
+frontmatter, tags e índice MOC com wikilinks (nativo do Obsidian —
+você lê e edita tudo). Tools `vault_salvar` / `vault_buscar` (busca
+devolve trecho VERBATIM com fonte). Prefere Notion? O mesmo modelo
+cabe no Notion MCP (`mcp_servers`).
+
+**Skill `ensino-cbta` (49ª)**: explicações no modelo de treinamento
+por competências (CBTA / IS 141-007 ANAC-OACI) com **teor 75%** —
+competência primeiro ("ao final você saberá ___"), blocos lógicos de
+conhecimento, evidência de domínio e nível de proficiência adaptado
+(PP = fundamentos · PLA = técnico-operacional), SEM burocracia:
+termo técnico exato uma vez, exemplo antes de teoria longa, zero
+cerimônia. Progresso de estudo vai pro escopo `aprendizado` do
+vault — a próxima sessão continua de onde parou.
 
 ## 💰 Finanças — controle de gastos (v7.3.0)
 
@@ -543,6 +563,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.6.1) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.7.0) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

@@ -9383,6 +9383,97 @@ def T223_financas_frase_natural():
     assert len(F._todos(cfg)) == 3
 
 
+@case
+def T224_vault_obsidian_memoria_externa():
+    """v7.7.0: vault Obsidian — conhecimento em ARQUIVOS locais com
+    ESCOPOS (nada em RAM/variáveis). Nota .md com frontmatter + MOC
+    com wikilinks (Obsidian nativo); busca devolve trecho VERBATIM
+    com fonte; escopo inválido e vault desligado falham honesto;
+    atualização de nota existente não duplica."""
+    import tempfile
+    from betterme import vault as V
+    from betterme.tools import TOOL_NAMES, vault_salvar
+
+    cfg = fresh()
+    assert "vault_salvar" in TOOL_NAMES and "vault_buscar" in TOOL_NAMES
+    # desligado → erro honesto (não crash)
+    r = V.salvar(cfg, "memoria", "t", "c")
+    assert "não configurado" in r["erro"]
+    assert "✖" in vault_salvar({"escopo": "memoria", "titulo": "t",
+                                 "conteudo": "c"}, cfg)
+
+    d = Path(tempfile.mkdtemp(prefix="t224-")) / "vault"
+    d.mkdir()                       # como `betterme vault usar` faria
+    cfg.update({"vault_dir": str(d)})
+    assert V.ativo(cfg)
+
+    r1 = V.salvar(cfg, "memoria",
+                  "Preferências do operador",
+                  "Gosta de respostas curtas e diretas ao ponto.",
+                  tags="perfil, operador")
+    assert r1["ok"] and r1["novo"]
+    arq = Path(r1["arquivo"])
+    assert arq.exists()
+    txt = arq.read_text(encoding="utf-8")
+    assert txt.startswith("---") and "titulo: Preferências" in txt
+    assert "tags: [perfil, operador]" in txt
+    assert "respostas curtas" in txt
+
+    # MOC do escopo com wikilink
+    moc = (d / "Betterme" / "memoria" / "_indice.md").read_text(
+        encoding="utf-8")
+    assert "[[preferencias-do-operador]]" in moc
+
+    # atualizar não duplica
+    r2 = V.salvar(cfg, "memoria", "Preferências do operador",
+                  "Gosta de respostas curtas E de exemplos.")
+    assert r2["ok"] and not r2["novo"]
+    notas = list((d / "Betterme" / "memoria").glob("*.md"))
+    assert len([n for n in notas if n.stem != "_indice"]) == 1
+
+    # busca verbatim com fonte
+    rb = V.buscar(cfg, "respostas curtas")
+    assert rb["total"] == 1
+    assert rb["achados"][0]["nota"] == "preferencias-do-operador"
+    assert "respostas curtas" in rb["achados"][0]["trecho"]
+    assert V.buscar(cfg, "xyz inexistente")["total"] == 0
+
+    # escopo inválido → erro que ensina
+    r3 = V.salvar(cfg, "qualquer-coisa", "t", "c")
+    assert "escopo inválido" in r3["erro"]
+    # persiste fora do data_dir (arquivo é a memória, não o processo)
+    cfg2 = Config(data_dir=cfg.data_dir, mock=True)
+    cfg2.update({"vault_dir": str(d)})
+    assert V.buscar(cfg2, "respostas curtas")["total"] == 1
+
+
+@case
+def T225_skill_ensino_cbta():
+    """v7.7.0: skill ensino-cbta (49ª) — estrutura CBTA/IS 141-007
+    com teor 75% (3 blocos obrigatórios + proficiência quando fizer
+    sentido; termo exato sem jargão empilhado; exemplo antes de
+    teoria longa; sem cerimônia). Auditada e com gatilhos do dia a
+    dia; integra com o vault (progresso em 'aprendizado')."""
+    from betterme.skills_audit import audit_skills
+
+    sk = Path("skills/ensino-cbta/SKILL.md")
+    assert sk.exists()
+    txt = sk.read_text(encoding="utf-8")
+    fm = txt.split("---")[1].lower()
+    for gatilho in ("explique", "me ensine", "como funciona",
+                    "estou estudando", "quero aprender", "aula"):
+        assert gatilho in fm, gatilho
+    for pilar in ("competência", "blocos de conhecimento",
+                  "evidência", "proficiência", "75"):
+        assert pilar.lower() in txt.lower(), pilar
+    assert "PP" in txt and "PLA" in txt          # níveis adaptados
+    assert "vault_salvar" in txt                 # progresso persiste
+    assert "alucinação" in txt.lower()           # âncora anti-invenção
+    problemas = [p for p in audit_skills([sk.parent])
+                 if "ensino-cbta" in str(p)]
+    assert problemas == [], problemas
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

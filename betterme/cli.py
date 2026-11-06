@@ -98,6 +98,12 @@ def cmd_belvo(args) -> None:
     _bcmd(args, _cfg(args))
 
 
+def cmd_vault(args) -> None:
+    """🗄️ Vault Obsidian — memória externa (v7.7.0)."""
+    from .vault import cmd as _vcmd
+    _vcmd(args, _cfg(args))
+
+
 def cmd_financas(args) -> None:
     """💰 Finanças — livro-caixa local (v7.3.0)."""
     from .financas import cmd as _fcmd
@@ -1015,6 +1021,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("novo_modo", nargs="?", default=None,
                    help="[com 'modo'] 'envio' libera o envio; 'leitura' volta a somente ver")
     p.set_defaults(fn=cmd_email)
+
+    p = sub.add_parser("vault",
+                       help="🗄️ vault Obsidian — memória de longo prazo "
+                            "em .md local, com escopos (v7.7.0)")
+    p.add_argument("acao", nargs="?", default="status",
+                   help="status|usar")
+    p.add_argument("a1", nargs="?", default=None,
+                   help="[usar] caminho da pasta do vault")
+    p.set_defaults(fn=cmd_vault)
 
     p = sub.add_parser("belvo",
                        help="🔗 Belvo MCP — Open Finance somente leitura: "
