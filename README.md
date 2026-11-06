@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v7.5.0** · 219 testes · CHANGELOG com todo o histórico.
+**v7.6.0** · 221 testes · CHANGELOG com todo o histórico.
 
 ```
                         ┌─────────────────────────────┐
@@ -137,6 +137,15 @@ resultado já era goldfish (prompt fresco: objetivo + critérios +
 resultado, sem histórico). Pedidos simples seguem na fast lane (0
 chamadas extras) — como o próprio EGM recomenda. Desligue com
 `betterme config set planejamento_verificado false`.
+
+**Camada de certeza (v7.6.0, conceito ponytail)**: pergunta repetida
+com resposta já validada é respondida com **0 chamadas ao modelo**
+(nota 🐴 no chat) — cache local conservador (só 1º turno, pergunta
+estável de 8–80 chars, resposta sem ferramentas, LRU 200/TTL 30 d;
+perguntas voláteis como "que horas são" nunca cacheiam). Junto, regra
+dura de **CONCISÃO** no prompt: resposta no tamanho do pedido, sem
+preâmbulo — listas em vez de prosa. `config set certeza_on false`
+desliga.
 
 Toda tarefa passa pelo **fluxo adaptativo de 3 níveis**: conversa →
 resposta direta (1 chamada ao cérebro, planejamento pulado); tarefa →
@@ -534,6 +543,6 @@ O projeto evolui em fases — cada uma tem uma branch com o código do marco:
 | `v2.x` | 🌐 GUI web + Claude Code (v2.0.0 → v2.2.8) |
 | `v3.0.x` | 🏗 A plataforma: auditoria, backups, skills (v3.0.x) |
 | `v3.1.x` | 📧 E-mail (OAuth 2FA) + agenda somente leitura (v3.1.x) |
-| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.5.0) |
+| `main` | 🚀 v4.x: especialistas + autonomia · v5.x: vida/skills/n8n · v6.x: universal, performance, roteador, omniroute · v7.x: fluxo adaptativo, dossiê, @/comandos, prazo, ER (→ v7.6.0) |
 
 Detalhe versão a versão: [`docs/HISTORICO-DE-VERSOES.md`](docs/HISTORICO-DE-VERSOES.md) · tags de todas as releases na aba **Tags**.

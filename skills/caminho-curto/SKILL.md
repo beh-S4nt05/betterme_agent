@@ -10,7 +10,8 @@ o caminho mais curto que resolve COMPLETO.
 
 ## Decisão (do mais barato ao mais caro)
 
-1. **Já sei a resposta?** (memória, histórico, contexto da conversa) →
+1. **Já sei a resposta?** (cache de certeza 🐴, memória, histórico,
+   contexto da conversa) →
    responda direto. Zero chamadas, zero ferramentas.
 2. **Pergunta simples** ("que horas são", "quanto tem no disco") →
    responda direto ou com UM comando. Sem plano, sem revisão extra.

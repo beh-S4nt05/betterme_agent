@@ -1,5 +1,33 @@
 # Changelog
 
+## v7.6.0 — 🐴 CERTEZA DETERMINÍSTICA + CONCISÃO (PONYTAIL)
+
+O operador pediu o conceito ponytail: "se a IA já souber com 100% de
+certeza, use; se não souber, pesquise/gera de outra forma — mínimo de
+respostas longas e tediosas". A parte de "saber" já estava na skill
+`caminho-curto` (texto); agora é CÓDIGO:
+
+- **`certeza.py` + gate no `Agent.run`**: pergunta repetida com
+  resposta validada → respondida com ZERO chamadas ao modelo (nota
+  "🐴 certeza local"). Conservador por desenho: só 1º turno da
+  conversa, pergunta estável de 8–80 chars normalizados, SEM
+  palavras voláteis (hora/hoje/clima/saldo/preço/versão/gastei…),
+  resposta de 20–600 chars gerada sem ferramentas. LRU 200 + TTL
+  30 dias, `<data_dir>/certezas.json` (nunca no repo). Flag
+  `certeza_on`.
+- **Regra dura de CONCISÃO** no prompt de sistema: resposta no
+  tamanho do pedido, sem preâmbulo ("Claro!", "Ótima pergunta"),
+  sem repetir a pergunta; listas quando listar for mais claro;
+  entregas de TASK continuam no formato completo (dossiê).
+- Memória de skills já era enxuta por desenho (catálogo ≤18 linhas
+  no prompt, corpos só on-demand) — documentado e mantido.
+- Guarda extra pega pela suíte: saudações ("oi") não são certeza —
+  mínimo de 8 chars (T127 provou a colisão ao vivo).
+- T220 (unidade: normalização/voláteis/TTL/LRU/persistência) ·
+  T221 (integração: 0 chamadas na repetida, volátil nunca cacheia,
+  follow-up e ferramenta não cacheiam, CONCISÃO no prompt) —
+  **221/221**.
+
 ## v7.5.0 — 🐘🐟 PLANO VERIFICADO (ELEPHANT-GOLDFISH MODEL)
 
 O operador pediu avaliação do plugin google/elephant-goldfish-model

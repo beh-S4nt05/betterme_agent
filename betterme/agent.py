@@ -291,6 +291,18 @@ class Agent:
                 )
         except Exception:
             pass
+        # 🐴 v7.6.0 (ponytail): resposta no tamanho do pedido
+        prompt += (
+            "\n\n## CONCISÃO (regra dura)\n"
+            "- Responda no TAMANHO DO PEDIDO: pergunta de uma linha merece\n"
+            "  uma a três linhas — sem preâmbulo (\"Claro!\", \"Ótima "
+            "pergunta\"),\n  sem repetir a pergunta na resposta.\n"
+            "- Quando listar for mais claro, LISTE — não proseie.\n"
+            "- Já sabe com certeza? Responda direto. Não sabe? Diga o que\n"
+            "  falta e use a ferramenta certa — sem enrolação.\n"
+            "- Entregas de TASK seguem o formato completo (dossiê com\n"
+            "  evidência real); concisão vale para CONVERSA.\n"
+        )
         try:
             catalog = self.skills.catalog(query)
             if catalog:
@@ -381,7 +393,52 @@ class Agent:
                              + "\n(continua abaixo com os resultados mais recentes)]"}]
                 + msgs[k:])
 
-    def run(self, messages: list[dict], on_event=None, allow_tool=None, cancel=None) -> str:
+    def run(self, messages: list[dict], on_event=None, allow_tool=None,
+            cancel=None) -> str:
+        """Entrada única de tarefa/conversa — v7.6.0: camada de certeza
+        (conceito ponytail). Pergunta repetida com resposta já validada
+        é respondida com ZERO chamadas ao modelo; só entra no cache o
+        Q&A conservador (1º turno, sem ferramentas, pergunta estável)."""
+        cfg = self.cfg
+        ev = on_event or (lambda _e: None)
+        if (getattr(cfg, "certeza_on", True) and messages
+                and messages[-1].get("role") == "user"):
+            try:
+                from .certeza import buscar
+                hit = buscar(cfg, str(messages[-1].get("content") or ""))
+                if hit is not None:
+                    ev({"type": "token", "content": hit})
+                    ev({"type": "note",
+                        "message": "🐴 certeza local — resposta validada "
+                                   "em cache (0 chamadas ao modelo)"})
+                    return hit
+            except Exception:  # noqa: BLE001 — cache nunca bloqueia
+                pass
+        ferr = {"n": 0}
+        _ev_orig = on_event
+
+        def _ev(e):
+            if e.get("type") == "tool_start":
+                ferr["n"] += 1
+            if _ev_orig:
+                _ev_orig(e)
+
+        resposta = self._run_core(messages, on_event=_ev,
+                                  allow_tool=allow_tool, cancel=cancel)
+        if getattr(cfg, "certeza_on", True):
+            try:
+                from .certeza import guardar
+                if (messages and messages[-1].get("role") == "user"
+                        and ferr["n"] == 0
+                        and sum(1 for m in messages
+                                if m.get("role") == "user") == 1):
+                    guardar(cfg, str(messages[-1].get("content") or ""),
+                            resposta)
+            except Exception:  # noqa: BLE001
+                pass
+        return resposta
+
+    def _run_core(self, messages: list[dict], on_event=None, allow_tool=None, cancel=None) -> str:
         """Executa uma tarefa/conversa. `messages` sem o prompt de sistema.
 
         allow_tool(name, args) -> bool permite ao chamador vetar uma ferramenta

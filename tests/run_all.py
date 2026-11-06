@@ -9191,6 +9191,130 @@ def T219_goldfish_pega_escopo_errado():
         orc.review = _rev_o
 
 
+@case
+def T220_certeza_camada_ponytail():
+    """v7.6.0 (conceito ponytail): resposta certa em cache = 0 chamadas
+    ao modelo. Chave normalizada (acento/pontuação/caixa), perguntas
+    VOLÁTEIS nunca cacheadas (hora/hoje/saldo/gastei/versão…), limites
+    de tamanho, TTL 30 dias, LRU 200, persistência em
+    <data_dir>/certezas.json."""
+    import time as _t
+    from betterme import certeza as C
+
+    assert C.chave("Qual é o prazo?? ") == C.chave("qual e o prazo")
+    assert C.chave("  Prazo,  por FAVOR. ") == "prazo por favor"
+    for vol in ("que horas sao", "como esta o clima hoje",
+                "quanto tenho de saldo", "gastei 20 no lanche",
+                "qual a versao do app", "preco do dolar"):
+        assert C.volatil(vol), vol
+    assert not C.volatil("qual o prazo do projeto")
+    assert not C.cacheavel("prazo?", "curto")           # resposta < 20
+    assert not C.cacheavel("oi", "uma resposta de tamanho razoável")  # curta
+    assert not C.cacheavel("ok", "x" * 700)             # resposta > 600
+    assert not C.cacheavel("que horas sao", "x" * 100)  # volátil
+    assert C.cacheavel("qual o prazo do projeto", "x" * 100)
+
+    cfg = fresh()
+    assert C.buscar(cfg, "qual o prazo") is None
+    assert C.guardar(cfg, "Qual é o prazo do projeto?",
+                     "O prazo final é 28/11, sem renegociação.") is True
+    assert C.buscar(cfg, "qual e o prazo do projeto??") == (
+        "O prazo final é 28/11, sem renegociação.")
+    assert C.guardar(cfg, "que horas sao", "x" * 100) is False
+
+    # persistência entre instâncias (mesmo data_dir)
+    cfg2 = Config(data_dir=cfg.data_dir, mock=True)
+    assert C.tamanho(cfg2) == 1
+
+    # TTL expirado → miss + limpeza
+    from pathlib import Path as _P
+    arq = _P(cfg.data_dir) / "certezas.json"
+    d = json.loads(arq.read_text(encoding="utf-8"))
+    k = next(iter(d))
+    d[k]["ts"] = _t.time() - 31 * 24 * 3600
+    arq.write_text(json.dumps(d), encoding="utf-8")
+    assert C.buscar(cfg, "qual o prazo do projeto") is None
+
+    # LRU: 205 entradas → capa em 200, a mais velha sai
+    cfg3 = fresh()
+    for i in range(205):
+        C.guardar(cfg3, f"pergunta numero {i} do teste", "r" * 30)
+    assert C.tamanho(cfg3) == 200
+    assert C.buscar(cfg3, "pergunta numero 0 do teste") is None
+    assert C.buscar(cfg3, "pergunta numero 204 do teste") is not None
+
+    from betterme.config import DEFAULTS
+    assert DEFAULTS.get("certeza_on") is True
+
+
+@case
+def T221_agent_atalho_certeza_e_concisao():
+    """v7.6.0: Agent.run com camada de certeza — pergunta repetida
+    responde com 0 chamadas ao modelo (nota 🐴); pergunta volátil NUNCA
+    sai do cache; follow-up (2º turno) não cacheia; resposta com
+    ferramenta não cacheia; system prompt ganha bloco de CONCISÃO."""
+    from betterme.agent import Agent
+    from betterme import certeza as C
+
+    class Eco:
+        simulated = False
+        n = 0
+        com_tool = False
+
+        def chat_stream(self, model, messages, tools=None, options=None,
+                        cancel=None, keep_alive=None):
+            Eco.n += 1
+            if Eco.com_tool and Eco.n % 2 == 1:
+                yield {"message": {"content": "", "tool_calls": [{
+                    "function": {"name": "run_command",
+                                 "arguments": {"command": "echo ok"}}}]}}
+                return
+            yield {"message": {"content":
+                    "O prazo final do projeto é 28 de novembro, sem "
+                    "renegociação prevista."}}
+
+    cfg = fresh(creation_approval=False)
+    ag = Agent(cfg, client=Eco())
+    assert "CONCISÃO" in ag.system_prompt("x")
+    assert "TAMANHO DO PEDIDO" in ag.system_prompt("x")
+
+    evs = []
+    r1 = ag.run([{"role": "user", "content":
+                  "qual o prazo do projeto?"}], on_event=evs.append)
+    assert "28 de novembro" in r1 and Eco.n == 1
+    assert C.tamanho(cfg) == 1
+
+    # repetida: 0 chamadas novas, resposta idêntica, nota 🐴
+    evs2 = []
+    r2 = ag.run([{"role": "user", "content":
+                  "QUAL o prazo do projeto??"}], on_event=evs2.append)
+    assert Eco.n == 1                          # nenhuma chamada ao modelo
+    assert r2 == r1
+    assert any("🐴 certeza" in str(e.get("message", ""))
+               for e in evs2 if e.get("type") == "note")
+
+    # volátil: sempre pergunta ao modelo, nunca cacheada
+    ag.run([{"role": "user", "content": "que horas sao"}])
+    assert Eco.n == 2
+    assert C.buscar(cfg, "que horas sao") is None
+
+    # follow-up (2º turno) não cacheia
+    cfg2 = fresh()
+    ag2 = Agent(cfg2, client=Eco())
+    ag2.run([{"role": "user", "content": "oi"},
+             {"role": "assistant", "content": "olá"},
+             {"role": "user", "content":
+              "qual o prazo do projeto?"}])
+    assert C.tamanho(cfg2) == 0
+
+    # resposta que usou ferramenta não cacheia
+    cfg3 = fresh()
+    Eco.com_tool, Eco.n = True, 0
+    ag3 = Agent(cfg3, client=Eco())
+    ag3.run([{"role": "user", "content": "verifique o disco"}])
+    assert C.tamanho(cfg3) == 0
+
+
 if __name__ == "__main__":
     print("◈ Betterme — suíte de testes\n")
     sys.exit(run_all())

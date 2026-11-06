@@ -1,6 +1,6 @@
 # 📘 Betterme Agent — Documentação viva: uso, evolução e funções
 
-**Versão 7.5.0** · gerado em 06/11/2026 · este documento é extraído do
+**Versão 7.6.0** · gerado em 06/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -136,7 +136,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `betterme skills audit` (auditar o catálogo), `betterme config set/get`, `betterme server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v7.5.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v7.6.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -144,6 +144,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v7.6.0** | 🐴 CERTEZA DETERMINÍSTICA + CONCISÃO (PONYTAIL) |
 | **v7.5.0** | 🐘🐟 PLANO VERIFICADO (ELEPHANT-GOLDFISH MODEL) |
 | **v7.4.0** | 🔗 OPEN FINANCE: LISTA OFICIAL + BELVO MCP |
 | **v7.3.0** | 💰 FINANÇAS: CONTROLE DE GASTOS (PEDIDO DO OPERADOR) |
@@ -378,7 +379,8 @@ betterme server (Flask/waitress, porta 8080) ── CLI `betterme …`
 | `system_prompt` | — |
 | `_resumir` | Resumo curto do meio da conversa — LLM se der, senão corte determinís… |
 | `_compactar` | v3.15.0 (PR#3): compactação de contexto (padrão Claude Code). Perto d… |
-| `run` | Executa uma tarefa/conversa. `messages` sem o prompt de sistema. allo… |
+| `run` | Entrada única de tarefa/conversa — v7.6.0: camada de certeza (conceit… |
+| `_run_core` | Executa uma tarefa/conversa. `messages` sem o prompt de sistema. allo… |
 
 | Função | O que faz |
 |---|---|
