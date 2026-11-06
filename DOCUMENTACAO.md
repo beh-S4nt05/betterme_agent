@@ -1,6 +1,6 @@
 # 📘 Pluto Agente — Documentação viva: uso, evolução e funções
 
-**Versão 8.3.0** · gerado em 06/11/2026 · este documento é extraído do
+**Versão 8.4.0** · gerado em 06/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -140,7 +140,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `pluto skills audit` (auditar o catálogo), `pluto config set/get`, `pluto server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v8.3.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v8.4.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -401,7 +401,7 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 
 ### pluto/server/app.py — 🌐 a API REST + GUI web (Flask/waitress): todos os endpoints, streaming do chat, aprovações, painel e páginas
 
-**88 endpoints HTTP:**
+**89 endpoints HTTP:**
 
 | Método e rota | O que faz |
 |---|---|
@@ -493,6 +493,7 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `GET /api/conversations/<sid>/export` | conversation_export |
 | `POST /api/mcp/add` | mcp_add |
 | `POST /api/mcp/test` | mcp_test |
+| `GET /financas` | financas_page |
 
 ### app.py — helpers — 🌐 a API REST + GUI web (Flask/waitress): todos os endpoints, streaming do chat, aprovações, painel e páginas
 

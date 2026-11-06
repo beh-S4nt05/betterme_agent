@@ -1889,6 +1889,183 @@ self.addEventListener("fetch", (e) => {
         res = get_manager(cfg).call(tool, args if isinstance(args, dict) else {})
         return jsonify({"ok": res["ok"], "output": res["output"][:4000]})
 
+    # ── v8.4.0: GESTOR DE FINANÇAS (aba da GUI) ───────────────────
+    from .. import financas as FIN
+
+    @app.get("/financas")
+    def financas_page():
+        html = (TEMPLATE_DIR / "financas.html").read_text(encoding="utf-8")
+        return Response(html, mimetype="text/html")
+
+    @app.route("/api/financas/resumo")
+    def fin_resumo():
+        return jsonify(FIN.resumo(cfg, request.args.get("mes") or None))
+
+    @app.route("/api/financas/lancamentos")
+    def fin_lancamentos():
+        de = (request.args.get("de") or "").strip()
+        ate = (request.args.get("ate") or "").strip()
+        conta = (request.args.get("conta") or "").strip()
+        categoria = (request.args.get("categoria") or "").strip()
+        tipo = (request.args.get("tipo") or "").strip()
+        busca = FIN._norm(request.args.get("busca") or "")
+        try:
+            offset = max(0, int(request.args.get("offset") or 0))
+            limite = min(200, max(1, int(request.args.get("limit") or 50)))
+        except ValueError:
+            return jsonify({"erro": "offset/limit inválidos"}), 400
+        itens = []
+        for l in reversed(FIN._todos(cfg)):        # mais recente primeiro
+            if de and l["quando"] < de:
+                continue
+            if ate and l["quando"] > ate:
+                continue
+            if conta and l.get("conta") != conta:
+                continue
+            if categoria and l.get("categoria") != categoria:
+                continue
+            if tipo and l.get("tipo") != tipo:
+                continue
+            if busca and busca not in FIN._norm(l.get("descricao", "")):
+                continue
+            itens.append(l)
+        return jsonify({"total": len(itens),
+                        "itens": itens[offset:offset + limite]})
+
+    @app.route("/api/financas/lancamentos", methods=["POST"])
+    def fin_lancar():
+        d = request.get_json(silent=True) or {}
+        try:
+            r = FIN.lancar(cfg, d.get("valor"), d.get("descricao") or "",
+                           categoria=d.get("categoria") or "",
+                           tipo=d.get("tipo") or "saida",
+                           conta=d.get("conta") or "manual",
+                           quando=d.get("quando") or None)
+            return jsonify(r)
+        except ValueError as exc:
+            return jsonify({"erro": str(exc)}), 400
+
+    @app.route("/api/financas/transferir", methods=["POST"])
+    def fin_transferir():
+        d = request.get_json(silent=True) or {}
+        r = FIN.transferir(cfg, d.get("de") or "", d.get("para") or "",
+                           d.get("valor"), quando=d.get("quando") or None,
+                           descricao=d.get("descricao") or "")
+        return (jsonify(r) if not r.get("erro")
+                else (jsonify(r), 400))
+
+    @app.route("/api/financas/lancamentos/<id_lanc>",
+               methods=["PATCH", "DELETE"])
+    def fin_lancamento_id(id_lanc):
+        if request.method == "DELETE":
+            r = FIN.remover(cfg, id_lanc)
+        else:
+            r = FIN.editar(cfg, id_lanc,
+                           **(request.get_json(silent=True) or {}))
+        return (jsonify(r) if not r.get("erro")
+                else (jsonify(r), 400))
+
+    @app.route("/api/financas/contas", methods=["GET", "POST"])
+    def fin_contas():
+        if request.method == "POST":
+            d = request.get_json(silent=True) or {}
+            r = FIN.criar_conta(cfg, d.get("nome") or "",
+                                tipo=d.get("tipo") or "corrente",
+                                saldo_inicial=d.get("saldo_inicial") or "0",
+                                cor=d.get("cor"))
+            return (jsonify(r) if not r.get("erro")
+                    else (jsonify(r), 400))
+        return jsonify({"contas": FIN.contas(cfg)})
+
+    @app.route("/api/financas/contas/<id_conta>", methods=["PATCH"])
+    def fin_conta_id(id_conta):
+        r = FIN.salvar_conta(cfg, id_conta,
+                             **(request.get_json(silent=True) or {}))
+        return (jsonify(r) if not r.get("erro")
+                else (jsonify(r), 400))
+
+    @app.route("/api/financas/regras", methods=["GET", "POST"])
+    def fin_regras():
+        if request.method == "POST":
+            d = request.get_json(silent=True) or {}
+            if d.get("apagar"):
+                r = FIN.del_regra(cfg, d.get("apagar"))
+            else:
+                r = FIN.add_regra(cfg, d.get("padrao") or "",
+                                  d.get("categoria") or "")
+            return (jsonify(r) if not r.get("erro")
+                    else (jsonify(r), 400))
+        return jsonify({"regras": FIN.regras(cfg)})
+
+    @app.route("/api/financas/orcamentos", methods=["GET", "POST"])
+    def fin_orcamentos():
+        if request.method == "POST":
+            d = request.get_json(silent=True) or {}
+            r = FIN.set_orcamento(cfg, d.get("categoria") or "",
+                                  d.get("limite") or "0",
+                                  mes=d.get("mes") or None)
+            return (jsonify(r) if not r.get("erro")
+                    else (jsonify(r), 400))
+        return jsonify({"orcamentos": FIN.orcamentos(cfg)})
+
+    @app.route("/api/financas/faturas", methods=["POST"])
+    def fin_fatura():
+        d = request.get_json(silent=True) or {}
+        try:
+            r = FIN.fatura(cfg, d.get("valor"), d.get("vencimento") or "",
+                           conta=d.get("conta") or "cartao")
+            return jsonify(r)
+        except ValueError as exc:
+            return jsonify({"erro": str(exc)}), 400
+
+    @app.route("/api/financas/importar", methods=["POST"])
+    def fin_importar():
+        arq = request.files.get("arquivo")
+        if arq is None or not arq.filename:
+            return jsonify({"erro": "envie o CSV em 'arquivo'"}), 400
+        import tempfile as _tf
+        import os as _os
+        sufixo = Path(arq.filename).suffix or ".csv"
+        with _tf.NamedTemporaryFile("w", suffix=sufixo, delete=False,
+                                    encoding="utf-8") as tmp:
+            arquivo = tmp.name
+            tmp.write(arq.read().decode("utf-8", errors="replace"))
+        try:
+            r = FIN.importar_csv(cfg, arquivo,
+                                 conta=request.form.get("conta")
+                                 or "extrato",
+                                 so_saidas=request.form.get("so_saidas")
+                                 == "1")
+        finally:
+            _os.unlink(arquivo)
+        return jsonify(r)
+
+    @app.route("/api/financas/sumup/sync", methods=["POST"])
+    def fin_sumup():
+        try:
+            r = FIN.sync_sumup(cfg)
+            return jsonify(r)
+        except Exception as exc:  # noqa: BLE001 — sem chave/rede
+            return jsonify({"erro": str(exc)[:300]}), 400
+
+    @app.route("/api/financas/conexoes")
+    def fin_conexoes():
+        """Estado honesto das conexões de dados bancários."""
+        from .. import belvo as BELVO
+        from ..llm_providers import api_key
+        return jsonify({
+            "sumup": {"ok": bool(api_key(cfg, "sumup"))},
+            "belvo": {"ok": bool(BELVO.ler_token(cfg))},
+            "open_finance_direto": {
+                "ok": False,
+                "motivo": "Open Finance Brasil só permite participante "
+                          "autorizado pelo BC (capital social milhões); "
+                          "agregadores (Belvo/Pluggy) são B2B pagos. "
+                          "PF não conecta direto — o caminho real é "
+                          "importar extrato CSV/OFX do banco e sincronizar "
+                          "o SumUp; o hook Belvo entra quando houver token.",
+            }})
+
     return app
 
 

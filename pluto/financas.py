@@ -140,8 +140,10 @@ def lancar(cfg, valor, descricao: str, categoria: str = "",
     if tipo not in ("entrada", "saida"):
         raise ValueError("tipo deve ser 'entrada' ou 'saida'")
     q = (_data(quando) if quando else date.today()).isoformat()
-    cat = categoria or (categorizar(descricao) if tipo == "saida"
-                        else "entrada")
+    # v8.4.0: regra do USUÁRIO vence (ele ensina); senão embutido
+    cat = (categoria or _cat_com_regras(cfg, descricao)
+           or ("entrada" if tipo == "entrada"
+               else categorizar(descricao)))
     novo_id = _id_de(_id) if _id else uuid.uuid4().hex[:16]
     if _id:
         if any(l["id"] == novo_id for l in _todos(cfg)):
@@ -492,3 +494,347 @@ def cmd(args, cfg) -> None:
             print("✖ ação desconhecida:", a)
     except (ValueError, OSError) as exc:
         print("✖", exc)
+
+
+# ── v8.4.0: GESTOR COMPLETO — contas, transferências, edição, ───
+#    regras de categoria, orçamentos, recorrentes e resumo.
+
+def _arquivo_contas(cfg) -> Path:
+    return _dir(cfg) / "contas.json"
+
+
+def _arquivo_orcamentos(cfg) -> Path:
+    return _dir(cfg) / "orcamentos.json"
+
+
+def _arquivo_regras(cfg) -> Path:
+    return _dir(cfg) / "regras.json"
+
+
+def _ler_json(caminho: Path, default):
+    try:
+        return json.loads(caminho.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return default
+
+
+def _gravar_json(caminho: Path, dados) -> None:
+    """Escrita atômica (tmp+replace) — crash nunca corrompe."""
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    tmp = caminho.with_suffix(".tmp")
+    tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=1),
+                   encoding="utf-8")
+    tmp.replace(caminho)
+
+
+_TIPOS_CONTA = ("corrente", "poupanca", "cartao", "dinheiro",
+                "investimento", "outros")
+
+
+def _tipo_conta_adivinha(nome: str) -> str:
+    n = _norm(nome)
+    if "cartao" in n or "credito" in n:
+        return "cartao"
+    if "poupan" in n:
+        return "poupanca"
+    if "dinheiro" in n or "especie" in n:
+        return "dinheiro"
+    if "invest" in n:
+        return "investimento"
+    return "corrente"
+
+
+def contas(cfg) -> list[dict]:
+    """Contas do gestor: registry (contas.json) + IMPLÍCITAS (strings
+    já usadas em lançamentos/faturas sem registro) — nada se perde na
+    migração; lançamentos antigos aparecem em contas implícitas."""
+    regs = [dict(c) for c in _ler_json(_arquivo_contas(cfg), [])]
+    conhecidas = {c["nome"] for c in regs}
+    em_uso = ({l.get("conta", "manual") for l in _todos(cfg)}
+              | {f.get("conta", "cartao") for f in _faturas(cfg)
+                 if _faturas(cfg)})
+    for nome in sorted(em_uso - conhecidas - {""}):
+        regs.append({"id": _id_de(f"conta|{nome}"), "nome": nome,
+                     "tipo": _tipo_conta_adivinha(nome),
+                     "saldo_inicial": "0", "cor": None,
+                     "implicita": True})
+    return regs
+
+
+def _conta_reg(cfg, nome: str) -> dict | None:
+    return next((c for c in _ler_json(_arquivo_contas(cfg), [])
+                 if c["nome"] == nome), None)
+
+
+def criar_conta(cfg, nome: str, tipo: str = "corrente",
+                saldo_inicial="0", cor: str | None = None) -> dict:
+    nome = str(nome or "").strip()
+    if not nome:
+        return {"erro": "nome da conta é obrigatório"}
+    if _conta_reg(cfg, nome) or any(
+            c["nome"] == nome for c in contas(cfg)):
+        return {"erro": f"já existe conta '{nome}'"}
+    if tipo not in _TIPOS_CONTA:
+        return {"erro": f"tipo inválido — use {'|'.join(_TIPOS_CONTA)}"}
+    reg = {"id": uuid.uuid4().hex[:16], "nome": nome, "tipo": tipo,
+           "saldo_inicial": str(_moeda(saldo_inicial)), "cor": cor,
+           "arquivada": False}
+    regs = _ler_json(_arquivo_contas(cfg), [])
+    regs.append(reg)
+    _gravar_json(_arquivo_contas(cfg), regs)
+    return reg
+
+
+def salvar_conta(cfg, id_conta: str, **campos) -> dict:
+    regs = _ler_json(_arquivo_contas(cfg), [])
+    alvo = next((c for c in regs if c["id"] == id_conta), None)
+    if not alvo:
+        return {"erro": "conta não encontrada"}
+    if "tipo" in campos and campos["tipo"] not in _TIPOS_CONTA:
+        return {"erro": "tipo inválido"}
+    if "saldo_inicial" in campos:
+        campos["saldo_inicial"] = str(_moeda(campos["saldo_inicial"]))
+    alvo.update({k: v for k, v in campos.items()
+                 if k in ("nome", "tipo", "saldo_inicial", "cor",
+                          "arquivada")})
+    _gravar_json(_arquivo_contas(cfg), regs)
+    return alvo
+
+
+def saldo_conta(cfg, nome: str) -> Decimal:
+    """Saldo ATUAL: saldo_inicial + entradas − saídas ± transferências
+    (transferência NÃO é receita nem despesa — só move dinheiro)."""
+    reg = _conta_reg(cfg, nome) or {}
+    s = Decimal(str(reg.get("saldo_inicial", "0")))
+    for l in _todos(cfg):
+        v = Decimal(l["valor"])
+        if l.get("conta") == nome:
+            if l["tipo"] == "entrada":
+                s += v
+            elif l["tipo"] == "saida":
+                s -= v
+            elif l["tipo"] == "transferencia":
+                s -= v                      # saiu desta conta
+        if (l["tipo"] == "transferencia"
+                and l.get("para") == nome and l.get("conta") != nome):
+            s += v                          # entrou nesta conta
+    return s
+
+
+def transferir(cfg, de: str, para: str, valor, quando=None,
+               descricao: str = "") -> dict:
+    """Move dinheiro ENTRE contas — fora de receita/despesa (padrão
+    Belvo: transferência não infla gasto)."""
+    if _norm(de) == _norm(para):
+        return {"erro": "conta de origem e destino são a mesma"}
+    v = _moeda(valor)
+    if v <= 0:
+        return {"erro": "valor deve ser positivo"}
+    q = (_data(quando) if quando else date.today()).isoformat()
+    reg = {"id": uuid.uuid4().hex[:16], "quando": q, "valor": str(v),
+           "tipo": "transferencia", "categoria": "transferencia",
+           "descricao": str(descricao or f"transferência {de} → {para}"
+                           )[:120], "conta": de, "para": para,
+           "fonte": "manual"}
+    _dir(cfg).mkdir(parents=True, exist_ok=True)
+    with _arquivo(cfg).open("a", encoding="utf-8") as f:
+        f.write(json.dumps(reg, ensure_ascii=False) + "\n")
+    return {"id": reg["id"], "novo": True, **reg}
+
+
+def editar(cfg, id_lanc: str, **campos) -> dict:
+    """Edita um lançamento (descrição/categoria/conta/data/valor/tipo)
+    — reescrita atômica do livro-caixa."""
+    todos = _todos(cfg)
+    alvo = next((l for l in todos if l["id"] == id_lanc), None)
+    if not alvo:
+        return {"erro": "lançamento não encontrado"}
+    if "valor" in campos:
+        v = _moeda(campos["valor"])
+        if v <= 0:
+            return {"erro": "valor deve ser positivo"}
+        campos["valor"] = str(v)
+    if "tipo" in campos and campos["tipo"] not in (
+            "entrada", "saida", "transferencia"):
+        return {"erro": "tipo inválido"}
+    if "quando" in campos:
+        campos["quando"] = _data(campos["quando"]).isoformat()
+    alvo.update({k: v for k, v in campos.items()
+                 if k in ("descricao", "categoria", "conta", "quando",
+                          "valor", "tipo")})
+    _gravar_jsonl(cfg, todos)
+    return alvo
+
+
+def remover(cfg, id_lanc: str) -> dict:
+    todos = _todos(cfg)
+    if not any(l["id"] == id_lanc for l in todos):
+        return {"erro": "lançamento não encontrado"}
+    _gravar_jsonl(cfg, [l for l in todos if l["id"] != id_lanc])
+    return {"ok": True, "removido": id_lanc}
+
+
+def _gravar_jsonl(cfg, lancamentos: list[dict]) -> None:
+    """Reescrita atômica do livro-caixa (editar/remover)."""
+    _dir(cfg).mkdir(parents=True, exist_ok=True)
+    tmp = _arquivo(cfg).with_suffix(".tmp")
+    tmp.write_text("".join(json.dumps(l, ensure_ascii=False) + "\n"
+                           for l in lancamentos), encoding="utf-8")
+    tmp.replace(_arquivo(cfg))
+
+
+# ── regras de categoria (o usuário ensina; vale antes do embutido) ──
+def regras(cfg) -> list[dict]:
+    return _ler_json(_arquivo_regras(cfg), [])
+
+
+def add_regra(cfg, padrao: str, categoria: str) -> dict:
+    padrao = _norm(padrao).strip()
+    categoria = _norm(categoria).strip()
+    if not padrao or not categoria:
+        return {"erro": "padrão e categoria são obrigatórios"}
+    regs = [r for r in regras(cfg) if r["padrao"] != padrao]
+    regs.append({"padrao": padrao, "categoria": categoria})
+    _gravar_json(_arquivo_regras(cfg), regs)
+    return {"padrao": padrao, "categoria": categoria}
+
+
+def del_regra(cfg, padrao: str) -> dict:
+    regs = regras(cfg)
+    if not any(r["padrao"] == _norm(padrao) for r in regs):
+        return {"erro": "regra não encontrada"}
+    _gravar_json(_arquivo_regras(cfg),
+                 [r for r in regs if r["padrao"] != _norm(padrao)])
+    return {"ok": True}
+
+
+def _cat_com_regras(cfg, descricao: str) -> str | None:
+    d = _norm(descricao)
+    for r in regras(cfg):
+        if r["padrao"] in d:
+            return r["categoria"]
+    return None
+
+
+# ── orçamentos ──────────────────────────────────────────────────
+def orcamentos(cfg) -> list[dict]:
+    return _ler_json(_arquivo_orcamentos(cfg), [])
+
+
+def set_orcamento(cfg, categoria: str, limite, mes: str | None = None
+                  ) -> dict:
+    categoria = _norm(categoria).strip()
+    v = _moeda(limite)
+    if not categoria:
+        return {"erro": "categoria é obrigatória"}
+    regs = [o for o in orcamentos(cfg)
+            if not (o["categoria"] == categoria and o.get("mes") == mes)]
+    if v > 0:
+        regs.append({"categoria": categoria, "mes": mes,
+                     "limite": str(v)})
+    _gravar_json(_arquivo_orcamentos(cfg), regs)
+    return {"categoria": categoria, "mes": mes, "limite": str(v)}
+
+
+# ── recorrentes (detecção por repetição mensal) ─────────────────
+def recorrentes(cfg, _hoje: date | None = None) -> list[dict]:
+    """>=3 saídas com a mesma assinatura (categoria + 1ªs palavras) e
+    intervalo ~mensal (15–60 d) → recorrente estimado."""
+    hoje = _hoje or date.today()
+    grupos: dict[str, list[dict]] = {}
+    for l in _todos(cfg):
+        if l["tipo"] != "saida":
+            continue
+        palavras = [p for p in _norm(l["descricao"]).split()
+                    if len(p) > 2][:3]
+        if not palavras:
+            continue
+        chave = l["categoria"] + "|" + " ".join(palavras)
+        grupos.setdefault(chave, []).append(l)
+    out = []
+    for chave, ls in grupos.items():
+        ds = sorted(_data(l["quando"]) for l in ls)
+        gaps = [(b - a).days for a, b in zip(ds, ds[1:])]
+        if len(ds) < 3 or not gaps:
+            continue
+        if not all(15 <= g <= 60 for g in gaps):
+            continue
+        vals = [Decimal(l["valor"]) for l in ls]
+        freq = round(sum(gaps) / len(gaps))
+        ultima = ds[-1]
+        out.append({"chave": chave,
+                    "categoria": ls[0]["categoria"],
+                    "descricao": ls[0]["descricao"][:60],
+                    "n": len(ls), "media": str(sum(vals) / len(vals)),
+                    "ultima": ultima.isoformat(),
+                    "frequencia_dias": freq,
+                    "proxima": (ultima.fromordinal(
+                        ultima.toordinal() + freq)).isoformat(),
+                    "atrasada": ultima < hoje
+                    and (hoje - ultima).days > freq + 10})
+    return sorted(out, key=lambda r: r["ultima"], reverse=True)
+
+
+# ── resumo — tudo que o dashboard precisa, numa chamada ────────
+def resumo(cfg, mes: str | None = None, _hoje: date | None = None) -> dict:
+    hoje = _hoje or date.today()
+    mes = mes or hoje.strftime("%Y-%m")
+    todos = _todos(cfg)
+
+    def _do_mes(m):
+        ls = [l for l in todos if l["quando"].startswith(m)]
+        ent = sum((Decimal(l["valor"]) for l in ls
+                   if l["tipo"] == "entrada"), Decimal(0))
+        sai = sum((Decimal(l["valor"]) for l in ls
+                   if l["tipo"] == "saida"), Decimal(0))
+        return ent, sai
+
+    ent, sai = _do_mes(mes)
+    cats: dict[str, Decimal] = {}
+    for l in todos:
+        if l["quando"].startswith(mes) and l["tipo"] == "saida":
+            cats[l["categoria"]] = cats.get(l["categoria"],
+                                            Decimal(0)) + Decimal(l["valor"])
+    evolucao = []
+    for i in range(5, -1, -1):
+        y, mth = hoje.year, hoje.month - i
+        while mth <= 0:
+            mth += 12
+            y -= 1
+        e, s = _do_mes(f"{y:04d}-{mth:02d}")
+        evolucao.append({"mes": f"{y:04d}-{mth:02d}",
+                         "entradas": str(e), "saidas": str(s)})
+    orcs = []
+    for o in orcamentos(cfg):
+        if o.get("mes") and o["mes"] != mes:
+            continue
+        gasto = cats.get(o["categoria"], Decimal(0))
+        lim = Decimal(o["limite"])
+        pct = int(gasto / lim * 100) if lim > 0 else 0
+        orcs.append({"categoria": o["categoria"], "mes": o.get("mes"),
+                     "limite": o["limite"], "gasto": str(gasto),
+                     "pct": pct, "alerta": pct >= 80})
+    futs = sorted((f for f in _faturas(cfg)
+                   if _data(f["vencimento"]) >= hoje),
+                  key=lambda f: f["vencimento"])
+    cts = [{"nome": c["nome"], "tipo": c["tipo"],
+            "cor": c.get("cor"), "implicita": c.get("implicita", False),
+            "saldo": str(saldo_conta(cfg, c["nome"]))}
+           for c in contas(cfg)]
+    return {
+        "mes": mes,
+        "saldo_total": str(sum((Decimal(c["saldo"]) for c in cts
+                                if cts), Decimal(0))),
+        "contas": cts,
+        "entradas": str(ent), "saidas": str(sai),
+        "saldo_mes": str(ent - sai),
+        "por_categoria": [{"categoria": k, "total": str(v)}
+                          for k, v in sorted(cats.items(),
+                                             key=lambda kv: -kv[1])],
+        "evolucao": evolucao,
+        "orcamentos": orcs,
+        "recorrentes": recorrentes(cfg, _hoje=hoje),
+        "faturas": [{"conta": f["conta"], "valor": f["valor"],
+                     "vencimento": f["vencimento"]} for f in futs],
+        "n_lancamentos": len(todos),
+    }

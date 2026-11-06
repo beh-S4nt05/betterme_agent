@@ -18,6 +18,12 @@ description: Controlar os gastos e finanças do operador (PF e PJ) — registrar
    **cérebro local** (privacidade — mesma lógica da regra D2).
 5. Extrato CSV do SumUp **+** sync da API dobra as entradas: se o
    operador sincroniza a API, importe o extrato com `--so-saidas`.
+6. **GUI (v8.4.0)**: o gestor completo vive na aba **💰 Finanças** da
+   interface web (`pluto server` → /financas): dashboard com saldo das
+   contas, evolução 6 meses, gastos por categoria, orçamentos com
+   alerta, recorrentes detectadas, filtros e importação de extrato.
+   Aponte o operador para lá quando ele pedir visão geral/"como estão
+   minhas finanças" — e registre lançamentos por lá OU pelo chat.
 
 ## Ferramentas do agente
 

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>💰 Finanças — Pluto Agente</title>
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#0e121b; --panel:#121826; --panel2:#161d2e;
+    --border:#1f2a3d; --border2:#2a3650;
+    --txt:#d7e0ee; --dim:#8fa0b8; --faint:#5b6b82;
+    --acc:#7c5cff; --acc2:#9d86ff;
+    --ok:#2bd576; --warn:#ffb454; --err:#ff5470;
+    --mono:ui-monospace,'JetBrains Mono','Fira Code','Cascadia Code',Consolas,'Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:14px;line-height:1.55;
+       background-image:radial-gradient(1200px 500px at 80% -10%,rgba(124,92,255,.13),transparent),
+       radial-gradient(900px 400px at -10% 110%,rgba(43,213,118,.06),transparent)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 80px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:6px}
+  h1{font-size:20px;font-weight:600}
+  h1 b{color:var(--acc2)}
+  .sub{color:var(--faint);font-size:12px;margin-bottom:18px}
+  a.back{color:var(--dim);text-decoration:none;font-size:13px;border:1px solid var(--border);
+         padding:6px 12px;border-radius:10px;background:transparent}
+  a.back:hover{color:var(--txt);border-color:var(--acc)}
+  .mes{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .mes button{background:var(--panel);border:1px solid var(--border);color:var(--txt);
+              border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit}
+  .mes button:hover{border-color:var(--acc)}
+  .mes span{min-width:110px;text-align:center;color:var(--acc2)}
+  .btn{background:linear-gradient(135deg,var(--acc),#4633b8);color:#fff;border:0;border-radius:10px;
+       padding:9px 16px;cursor:pointer;font-family:inherit;font-size:13px}
+  .btn:hover{filter:brightness(1.12)}
+  .btn.ghost{background:transparent;border:1px solid var(--border2);color:var(--dim)}
+  .btn.ghost:hover{color:var(--txt);border-color:var(--acc)}
+  .btn.mini{padding:4px 10px;font-size:12px;border-radius:8px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+  .card .k{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.8px}
+  .card .v{font-size:22px;margin-top:4px;font-weight:600}
+  .card .v.ok{color:var(--ok)} .card .v.err{color:var(--err)}
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  section{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+          padding:16px;margin-bottom:14px}
+  section h2{font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;
+             margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  section h2 .sp{margin-left:auto;display:flex;gap:8px}
+  svg text{font-family:var(--mono)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--dim);font-size:12px;margin-top:8px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .contas{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+  .conta{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .conta .nome{font-weight:600;display:flex;align-items:center;gap:7px}
+  .conta .tipo{color:var(--faint);font-size:11px}
+  .conta .saldo{font-size:17px;margin-top:6px;font-weight:600}
+  .conta .saldo.neg{color:var(--err)}
+  .conta .imp{color:var(--faint);font-size:10px;border:1px solid var(--border);
+              border-radius:6px;padding:1px 6px;margin-left:auto}
+  .bar{height:9px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2))}
+  .bar i.warn{background:linear-gradient(90deg,#c98a2e,var(--warn))}
+  .bar i.over{background:linear-gradient(90deg,#b03448,var(--err))}
+  .orc{margin-bottom:12px}
+  .orc .top{display:flex;justify-content:space-between;color:var(--dim);font-size:12px;margin-bottom:4px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{color:var(--faint);text-align:left;font-weight:400;font-size:11px;text-transform:uppercase;
+     letter-spacing:.6px;padding:6px 8px;border-bottom:1px solid var(--border)}
+  td{padding:7px 8px;border-bottom:1px solid var(--bg2)}
+  tr:hover td{background:var(--panel2)}
+  td.val{text-align:right;white-space:nowrap}
+  td.val.ent{color:var(--ok)} td.val.sai{color:var(--err)} td.val.tra{color:var(--dim)}
+  .cat{display:inline-block;background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+       padding:1px 8px;font-size:11px;color:var(--dim);cursor:pointer}
+  .cat:hover{border-color:var(--acc);color:var(--txt)}
+  .del{color:var(--faint);cursor:pointer;background:none;border:0;font-size:14px}
+  .del:hover{color:var(--err)}
+  .filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .filtros input,.filtros select{background:var(--bg2);border:1px solid var(--border);color:var(--txt);
+    border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12px}
+  .filtros input:focus,.filtros select:focus{outline:none;border-color:var(--acc)}
+  .lista li{list-style:none;display:flex;justify-content:space-between;gap:10px;
+            padding:7px 2px;border-bottom:1px solid var(--bg2);font-size:13px}
+  .lista li:last-child{border-bottom:0}
+  .lista .q{color:var(--dim);font-size:11px}
+  .tag{font-size:10px;border-radius:6px;padding:1px 6px;border:1px solid var(--border);color:var(--dim)}
+  .tag.on{color:var(--ok);border-color:rgba(43,213,118,.4)}
+  .tag.off{color:var(--faint)}
+  .conex{display:flex;flex-direction:column;gap:10px}
+  .conex .row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .nota{color:var(--faint);font-size:12px;margin-top:6px;max-width:760px}
+  .modal{display:none;position:fixed;inset:0;background:rgba(4,6,10,.72);z-index:50;
+         align-items:center;justify-content:center;padding:16px}
+  .modal.show{display:flex}
+  .mbox{background:var(--panel);border:1px solid var(--border2);border-radius:16px;
+        padding:20px;width:100%;max-width:440px;max-height:92vh;overflow:auto}
+  .mbox h3{font-size:15px;margin-bottom:14px;color:var(--acc2)}
+  .mbox label{display:block;color:var(--dim);font-size:11px;margin:10px 0 3px;
+              text-transform:uppercase;letter-spacing:.6px}
+  .mbox input,.mbox select{width:100%;background:var(--bg2);border:1px solid var(--border);
+    color:var(--txt);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px}
+  .mbox input:focus,.mbox select:focus{outline:none;border-color:var(--acc)}
+  .mrow{display:flex;gap:10px;margin-top:16px;justify-content:flex-end}
+  .err{color:var(--err);font-size:12px;margin-top:8px;display:none}
+  .flash{position:fixed;bottom:18px;right:18px;background:var(--panel2);border:1px solid var(--border2);
+         border-radius:12px;padding:10px 16px;font-size:13px;z-index:60;display:none;max-width:380px}
+  .flash.ok{border-color:rgba(43,213,118,.5)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="/">← Pluto</a>
+    <h1>💰 <b>Finanças</b></h1>
+    <div class="mes">
+      <button id="mAnt">‹</button><span id="mLbl"></span><button id="mProx">›</button>
+    </div>
+    <button class="btn" id="bLanc">＋ Lançar</button>
+    <button class="btn ghost" id="bTransf">⇄ Transferir</button>
+  </header>
+  <div class="sub">gestor local — livro-caixa do <b>Pluto</b> · seus dados ficam na sua máquina</div>
+
+  <div class="cards">
+    <div class="card"><div class="k">Saldo total (contas)</div><div class="v" id="cSaldo">—</div>
+      <div class="sub" id="cContas" style="margin:4px 0 0"></div></div>
+    <div class="card"><div class="k">Entradas do mês</div><div class="v ok" id="cEnt">—</div></div>
+    <div class="card"><div class="k">Saídas do mês</div><div class="v err" id="cSai">—</div></div>
+    <div class="card"><div class="k">Saldo do mês</div><div class="v" id="cMes">—</div></div>
+  </div>
+
+  <div class="grid2">
+    <section>
+      <h2>📊 Evolução — últimos 6 meses</h2>
+      <div id="gEvo"></div>
+      <div class="legend"><span><i class="dot" style="background:var(--ok)"></i>entradas</span>
+        <span><i class="dot" style="background:var(--err)"></i>saídas</span></div>
+    </section>
+    <section>
+      <h2>🍩 Gastos por categoria</h2>
+      <div id="gCat"></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>🎯 Orçamentos
+      <span class="sp"><button class="btn ghost mini" id="bOrc">＋ limite</button></span></h2>
+    <div id="lOrc"><div class="sub" style="margin:0">nenhum limite definido</div></div>
+  </section>
+
+  <div class="grid2">
+    <section>
+      <h2>🔁 Recorrentes detectadas</h2>
+      <ul class="lista" id="lRec"><li><span class="q">ainda não há recorrência mensal detectada (≥3 lançamentos)</span></li></ul>
+    </section>
+    <section>
+      <h2>🧾 Faturas a vencer</h2>
+      <ul class="lista" id="lFat"><li><span class="q">nada vencendo</span></li></ul>
+    </section>
+  </div>
+
+  <section>
+    <h2>🏦 Contas
+      <span class="sp"><button class="btn ghost mini" id="bConta">＋ conta</button></span></h2>
+    <div class="contas" id="lContas"></div>
+  </section>
+
+  <section>
+    <h2>📋 Lançamentos <span class="q" id="nLanc" style="color:var(--faint);font-size:11px"></span></h2>
+    <div class="filtros">
+      <input type="date" id="fDe" title="de">
+      <input type="date" id="fAte" title="até">
+      <select id="fConta"><option value="">todas as contas</option></select>
+      <select id="fCat"><option value="">todas as categorias</option></select>
+      <select id="fTipo"><option value="">entrada+saída</option>
+        <option value="entrada">só entradas</option>
+        <option value="saida">só saídas</option>
+        <option value="transferencia">transferências</option></select>
+      <input type="search" id="fBusca" placeholder="buscar descrição…" style="flex:1;min-width:140px">
+    </div>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr><th>data</th><th>descrição</th><th>conta</th><th>categoria</th>
+        <th class="val">valor</th><th></th></tr></thead>
+      <tbody id="tLanc"></tbody>
+    </table>
+    </div>
+    <div style="margin-top:10px;text-align:center">
+      <button class="btn ghost mini" id="bMais" style="display:none">carregar mais</button>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section>
+      <h2>📥 Importar extrato</h2>
+      <div class="conex">
+        <div class="row">
+          <input type="file" id="iCsv" accept=".csv,text/csv" style="flex:1">
+          <button class="btn mini" id="bImport">importar</button>
+        </div>
+        <div class="row">
+          <select id="iConta" style="flex:1"></select>
+          <label class="q" style="display:flex;gap:6px;align-items:center;font-size:12px">
+            <input type="checkbox" id="iSoSai"> só saídas (evita dobrar com o sync SumUp)</label>
+        </div>
+        <div class="nota">CSV do BB, Bradesco ou SumUp — detecta delimitador e colunas
+          (Valor assinado ou Crédito/Débito). Dedup automático: importar 2× não duplica.</div>
+        <div class="nota" id="iRes"></div>
+      </div>
+    </section>
+    <section>
+      <h2>🔌 Conexões</h2>
+      <div class="conex" id="lConex"></div>
+      <div class="nota">Open Finance direto para pessoa física não existe no Brasil —
+        só participante autorizado pelo Banco Central. O caminho real é o que está aqui:
+        extrato CSV + API SumUp (titular) + hook Belvo quando houver token.</div>
+    </section>
+  </div>
+</div>
+
+<!-- modal lançamento -->
+<div class="modal" id="mLanc"><div class="mbox">
+  <h3 id="mTitulo">＋ Lançar</h3>
+  <label>tipo</label>
+  <select id="lTipo"><option value="saida">saída (gasto)</option>
+    <option value="entrada">entrada (recebimento)</option></select>
+  <label>valor (R$)</label><input id="lVal" placeholder="35,00" inputmode="decimal">
+  <label>descrição</label><input id="lDesc" placeholder="almoço, mercado, salário…">
+  <label>conta</label><select id="lConta"></select>
+  <label>categoria (vazio = auto)</label><input id="lCat" placeholder="auto por descrição">
+  <label>data</label><input id="lData" type="date">
+  <div class="err" id="lErr"></div>
+  <div class="mrow"><button class="btn ghost" id="lCancel">cancelar</button>
+    <button class="btn" id="lOk">salvar</button></div>
+</div></div>
+
+<!-- modal transferência -->
+<div class="modal" id="mTransf"><div class="mbox">
+  <h3>⇄ Transferir entre contas</h3>
+  <label>de</label><select id="tDe"></select>
+  <label>para</label><select id="tPara"></select>
+  <label>valor (R$)</label><input id="tVal" placeholder="150,00" inputmode="decimal">
+  <label>descrição</label><input id="tDesc" placeholder="pagar fatura…">
+  <label>data</label><input id="tData" type="date">
+  <div class="err" id="tErr"></div>
+  <div class="mrow"><button class="btn ghost" id="tCancel">cancelar</button>
+    <button class="btn" id="tOk">transferir</button></div>
+</div></div>
+
+<!-- modal conta -->
+<div class="modal" id="mConta"><div class="mbox">
+  <h3>🏦 Nova conta</h3>
+  <label>nome</label><input id="cNome" placeholder="Bradesco PF, Nubank…">
+  <label>tipo</label><select id="cTipo">
+    <option value="corrente">conta corrente</option><option value="poupanca">poupança</option>
+    <option value="cartao">cartão de crédito</option><option value="dinheiro">dinheiro</option>
+    <option value="investimento">investimento</option><option value="outros">outros</option></select>
+  <label>saldo inicial (R$)</label><input id="cSaldoIni" placeholder="0,00" inputmode="decimal">
+  <div class="err" id="cErr"></div>
+  <div class="mrow"><button class="btn ghost" id="cCancel">cancelar</button>
+    <button class="btn" id="cOk">criar</button></div>
+</div></div>
+
+<!-- modal orçamento -->
+<div class="modal" id="mOrc"><div class="mbox">
+  <h3>🎯 Limite mensal</h3>
+  <label>categoria</label><input id="oCat" placeholder="alimentacao, mercado…">
+  <label>limite (R$ / mês)</label><input id="oVal" placeholder="300,00" inputmode="decimal">
+  <div class="nota">0 remove o limite.</div>
+  <div class="err" id="oErr"></div>
+  <div class="mrow"><button class="btn ghost" id="oCancel">cancelar</button>
+    <button class="btn" id="oOk">salvar</button></div>
+</div></div>
+
+<div class="flash" id="flash"></div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const api = (caminho, opts) => fetch(caminho, opts).then(async (r) => {
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.erro || ("HTTP " + r.status));
+  return d;
+});
+const num = (s) => parseFloat(String(s || "0").replace(",", ".")) || 0;
+const brl = (v) => (v < 0 ? "−R$ " : "R$ ") +
+  Math.abs(v).toLocaleString("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const iso = (d) => d.toISOString().slice(0, 10);
+let MES = new Date().toISOString().slice(0, 7);
+let OFFSET = 0;
+const PAGE = 50;
+let CATS = [];
+
+function flash(msg, ok = true) {
+  const f = $("#flash");
+  f.textContent = msg; f.className = "flash show" + (ok ? " ok" : "");
+  setTimeout(() => (f.className = "flash"), 3500);
+}
+function mudaMes(delta) {
+  const [y, m] = MES.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  MES = d.toISOString().slice(0, 7);
+  OFFSET = 0;
+  carregar();
+}
+function barras(evolucao) {
+  const max = Math.max(...evolucao.map((e) => Math.max(num(e.entradas), num(e.saidas))), 1);
+  const W = 640, H = 180, bw = 26, gap = (W - 6 * bw) / 7;
+  let svg = `<svg viewBox="0 0 ${W} ${H + 26}" style="width:100%;height:auto">`;
+  for (let i = 0; i < 3; i++) {
+    const y = 10 + i * (H - 10) / 3;
+    svg += `<line x1="34" x2="${W - 4}" y1="${H - y * 0.86}" y2="${H - y * 0.86}" stroke="#1f2a3d" stroke-dasharray="3 5"/>`;
+  }
+  evolucao.forEach((e, i) => {
+    const x = 34 + gap + i * (bw + gap);
+    const he = (num(e.entradas) / max) * (H - 26), hs = (num(e.saidas) / max) * (H - 26);
+    svg += `<rect x="${x}" y="${H - he}" width="${bw / 2 - 2}" height="${Math.max(he, 1)}" rx="3" fill="var(--ok)" opacity=".85">
+      <title>${e.mes} · entradas ${brl(num(e.entradas))}</title></rect>`;
+    svg += `<rect x="${x + bw / 2 + 1}" y="${H - hs}" width="${bw / 2 - 2}" height="${Math.max(hs, 1)}" rx="3" fill="var(--err)" opacity=".85">
+      <title>${e.mes} · saídas ${brl(num(e.saidas))}</title></rect>`;
+    svg += `<text x="${x + bw / 2}" y="${H + 16}" fill="#5b6b82" font-size="10" text-anchor="middle">${e.mes.slice(5)}/${e.mes.slice(2, 4)}</text>`;
+  });
+  return svg + "</svg>";
+}
+const CORES = ["#7c5cff", "#2bd576", "#ffb454", "#ff5470", "#54c7ff", "#c86bff", "#8fa0b8", "#ffd454"];
+function donut(cats) {
+  const total = cats.reduce((s, c) => s + num(c.total), 0);
+  if (!total) return '<div class="sub" style="margin:0">sem gastos no mês</div>';
+  const R = 70, C = 2 * Math.PI * R;
+  let off = 0, svg = `<svg viewBox="0 0 200 200" style="width:190px;height:190px;margin:auto;display:block">`;
+  cats.slice(0, 8).forEach((c, i) => {
+    const frac = num(c.total) / total, dash = frac * C;
+    svg += `<circle cx="100" cy="100" r="${R}" fill="none" stroke="${CORES[i % 8]}" stroke-width="26"
+      stroke-dasharray="${dash} ${C - dash}" stroke-dashoffset="${-off}" transform="rotate(-90 100 100)">
+      <title>${c.categoria}: ${brl(num(c.total))} (${Math.round(frac * 100)}%)</title></circle>`;
+    off += dash;
+  });
+  svg += `<text x="100" y="96" text-anchor="middle" fill="#8fa0b8" font-size="11">gastos</text>
+    <text x="100" y="116" text-anchor="middle" fill="#d7e0ee" font-size="15" font-weight="600">${brl(total)}</text></svg>`;
+  const leg = cats.slice(0, 8).map((c, i) =>
+    `<span><i class="dot" style="background:${CORES[i % 8]}"></i>${c.categoria} ${brl(num(c.total))}</span>`).join("");
+  return svg + '<div class="legend">' + leg + "</div>";
+}
+function carregarResumo() {
+  return api("/api/financas/resumo?mes=" + MES).then((R) => {
+    $("#mLbl").textContent = MES.split("-").reverse().join("/");
+    const st = num(R.saldo_total);
+    const el = $("#cSaldo");
+    el.textContent = brl(st);
+    el.className = "v " + (st < 0 ? "err" : "ok");
+    $("#cContas").textContent = R.contas.map((c) => c.nome).join(" · ");
+    $("#cEnt").textContent = brl(num(R.entradas));
+    $("#cSai").textContent = brl(num(R.saidas));
+    const sm = num(R.saldo_mes), cm = $("#cMes");
+    cm.textContent = (sm >= 0 ? "+" : "") + brl(sm);
+    cm.className = "v " + (sm < 0 ? "err" : "ok");
+    $("#gEvo").innerHTML = barras(R.evolucao);
+    $("#gCat").innerHTML = donut(R.por_categoria);
+    CATS = [...new Set(R.por_categoria.map((c) => c.categoria))];
+    $("#lOrc").innerHTML = R.orcamentos.length ? R.orcamentos.map((o) => {
+      const cls = o.pct >= 100 ? "over" : o.pct >= 80 ? "warn" : "";
+      return `<div class="orc"><div class="top"><span>${o.categoria}</span>
+        <span>${brl(num(o.gasto))} / ${brl(num(o.limite))} · ${o.pct}%${o.alerta ? " ⚠" : ""}</span></div>
+        <div class="bar"><i class="${cls}" style="width:${Math.min(o.pct, 100)}%"></i></div></div>`;
+    }).join("") : '<div class="sub" style="margin:0">nenhum limite definido</div>';
+    $("#lRec").innerHTML = R.recorrentes.length ? R.recorrentes.map((r) =>
+      `<li><span>${r.descricao}<br><span class="q">${r.categoria} · a cada ~${r.frequencia_dias}d ·
+        ${r.atrasada ? "⚠ possivelmente atrasada" : "próx. " + r.proxima.split("-").reverse().join("/")}</span></span>
+        <span class="q">${brl(num(r.media))}/mês</span></li>`).join("")
+      : '<li><span class="q">ainda não há recorrência mensal detectada (≥3 lançamentos)</span></li>';
+    $("#lFat").innerHTML = R.faturas.length ? R.faturas.map((f) =>
+      `<li><span>${f.conta}<br><span class="q">vence ${f.vencimento.split("-").reverse().join("/")}</span></span>
+        <span>${brl(num(f.valor))}</span></li>`).join("") : '<li><span class="q">nada vencendo</span></li>';
+    $("#lContas").innerHTML = R.contas.map((c) =>
+      `<div class="conta"><div class="nome">${c.nome}${c.implicita ? '<span class="imp">implícita</span>' : ""}</div>
+       <div class="tipo">${c.tipo}</div>
+       <div class="saldo ${num(c.saldo) < 0 ? "neg" : ""}">${brl(num(c.saldo))}</div></div>`).join("")
+      || '<div class="sub" style="margin:0">sem contas</div>';
+    const selC = $("#fConta"), selI = $("#iConta");
+    const nomes = R.contas.map((c) => c.nome);
+    [selC, $("#lConta"), $("#tDe"), $("#tPara"), selI].forEach((sel) => {
+      const atual = sel.value;
+      sel.innerHTML = (sel === selC ? '<option value="">todas as contas</option>' : "")
+        + nomes.map((n) => `<option>${n}</option>`).join("");
+      if (nomes.includes(atual)) sel.value = atual;
+    });
+    $("#fCat").innerHTML = '<option value="">todas as categorias</option>' +
+      CATS.map((c) => `<option>${c}</option>`).join("");
+  });
+}
+function carregarLancamentos() {
+  const q = new URLSearchParams({offset: OFFSET, limit: PAGE});
+  if ($("#fDe").value) q.set("de", $("#fDe").value);
+  if ($("#fAte").value) q.set("ate", $("#fAte").value);
+  if ($("#fConta").value) q.set("conta", $("#fConta").value);
+  if ($("#fCat").value) q.set("categoria", $("#fCat").value);
+  if ($("#fTipo").value) q.set("tipo", $("#fTipo").value);
+  if ($("#fBusca").value.trim()) q.set("busca", $("#fBusca").value.trim());
+  return api("/api/financas/lancamentos?" + q).then((r) => {
+    $("#nLanc").textContent = `(${r.total} no filtro)`;
+    const corpo = r.itens.map((l) => {
+      const cls = l.tipo === "entrada" ? "ent" : l.tipo === "saida" ? "sai" : "tra";
+      const sinal = l.tipo === "entrada" ? "+" : l.tipo === "saida" ? "−" : "⇄";
+      const destino = l.tipo === "transferencia" ? ` <span class="q">→ ${l.para || "?"}</span>` : "";
+      return `<tr><td class="q">${l.quando.split("-").reverse().join("/")}</td>
+        <td>${l.descricao}${destino}</td><td class="q">${l.conta}</td>
+        <td><span class="cat" onclick="editarCat('${l.id}','${l.categoria}')" title="mudar categoria">${l.categoria}</span></td>
+        <td class="val ${cls}">${sinal} ${brl(num(l.valor))}</td>
+        <td><button class="del" onclick="excluir('${l.id}')" title="excluir">✕</button></td></tr>`;
+    }).join("");
+    if (OFFSET === 0) $("#tLanc").innerHTML = corpo ||
+      '<tr><td colspan="6" class="q" style="text-align:center;padding:24px">nada aqui — lance ou importe um extrato</td></tr>';
+    else $("#tLanc").insertAdjacentHTML("beforeend", corpo);
+    $("#bMais").style.display = OFFSET + PAGE < r.total ? "" : "none";
+  });
+}
+function carregarConexoes() {
+  return api("/api/financas/conexoes").then((c) => {
+    const tag = (ok) => ok ? '<span class="tag on">● conectado</span>'
+                           : '<span class="tag off">○ não configurado</span>';
+    $("#lConex").innerHTML = `
+      <div class="row"><b>SumUp (API de titular)</b> ${tag(c.sumup.ok)}
+        <button class="btn ghost mini" id="bSync" style="margin-left:auto">sincronizar vendas</button></div>
+      <div class="row"><b>Belvo (Open Finance)</b> ${tag(c.belvo.ok)}
+        <span class="q">${c.belvo.ok ? "" : "exige conta B2B — configure com: pluto belvo"}</span></div>
+      <div class="row"><b>Open Finance direto</b> ${tag(false)}
+        <span class="q">não disponível para PF</span></div>`;
+    const b = $("#bSync");
+    if (b) b.onclick = () => {
+      b.disabled = true; b.textContent = "sincronizando…";
+      api("/api/financas/sumup/sync", {method: "POST"})
+        .then((r) => flash(`SumUp: ${r.novos || 0} nova(s), ${r.duplicados || 0} duplicada(s)`))
+        .catch((e) => flash("SumUp: " + e.message, false))
+        .finally(() => { b.disabled = false; b.textContent = "sincronizar vendas"; carregar(); });
+    };
+  });
+}
+function carregar() {
+  return Promise.all([carregarResumo(), carregarLancamentos(), carregarConexoes()])
+    .catch((e) => flash("erro: " + e.message, false));
+}
+
+/* ── lançar / editar ── */
+let EDIT_ID = null;
+function abrirLanc(dados) {
+  EDIT_ID = null;
+  $("#mTitulo").textContent = "＋ Lançar";
+  $("#lTipo").value = (dados && dados.tipo) || "saida";
+  $("#lVal").value = ""; $("#lDesc").value = "";
+  $("#lCat").value = (dados && dados.categoria) || "";
+  $("#lData").value = iso(new Date());
+  $("#lErr").style.display = "none";
+  $("#mLanc").classList.add("show");
+  $("#lVal").focus();
+}
+$("#bLanc").onclick = () => abrirLanc();
+$("#lCancel").onclick = () => $("#mLanc").classList.remove("show");
+$("#lOk").onclick = () => {
+  const corpo = {valor: $("#lVal").value, descricao: $("#lDesc").value,
+    tipo: $("#lTipo").value, conta: $("#lConta").value,
+    categoria: $("#lCat").value, quando: $("#lData").value};
+  const req = EDIT_ID
+    ? api("/api/financas/lancamentos/" + EDIT_ID, {method: "PATCH",
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)})
+    : api("/api/financas/lancamentos", {method: "POST",
+        headers: {"Content-Type": "application/json"}, body: JSON.stringify(corpo)});
+  req.then(() => { $("#mLanc").classList.remove("show"); flash("lançamento salvo"); carregar(); })
+     .catch((e) => { $("#lErr").textContent = e.message; $("#lErr").style.display = "block"; });
+};
+window.editarCat = (id, catAtual) => {
+  const nova = prompt("categoria (vazio = automática):", catAtual === "transferencia" ? "" : catAtual);
+  if (nova === null) return;
+  api("/api/financas/lancamentos/" + id, {method: "PATCH",
+    headers: {"Content-Type": "application/json"}, body: JSON.stringify({categoria: nova.trim()})})
+    .then(() => carregar()).catch((e) => flash(e.message, false));
+};
+window.excluir = (id) => {
+  if (!confirm("excluir este lançamento?")) return;
+  api("/api/financas/lancamentos/" + id, {method: "DELETE"})
+    .then(() => { flash("lançamento excluído"); carregar(); })
+    .catch((e) => flash(e.message, false));
+};
+
+/* ── transferir ── */
+$("#bTransf").onclick = () => {
+  $("#tVal").value = ""; $("#tDesc").value = "";
+  $("#tData").value = iso(new Date());
+  $("#tErr").style.display = "none";
+  $("#mTransf").classList.add("show");
+};
+$("#tCancel").onclick = () => $("#mTransf").classList.remove("show");
+$("#tOk").onclick = () => {
+  api("/api/financas/transferir", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({de: $("#tDe").value, para: $("#tPara").value,
+      valor: $("#tVal").value, descricao: $("#tDesc").value, quando: $("#tData").value})})
+    .then(() => { $("#mTransf").classList.remove("show"); flash("transferência registrada"); carregar(); })
+    .catch((e) => { $("#tErr").textContent = e.message; $("#tErr").style.display = "block"; });
+};
+
+/* ── conta ── */
+$("#bConta").onclick = () => { $("#cNome").value = ""; $("#cSaldoIni").value = "";
+  $("#cErr").style.display = "none"; $("#mConta").classList.add("show"); };
+$("#cCancel").onclick = () => $("#mConta").classList.remove("show");
+$("#cOk").onclick = () => {
+  api("/api/financas/contas", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({nome: $("#cNome").value, tipo: $("#cTipo").value,
+      saldo_inicial: $("#cSaldoIni").value || "0"})})
+    .then(() => { $("#mConta").classList.remove("show"); flash("conta criada"); carregar(); })
+    .catch((e) => { $("#cErr").textContent = e.message; $("#cErr").style.display = "block"; });
+};
+
+/* ── orçamento ── */
+$("#bOrc").onclick = () => { $("#oCat").value = ""; $("#oVal").value = "";
+  $("#oErr").style.display = "none"; $("#mOrc").classList.add("show"); };
+$("#oCancel").onclick = () => $("#mOrc").classList.remove("show");
+$("#oOk").onclick = () => {
+  api("/api/financas/orcamentos", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({categoria: $("#oCat").value, limite: $("#oVal").value})})
+    .then(() => { $("#mOrc").classList.remove("show"); flash("limite salvo"); carregar(); })
+    .catch((e) => { $("#oErr").textContent = e.message; $("#oErr").style.display = "block"; });
+};
+
+/* ── importar ── */
+$("#bImport").onclick = () => {
+  const f = $("#iCsv").files[0];
+  if (!f) { $("#iRes").textContent = "escolha um arquivo .csv primeiro"; return; }
+  const fd = new FormData();
+  fd.append("arquivo", f);
+  fd.append("conta", $("#iConta").value || "extrato");
+  if ($("#iSoSai").checked) fd.append("so_saidas", "1");
+  $("#iRes").textContent = "importando…";
+  fetch("/api/financas/importar", {method: "POST", body: fd}).then(async (r) => {
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.erro || "falha");
+    $("#iRes").textContent = `✔ ${d.novos} novo(s) · ${d.duplicados} duplicado(s) · ${d.ignorados} ignorado(s)`
+      + (d.aviso ? " · ⚠ " + d.aviso : "");
+    flash("extrato importado"); carregar();
+  }).catch((e) => { $("#iRes").textContent = "✖ " + e.message; });
+};
+
+/* ── filtros ── */
+["fDe", "fAte", "fConta", "fCat", "fTipo"].forEach((id) =>
+  $("#" + id).addEventListener("change", () => { OFFSET = 0; carregarLancamentos(); }));
+let _t;
+$("#fBusca").addEventListener("input", () => {
+  clearTimeout(_t);
+  _t = setTimeout(() => { OFFSET = 0; carregarLancamentos(); }, 250);
+});
+$("#bMais").onclick = () => { OFFSET += PAGE; carregarLancamentos(); };
+$("#mAnt").onclick = () => mudaMes(-1);
+$("#mProx").onclick = () => mudaMes(1);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.querySelectorAll(".modal.show")
+    .forEach((m) => m.classList.remove("show"));
+});
+carregar();
+</script>
+</body>
+</html>

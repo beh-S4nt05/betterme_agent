@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v8.3.0** · 236 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
+**v8.4.0** · 238 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
 
 ```
                         ┌─────────────────────────────┐
@@ -214,6 +214,37 @@ pluto notebook listar|remover|status
   e só roda com confirmação [s/N]; `pluto ocr instalar unlimited`
   avisa os ~2–6 GB antes de clonar. Nunca nada silencioso.
 - Sem "áudio overview" do NotebookLM (fase futura: TTS local).
+
+## 💰 Gestor de finanças completo (v8.4.0)
+
+Aba **💰 Finanças** na GUI web — o "clone funcional" do gestor que o
+Belvo promete, local-first (sem conta, sem nuvem, seus dados na sua
+máquina):
+
+```bash
+pluto server                # abra a GUI e clique em 💰 Finanças
+```
+
+- **Dashboard**: saldo total e por conta, entradas/saídas do mês,
+  evolução 6 meses (gráfico), gastos por categoria (donut).
+- **Contas**: corrente/poupança/cartão/dinheiro/investimento com saldo
+  calculado (cartão negativo = dívida). Lançamentos antigos do
+  livro-caixa aparecem como contas implícitas — nada se perde.
+- **Transferências** entre contas que NÃO inflam despesa nem receita
+  (padrão contábil correto).
+- **Categorias inteligentes**: auto por palavra-chave + **regras suas**
+  vencendo o embutido ("padoca do zé" → mercado).
+- **Orçamentos** por categoria com barra de progresso e alerta ≥80%.
+- **Recorrentes detectadas** automaticamente (≥3 lançamentos ~mensais)
+  com média, frequência e próxima estimada.
+- **Lançamentos**: tabela com filtros (período, conta, categoria, tipo,
+  busca), edição e exclusão — tudo por API REST.
+- **Importação** de extrato CSV (BB/Bradesco/SumUp; detecta delimitador
+  e colunas) com dedup — importar 2× não duplica. **Sync SumUp** (API
+  de titular) num clique.
+- **Conexões com diagnóstico honesto**: Open Finance direto para PF
+  não existe no Brasil (só participante autorizado pelo BC) — o que
+  existe e funciona está ligado: extrato + SumUp + hook Belvo.
 
 ## 🧰 Paridade de agente completo (v8.0.0)
 

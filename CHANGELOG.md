@@ -1,5 +1,34 @@
 # Changelog
 
+## v8.4.0 — 💰 GESTOR DE FINANÇAS COMPLETO (ABA NA GUI)
+
+Pedido do operador: "clonar o app Belvo" — sem conseguir criar conta
+nele. Entrega: clone FUNCIONAL do gestor (o PFM que o Belvo habilita),
+local-first, integrado ao Pluto. Nada de marca/design do Belvo —
+funcionalidade e fluxo, com identidade própria.
+
+- **Aba 💰 Finanças na GUI** (`/financas`): dashboard com saldo total
+  e por conta, entradas/saídas do mês, evolução 6 meses (barras SVG),
+  gastos por categoria (donut SVG), orçamentos com alerta, recorrentes,
+  faturas a vencer, contas, lançamentos com filtros, importação de
+  extrato e conexões — vanilla JS zero-build, mesmo estilo da GUI.
+- **Núcleo (`financas.py`)**: contas com saldo calculado (implícitas
+  migram sozinhas do livro-caixa antigo), transferência entre contas
+  FORA de receita/despesa, editar/remover com reescrita atômica,
+  regras de categoria do usuário (vencem o embutido), orçamentos com
+  alerta ≥80%, detecção de recorrentes (≥3, intervalo 15–60 d) e
+  `resumo()` — tudo que o dashboard precisa numa chamada.
+- **API REST** (`/api/financas/*`): CRUD de lançamentos com filtros e
+  paginação, contas, transferir, regras, orçamentos, faturas,
+  importação CSV multipart e sync SumUp.
+- **Conexões com diagnóstico honesto**: Open Finance direto para PF é
+  inviável no Brasil (só participante autorizado pelo BC, capital de
+  milhões; agregadores são B2B pagos) — documentado na GUI com o
+  caminho real: extrato CSV + SumUp + hook Belvo quando houver token.
+- Skill `financas` atualizada (GUI como superfície principal do gestor).
+- T237 (núcleo: saldos, transferência não-infla, regras vencem,
+  orçamento, recorrentes, resumo) · T238 (API completa + página +
+  nav + dedup de importação + conexões).
 ## v8.3.0 — 🐕 PLUTO AGENTE (RENOME FINAL)
 
 Nome final do produto: **Pluto Agente** (o companheiro fiel). Decisão

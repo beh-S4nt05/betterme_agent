@@ -10059,6 +10059,181 @@ def T236_renome_pluto_v83():
         shutil.rmtree(proj, ignore_errors=True)
 
 
+@case
+def T237_gestor_financas_nucleo():
+    """v8.4.0: núcleo do gestor — contas com saldo, transferência que
+    NÃO infla despesa (padrão Belvo), edição/remoção atômicas, regra
+    de categoria do usuário vence o embutido, orçamento com alerta,
+    recorrentes detectadas e resumo completo do dashboard."""
+    from decimal import Decimal
+    from pluto import financas as F
+
+    cfg = fresh()
+
+    # ── contas: criar, duplicada, tipo inválido
+    assert F.criar_conta(cfg, "Bradesco PF", "corrente", "1000")["nome"]
+    assert "já existe" in F.criar_conta(cfg, "Bradesco PF")["erro"]
+    assert "tipo inválido" in F.criar_conta(cfg, "X", "banco")["erro"]
+
+    # ── saldo = inicial + movimentos (cartão negativo = dívida)
+    F.lancar(cfg, "3500", "salário", tipo="entrada", conta="Bradesco PF",
+             quando="2026-11-05")
+    F.lancar(cfg, "120", "ifood jantar", conta="Nubank",
+             quando="2026-11-06")
+    assert F.saldo_conta(cfg, "Bradesco PF") == Decimal("4500")
+    assert F.saldo_conta(cfg, "Nubank") == Decimal("-120")
+
+    # ── transferência: move saldo, FORA de receita/despesa
+    t = F.transferir(cfg, "Bradesco PF", "Nubank", "150",
+                     quando="2026-11-07")
+    assert t["tipo"] == "transferencia" and t["para"] == "Nubank"
+    assert "mesma" in F.transferir(cfg, "x", "x", "10")["erro"]
+    assert F.saldo_conta(cfg, "Bradesco PF") == Decimal("4350")
+    assert F.saldo_conta(cfg, "Nubank") == Decimal("30")
+    R = F.resumo(cfg, "2026-11")
+    assert R["entradas"] == "3500" and R["saidas"] == "120", \
+        "transferência inflou receita/despesa"
+
+    # ── conta implícita: lançamento antigo sem registry não some
+    nomes = [c["nome"] for c in R["contas"]]
+    assert "Nubank" in nomes and any(c.get("implicita") for c in R["contas"])
+
+    # ── editar/remover (reescrita atômica; inexistente → erro)
+    r = F.lancar(cfg, "25", "pão na padoca do zé", conta="Bradesco PF")
+    e = F.editar(cfg, r["id"], valor="30", categoria="outros")
+    assert e["valor"] == "30" and e["categoria"] == "outros"
+    assert "não encontrado" in F.editar(cfg, "id-x", valor="1")["erro"]
+    assert F.remover(cfg, r["id"])["ok"]
+    assert F.remover(cfg, r["id"])["erro"]
+    assert all(l["id"] != r["id"] for l in F._todos(cfg))
+
+    # ── regra do usuário vence o embutido
+    F.add_regra(cfg, "padoca do zé", "mercado")
+    r2 = F.lancar(cfg, "10", "pão na padoca do zé", conta="Bradesco PF")
+    assert r2["categoria"] == "mercado"
+    assert F.del_regra(cfg, "padoca do zé")["ok"]
+    r3 = F.lancar(cfg, "10", "pão na padoca do zé", conta="Bradesco PF")
+    assert r3["categoria"] != "mercado"          # sem regra → embutido
+
+    # ── orçamento: limite, alerta >=80%, 0 remove
+    F.set_orcamento(cfg, "alimentacao", "100")
+    orcs = F.resumo(cfg, "2026-11")["orcamentos"]
+    assert orcs[0]["gasto"] == "120" and orcs[0]["pct"] == 120
+    assert orcs[0]["alerta"]                       # estourou
+    F.set_orcamento(cfg, "alimentacao", "0")       # remove
+    assert not any(o["categoria"] == "alimentacao"
+                   for o in F.orcamentos(cfg))
+
+    # ── recorrentes: 3 mensais → detecta; semanal → não
+    for d in ("2026-08-05", "2026-09-05", "2026-10-05"):
+        F.lancar(cfg, "89.90", "netflix assinatura mensal",
+                 conta="Nubank", quando=d)
+    recs = F.recorrentes(cfg, _hoje=F._data("2026-11-06"))
+    assert any("netflix" in r["chave"] for r in recs), recs
+    assert recs[0]["media"] == "89.90"
+    for d in ("2026-10-01", "2026-10-08", "2026-10-15"):
+        F.lancar(cfg, "20", "lanche toda semana", quando=d)
+    assert not any("lanche toda" in r["chave"]
+                   for r in F.recorrentes(cfg, _hoje=F._data("2026-11-06")))
+
+    # ── resumo: evolução 6 meses + por categoria (desc)
+    R = F.resumo(cfg, "2026-11", _hoje=F._data("2026-11-06"))
+    assert len(R["evolucao"]) == 6 and R["evolucao"][-1]["mes"] == "2026-11"
+    tot = {c["categoria"]: Decimal(c["total"])
+           for c in R["por_categoria"]}
+    cats = [c["categoria"] for c in R["por_categoria"]]
+    assert cats == sorted(cats, key=lambda k: -tot[k])
+
+
+@case
+def T238_gestor_financas_api_gui():
+    """v8.4.0: aba 💰 Finanças na GUI — página /financas, API REST
+    completa (CRUD com filtros, transferência, contas, orçamentos,
+    regras, faturas, importação CSV, conexões com diagnóstico honesto
+    do Open Finance PF) e link na nav do index."""
+    cfg = fresh()
+    c = _app(cfg)
+
+    # ── página + nav
+    html = c.get("/financas").get_data(as_text=True)
+    assert c.get("/financas").status_code == 200
+    for marca in ("Finanças", "Saldo total", "filtros", "donut",
+                  "Evolução", "Gastos por categoria", "Lançamentos",
+                  "Orçamentos", "Recorrentes", "Importar extrato",
+                  "Conexões"):
+        assert marca.lower() in html.lower(), marca
+    idx = Path("pluto/server/templates/index.html").read_text(
+        encoding="utf-8")
+    assert 'href="/financas"' in idx
+
+    # ── lançar → filtrar → editar → excluir
+    r = c.post("/api/financas/lancamentos",
+               json={"valor": "3500", "descricao": "salário",
+                     "tipo": "entrada", "conta": "Bradesco PF",
+                     "quando": "2026-11-05"})
+    lid = r.get_json()["id"]
+    r = c.post("/api/financas/lancamentos",
+               json={"valor": "89,90", "descricao": "netflix mensal",
+                     "conta": "Nubank", "quando": "2026-11-05"})
+    assert r.get_json()["categoria"] == "lazer"
+    d = c.get("/api/financas/lancamentos?tipo=entrada&busca=sal"
+              ).get_json()
+    assert d["total"] == 1 and d["itens"][0]["descricao"] == "salário"
+    assert c.patch(f"/api/financas/lancamentos/{lid}",
+                   json={"categoria": "salario"}).get_json()["categoria"]
+    assert c.delete(f"/api/financas/lancamentos/{lid}").get_json()["ok"]
+    assert c.patch("/api/financas/lancamentos/id-x",
+                   json={}).status_code == 400
+
+    # ── contas + transferência (não infla despesa) + resumo
+    assert c.post("/api/financas/contas", json={
+        "nome": "Bradesco PF", "tipo": "corrente",
+        "saldo_inicial": "1000"}).status_code == 200
+    assert c.post("/api/financas/contas", json={
+        "nome": "Bradesco PF"}).status_code == 400          # duplicada
+    assert c.post("/api/financas/transferir", json={
+        "de": "Bradesco PF", "para": "Nubank",
+        "valor": "150"}).get_json()["tipo"] == "transferencia"
+    R = c.get("/api/financas/resumo?mes=2026-11").get_json()
+    assert R["saidas"] == "89.90"
+    assert any(cc["nome"] == "Bradesco PF" and cc["saldo"] == "850"
+               for cc in R["contas"]), R["contas"]
+
+    # ── orçamentos, regras, faturas
+    assert c.post("/api/financas/orcamentos", json={
+        "categoria": "lazer", "limite": "100"}).status_code == 200
+    assert c.post("/api/financas/regras", json={
+        "padrao": "ifood", "categoria": "delivery"}).status_code == 200
+    assert c.get("/api/financas/regras").get_json()["regras"]
+    assert c.post("/api/financas/faturas", json={
+        "valor": "120", "vencimento": "2026-12-10",
+        "conta": "Nubank"}).status_code == 200
+    R = c.get("/api/financas/resumo?mes=2026-11").get_json()
+    assert R["orcamentos"][0]["pct"] == 89 and R["orcamentos"][0]["alerta"]
+    assert len(R["faturas"]) == 1
+
+    # ── importação CSV (multipart) + dedup
+    csv = Path(tempfile.mkdtemp(prefix="t238-")) / "ext.csv"
+    csv.write_text("Data;Histórico;Valor\n05/11/2026;MERCADO BAIRRO;-231,45\n"
+                   "05/11/2026;IFOOD ALMOCO;-38,90\n", encoding="utf-8")
+    with csv.open("rb") as fh:
+        d1 = c.post("/api/financas/importar",
+                    data={"arquivo": fh, "conta": "extrato"},
+                    content_type="multipart/form-data").get_json()
+    assert d1["novos"] == 2, d1
+    with csv.open("rb") as fh:
+        d2 = c.post("/api/financas/importar",
+                    data={"arquivo": fh, "conta": "extrato"},
+                    content_type="multipart/form-data").get_json()
+    assert d2["novos"] == 0 and d2["duplicados"] == 2
+
+    # ── conexões: diagnóstico honesto (PF não conecta Open Finance direto)
+    cx = c.get("/api/financas/conexoes").get_json()
+    assert set(cx) == {"sumup", "belvo", "open_finance_direto"}
+    assert cx["open_finance_direto"]["ok"] is False
+    assert "PF" in cx["open_finance_direto"]["motivo"]
+
+
 if __name__ == "__main__":
     print("◈ Pluto — suíte de testes\n")
     sys.exit(run_all())
