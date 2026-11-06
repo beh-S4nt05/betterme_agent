@@ -1,5 +1,41 @@
 # Changelog
 
+## v8.2.0 — 🧠 NOTEBOOK + OCR NATIVOS (O APP FAZ, NÃO INSTRUI)
+
+Correção de curso do operador: "integrar tudo isso de forma nativa" —
+nada de copiar-e-colar prompt nem instruções manuais de instalação.
+
+- **`perguntar` gera com o cérebro do app**: `betterme notebook
+  perguntar "..."` agora responde com o PRÓPRIO agente (Agent +
+  skills), fundamentado nos trechos, citando [n] e fechando com
+  rodapé "📚 Fontes: [n] nome". `--raw` devolve só os trechos
+  verbatim (sem aviso, sem instrução). Cérebro indisponível →
+  fallback honesto: verbatim + "ℹ cérebro indisponível".
+- **`material` GERA e SALVA**: resumo|faq|guia|flashcards saem do
+  cérebro (system de instrutor CBTA) e vão para
+  `<data>/notebook/materiais/<tipo>-<slug>.md` com cabeçalho
+  `<!-- material: tipo · tema · gerado -->`. `betterme notebook
+  materiais` lista os salvos; `status` conta. Sem cérebro → prompt
+  pronto + aviso explícito (NADA é salvo).
+- **Fix de honestidade (bug real da demo)**: `Agent.run` engole a
+  falha do provedor e devolve "[erro] ..." como string — `_gerar`
+  tratava isso como resposta (perguntar "respondia" com o erro;
+  material SALVAVA o erro em arquivo). Agora "[erro]" = cérebro
+  indisponível = fallback.
+- **Instaladores nativos (`betterme ocr`)**: `instalar tesseract`
+  detecta o gestor (apt-get/dnf/pacman/brew), mostra o comando
+  exato e exige confirmação [s/N] — nunca silencioso; falha relata
+  o comando manual. `instalar unlimited` avisa os ~2–6 GB ANTES,
+  clona baidu/Unlimited-OCR + venv + deps pinned e registra
+  `ocr_unlimited_dir` no config ao concluir.
+- Skill `notebook` reescrita para o fluxo nativo (gera/salva/instala
+  — sem "cole no chat").
+- T233 (cérebro injetável: citação+fontes, salvamento em materiais/,
+  fallback; + regressão do bug do "[erro]") · T234 (instaladores:
+  confirmação negada cancela, rc≠0 erro com comando manual, unlimited
+  configura o dir, nada roda sem consentimento) · T235 (wiring CLI:
+  --raw, ocr status, materiais vazia honesta).
+
 ## v8.1.0 — 📚 NOTEBOOK (CLONE DO NOTEBOOKLM) + OCR SEM LIMITES
 
 Pedido do operador: passar ensino/conhecimento para a IA usar nos

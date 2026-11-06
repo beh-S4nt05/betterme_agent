@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v8.1.0** · 232 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
+**v8.2.0** · 235 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
 
 ```
                         ┌─────────────────────────────┐
@@ -179,20 +179,28 @@ pessoal). Do chat: "quais são meus fluxos?" e "dispare o X". Do n8n: POST
 em `/api/hooks/<id>` dispara o agente. Guia completo com templates
 prontos: **N8N_PASSOAPASSO.md**.
 
-## 📚 Notebook — clone local do NotebookLM + OCR (v8.1.0)
+## 📚 Notebook — clone local do NotebookLM + OCR (v8.1.0 · v8.2.0 nativo)
 
 Passe ensino/conhecimento para a IA usar nos seus processos:
 
 ```bash
 betterme notebook add manual.pdf      # PDF, scan (OCR), .md, .txt
 betterme notebook add pasta/          # lote inteiro
-betterme notebook perguntar "o que é CAVOK?"   # resposta GROUNDED:
-                                      # trecho verbatim + fonte + [n]
-betterme notebook material guia metar # resumo|faq|guia|flashcards
-                                      # com contexto embutido (CBTA)
+betterme notebook perguntar "o que é CAVOK?"   # o CÉREBRO DO APP
+                                      # responde com citação [n] +
+                                      # rodapé de fontes (nativo)
+betterme notebook perguntar "..." --raw        # só os trechos verbatim
+betterme notebook material guia metar # GERA com o cérebro (CBTA) e
+                                      # SALVA em notebook/materiais/
+betterme notebook materiais           # lista os materiais salvos
 betterme notebook listar|remover|status
 ```
 
+- **Nativo de verdade (v8.2.0)**: `perguntar` e `material` usam o
+  cérebro do próprio app (Agent + skills) — nada de "copie e cole no
+  chat". Cérebro indisponível? Fallback honesto: trechos verbatim +
+  aviso explícito, nunca resposta inventada nem erro salvo como
+  material.
 - **RAG determinístico** (mesmo da biblioteca, TF-IDF stdlib) —
   citação é a lei: o que não está nas fontes, o agente DIZ que não
   está (skill `notebook`, 50ª + tool `notebook_buscar`).
@@ -201,6 +209,10 @@ betterme notebook listar|remover|status
   instalado (`ocr_unlimited_dir`); degrada para **tesseract** (leve,
   CPU); sem nenhum, instruções exatas de instalação. PDFs com camada
   de texto nem usam OCR (pdftotext direto).
+- **Instalador nativo (v8.2.0)**: `betterme ocr instalar tesseract`
+  detecta o gestor de pacotes (apt/dnf/pacman/brew), mostra o comando
+  e só roda com confirmação [s/N]; `betterme ocr instalar unlimited`
+  avisa os ~2–6 GB antes de clonar. Nunca nada silencioso.
 - Sem "áudio overview" do NotebookLM (fase futura: TTS local).
 
 ## 🧰 Paridade de agente completo (v8.0.0)

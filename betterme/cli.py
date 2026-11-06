@@ -132,9 +132,51 @@ def cmd_responder(args) -> None:
 
 
 def cmd_notebook(args) -> None:
-    """📚 Notebook (clone local do NotebookLM) — v8.1.0."""
+    """📚 Notebook (clone local do NotebookLM) — v8.1.0 + nativo v8.2.0."""
     from .notebook import cmd as _ncmd
     _ncmd(args, _cfg(args))
+
+
+def cmd_ocr(args) -> None:
+    """🔍 OCR nativo — engines, status e instalador (v8.2.0)."""
+    from .ocr import disponiveis, instalar_tesseract, instalar_unlimited
+    cfg = _cfg(args)
+    a = acao_de(args)
+    if a == "status":
+        eng = disponiveis(cfg)
+        print("🔍 OCR — engines:")
+        print("  unlimited (baidu/Unlimited-OCR):",
+              "✔ instalado" if eng["unlimited"] else "✖ não configurado")
+        print("  tesseract:",
+              "✔ instalado" if eng["tesseract"] else "✖ ausente")
+        print(f"  engine preferido: {cfg.ocr_engine} · "
+              f"idiomas: {cfg.ocr_lang}")
+        print("  instalar: betterme ocr instalar tesseract|unlimited")
+    elif a == "instalar":
+        alvo = (getattr(args, "a1", "") or "").strip().lower()
+        if alvo == "tesseract":
+            r = instalar_tesseract()
+            if r.get("ja_instalado"):
+                print("✔ tesseract já está instalado")
+            elif r.get("cancelado"):
+                print("ℹ cancelado — rode manualmente:", r["comando"])
+            elif r.get("ok"):
+                print("✔ tesseract instalado —", r["comando"])
+            else:
+                print("✖", r.get("erro"))
+        elif alvo == "unlimited":
+            r = instalar_unlimited(cfg, getattr(args, "dir", None) or "")
+            if r.get("cancelado"):
+                print("ℹ cancelado —", r.get("nota"))
+            elif r.get("ok"):
+                print("✔ unlimited-ocr instalado em", r["destino"],
+                      "— registrado no config (ocr_unlimited_dir)")
+            else:
+                print("✖", r.get("erro"))
+        else:
+            print("✖ use: betterme ocr instalar tesseract|unlimited")
+    else:
+        print("✖ ação desconhecida — use status|instalar")
 
 
 def cmd_vault(args) -> None:
@@ -1065,14 +1107,27 @@ def build_parser() -> argparse.ArgumentParser:
                        help="📚 clone local do NotebookLM: fontes + RAG "
                             "com citação + OCR (Unlimited-OCR/tesseract)")
     p.add_argument("acao", nargs="?", default="status",
-                   help="add|listar|remover|perguntar|material|status")
+                   help="add|listar|remover|perguntar|material|materiais|status")
     p.add_argument("a1", nargs="?", default=None,
                    help="[add] arquivo/pasta · [remover] fonte · "
                         "[perguntar] pergunta · [material] "
                         "resumo|faq|guia|flashcards")
     p.add_argument("a2", nargs="?", default=None,
                    help="[material] tema")
+    p.add_argument("--raw", action="store_true",
+                   help="[perguntar] só os trechos verbatim (sem gerar)")
     p.set_defaults(fn=cmd_notebook)
+
+    p = sub.add_parser("ocr",
+                       help="🔍 OCR nativo: status dos engines + "
+                            "instalador confirmado (v8.2.0)")
+    p.add_argument("acao", nargs="?", default="status",
+                   help="status|instalar")
+    p.add_argument("a1", nargs="?", default=None,
+                   help="[instalar] tesseract|unlimited")
+    p.add_argument("--dir", default=None,
+                   help="[instalar unlimited] destino do clone")
+    p.set_defaults(fn=cmd_ocr)
 
     p = sub.add_parser("responder",
                        help="❓ responde uma pergunta pendente do agente "

@@ -17,6 +17,7 @@ import json
 import os
 import shutil
 import sys
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -9799,6 +9800,171 @@ def T232_skill_notebook_e_config():
     out = EXECUTORS["notebook_buscar"]({"termo": "qualquer"}, cfg)
     assert out is notebook_buscar({"termo": "x"}, cfg) or True
     assert "nada no notebook" in out
+
+
+@case
+def T233_notebook_nativo_cerebro():
+    """v8.2.0: integração NATIVA — `perguntar(gerar=True)` responde
+    com o CÉREBRO do app (citação [n] + rodapé de fontes), sem
+    cérebro cai no verbatim honesto; `material(gerar=True)` GERA e
+    SALVA em materiais/ com header; lista de materiais; gerar=False
+    preserva o contrato verbatim (T230)."""
+    import tempfile
+    from betterme import notebook as NB
+
+    cfg = fresh()
+    doc = Path(tempfile.mkdtemp(prefix="t233-")) / "mist.md"
+    doc.write_text("CBTA: treinamento baseado em competencias. "
+                   "Evidencia e o criterio observavel de dominio.",
+                   encoding="utf-8")
+    NB.adicionar(cfg, str(doc), _ocr=lambda c, p: {
+        "texto": doc.read_text(encoding="utf-8"), "engine": "texto",
+        "notas": []})
+
+    # ── perguntar gerado pelo cérebro (injetado)
+    def _brain(system, user):
+        assert "NUNCA" in system or "EXCLUSIVAMENTE" in system
+        assert "CBTA" in user
+        return "CBTA é o treinamento baseado em competências [1]."
+    r = NB.perguntar(cfg, "o que é CBTA?", gerar=True, _brain=_brain)
+    assert r.startswith("CBTA é o treinamento"), r
+    assert "📚 Fontes: [1] mist.md" in r
+
+    # ── sem cérebro → fallback verbatim honesto
+    r2 = NB.perguntar(cfg, "o que é CBTA?", gerar=True,
+                      _brain=lambda s, u: "")
+    assert '"""' in r2 and "mist.md" in r2
+
+    # ── verbatim continua o padrão (gerar=False)
+    r3 = NB.perguntar(cfg, "o que é CBTA?")
+    assert '"""' in r3 and "cite [n]" in r3
+
+    # ── material GERADO e SALVO
+    def _brain2(system, user):
+        assert "instrutor CBTA" in system and "flashcards" in user.lower()
+        return "P: O que é CBTA? / R: Treinamento por competências [1]."
+    m = NB.material(cfg, "flashcards", "cbta", gerar=True, _brain=_brain2)
+    assert "GERADO e salvo" in m and "P: O que é CBTA?" in m
+    arq = NB.dir_materiais(cfg) / "flashcards-cbta.md"
+    salvo = arq.read_text(encoding="utf-8")
+    assert "material: flashcards · tema: cbta" in salvo
+    assert "P: O que é CBTA?" in salvo
+
+    # ── material sem cérebro → prompt + aviso honesto
+    m2 = NB.material(cfg, "resumo", "cbta", gerar=True,
+                     _brain=lambda s, u: "")
+    assert "indisponível" in m2 and "FONTES (trechos verbatim)" in m2
+
+    # ── lista de materiais + status
+    mats = NB.materiais(cfg)
+    assert len(mats) == 1 and mats[0]["tipo"] == "flashcards"
+    assert "1 material(is)" in NB.status(cfg)
+
+    # ── REGRESSÃO (bug real da demo): Agent.run engole a falha do
+    # provedor e devolve "[erro] ..." como string — _gerar tem que
+    # tratar como cérebro indisponível (fallback), NUNCA como resposta
+    # (perguntar dizia que "respondeu" e material SALVAVA o erro).
+    import betterme.agent as AG
+
+    class _AgErro:
+        def __init__(self, cfg): ...
+        def run(self, messages, **kw): return "[erro] sem Ollama"
+
+    AG.Agent = _AgErro
+    try:
+        re_ = NB.perguntar(cfg, "o que é CBTA?", gerar=True)
+        assert re_.startswith("📚 Notebook —"), re_
+        assert "📚 Fontes:" not in re_
+        assert "cérebro indisponível" in re_
+        m3 = NB.material(cfg, "faq", "cbta", gerar=True)
+        assert "indisponível" in m3 and "GERADO" not in m3
+        assert not (NB.dir_materiais(cfg) / "faq-cbta.md").exists()
+    finally:
+        del AG.Agent                      # restaura o Agent real
+
+
+@case
+def T234_ocr_instaladores_nativos():
+    """v8.2.0: instaladores NATIVOS — tesseract detecta gestor de
+    pacotes, mostra comando, exige confirmação (nunca silencioso) e
+    reporta falha com o comando manual; unlimited AVISA ~2–6 GB e
+    configura ocr_unlimited_dir ao concluir; já-instalado é idempotente."""
+    from betterme import ocr
+
+    # sem gestor de pacotes → instruções honestas
+    r = ocr.instalar_tesseract(_which=lambda n: None)
+    assert "gestor de pacotes não detectado" in r["erro"]
+
+    # já instalado → idempotente
+    def _w_qualquer(nome):
+        return f"/usr/bin/{nome}"
+    r2 = ocr.instalar_tesseract(_which=_w_qualquer, _confirm=lambda m: "")
+    assert r2.get("ja_instalado")
+
+    # apt detectado · recusa → cancelado com comando
+    def _w_apt(nome):
+        return None if nome in ("tesseract", "pdftoppm") else "/usr/bin/apt-get"
+    r3 = ocr.instalar_tesseract(_which=_w_apt, _confirm=lambda m: "n",
+                                _exec=lambda c: (0, ""))
+    assert r3.get("cancelado") and "apt-get install" in r3["comando"]
+
+    # confirma + executa → ok
+    r4 = ocr.instalar_tesseract(_which=_w_apt, _confirm=lambda m: "s",
+                                _exec=lambda c: (0, "done"))
+    assert r4.get("executado") and r4.get("ok")
+
+    # execução falha → erro com comando manual
+    r5 = ocr.instalar_tesseract(_which=_w_apt, _confirm=lambda m: "s",
+                                _exec=lambda c: (1, "sem rede"))
+    assert "rode manualmente" in r5["erro"]
+
+    # unlimited: aviso de tamanho + confirmação exigida
+    cfg = fresh()
+    cmds = []
+
+    def _exec_rec(c):
+        cmds.append(c)
+        return (0, "")
+    r6 = ocr.instalar_unlimited(cfg, "/tmp/uocr", _confirm=lambda m: "n",
+                                _exec=_exec_rec)
+    assert r6.get("cancelado") and "tesseract" in r6["nota"]
+    assert cmds == []                      # nada roda sem consentimento
+    r7 = ocr.instalar_unlimited(cfg, "/tmp/uocr", _confirm=lambda m: "s",
+                                _exec=_exec_rec)
+    assert r7.get("ok") and cfg.ocr_unlimited_dir == "/tmp/uocr"
+    joined = " ".join(" ".join(c) for c in cmds)
+    assert "git clone" in joined and "venv" in joined
+    assert "torch==2.10.0" in joined       # pinned como o README do repo
+
+
+@case
+def T235_cli_nativo_v82():
+    """v8.2.0: wiring CLI — `--raw` devolve trechos puros (sem o
+    aviso de resposta), `ocr status` reporta engines + dica de
+    instalador nativo, `materiais` lista (vazia honesta)."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="t235-")
+    env = {**os.environ, "BETTERME_DATA_DIR": d}
+    doc = Path(d) / "met.md"
+    doc.write_text("CBTA: competência como evidência observável.",
+                   encoding="utf-8")
+
+    def _run(*args):
+        r = subprocess.run(_betterme_bin() + list(args), capture_output=True,
+                           text=True, env=env, timeout=90)
+        assert r.returncode == 0, (args, r.stdout, r.stderr)
+        return r.stdout + r.stderr
+
+    out = _run("notebook", "add", str(doc))
+    assert "1 fonte(s) adicionada(s)" in out
+    raw = _run("notebook", "perguntar", "CBTA", "--raw")
+    assert "📚 Notebook —" in raw and "Responda APENAS" not in raw
+    ger = _run("notebook", "perguntar", "CBTA")      # cérebro off no CI
+    assert ("📚 Fontes:" in ger) or ("cérebro indisponível" in ger)
+    st = _run("ocr", "status")
+    assert "unlimited" in st and "instalar" in st
+    mats = _run("notebook", "materiais")
+    assert "nenhum" in mats
 
 
 if __name__ == "__main__":

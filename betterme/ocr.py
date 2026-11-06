@@ -157,3 +157,90 @@ def extrair(cfg, caminho: str, _engines=None) -> dict:
         "betterme config set ocr_unlimited_dir <pasta>. Leve: apt install "
         "tesseract-ocr tesseract-ocr-por poppler-utils.")
     return res
+
+
+# ── v8.2.0: instaladores NATIVOS (o app instala, com confirmação) ─────────
+
+_GESTORES = {                       # gestor → comando de instalação
+    "apt-get": "sudo apt-get install -y tesseract-ocr "
+               "tesseract-ocr-por poppler-utils",
+    "dnf": "sudo dnf install -y tesseract tesseract-langpack-por "
+           "poppler-utils",
+    "pacman": "sudo pacman -S --noconfirm tesseract tesseract-data-por "
+              "poppler",
+    "brew": "brew install tesseract tesseract-lang poppler",
+}
+
+
+def _pergunta(pergunta: str) -> str:
+    """Confirmação [s/N] — o padrão é NÃO: nada roda silencioso."""
+    try:
+        return input(f"{pergunta}\n[s/N] ").strip().lower()
+    except EOFError:
+        return "n"
+
+
+def _exec_cmd(comando: list):
+    r = subprocess.run(comando, capture_output=True, text=True,
+                       check=False)
+    return r.returncode, ((r.stdout or "") + (r.stderr or ""))
+
+
+def instalar_tesseract(_which=None, _confirm=None, _exec=None) -> dict:
+    """v8.2.0: instalador NATIVO do tesseract — detecta o gestor de
+    pacotes (apt-get/dnf/pacman/brew), mostra o comando exato e SÓ
+    roda com confirmação [s/N]. Nunca silencioso; falha devolve o
+    comando manual. Tudo injetável p/ teste."""
+    _which = _which or shutil.which
+    _confirm = _confirm or _pergunta
+    _exec = _exec or _exec_cmd
+    if _which("tesseract") and _which("pdftoppm"):
+        return {"ok": True, "ja_instalado": True}
+    gestor = next((g for g in _GESTORES if _which(g)), None)
+    if not gestor:
+        return {"erro": "gestor de pacotes não detectado "
+                "(apt-get/dnf/pacman/brew) — instale manualmente: "
+                "tesseract + dados de português + poppler-utils"}
+    cmd = _GESTORES[gestor]
+    if _confirm(f"Instalar tesseract via {gestor}?\n  $ {cmd}") != "s":
+        return {"cancelado": True, "comando": cmd}
+    rc, saida = _exec(cmd.split())
+    if rc != 0:
+        return {"erro": f"falha ao instalar (rc={rc}) — rode "
+                f"manualmente: {cmd}\n{saida.strip()[:400]}"}
+    return {"ok": True, "executado": True, "comando": cmd}
+
+
+def instalar_unlimited(cfg, destino: str = "", _confirm=None,
+                       _exec=None) -> dict:
+    """v8.2.0: instalador NATIVO do unlimited-ocr (baidu/Unlimited-OCR,
+    MIT): clone + venv + deps pinned. AVISA os ~2–6 GB antes e só roda
+    com confirmação; ao concluir registra `ocr_unlimited_dir`."""
+    import sys as _sys
+    _confirm = _confirm or _pergunta
+    _exec = _exec or _exec_cmd
+    destino = str(destino or
+                  Path(cfg.data_dir) / "engines" / "unlimited-ocr")
+    pergunta = (f"Instalar unlimited-ocr (baidu/Unlimited-OCR) em "
+                f"{destino}?\n  ⚠ baixa ~2–6 GB (repo + deps; pesos "
+                "baixam no 1º uso) e leva vários minutos")
+    if _confirm(pergunta) != "s":
+        return {"cancelado": True,
+                "nota": "dica: o tesseract é leve e já cobre bastante "
+                "— betterme ocr instalar tesseract"}
+    passos = [
+        ["git", "clone", "https://github.com/baidu/Unlimited-OCR.git",
+         destino],
+        [_sys.executable, "-m", "venv", f"{destino}/.venv"],
+        [f"{destino}/.venv/bin/pip", "install",
+         "torch==2.10.0", "torchvision==0.25.0", "transformers==4.57.1",
+         "Pillow==12.1.1", "pymupdf", "einops"],
+    ]
+    for passo in passos:
+        rc, saida = _exec(passo)
+        if rc != 0:
+            return {"erro": f"falha no passo `{' '.join(passo)}` "
+                    f"(rc={rc}) — rode manualmente e repita\n"
+                    f"{saida.strip()[:400]}"}
+    cfg.update({"ocr_unlimited_dir": destino})
+    return {"ok": True, "destino": destino}

@@ -20,10 +20,11 @@ OCR automático quando precisar).
 
 ## Materiais (estruturas prontas)
 
-`betterme notebook material resumo|faq|guia|flashcards [tema]` monta
-o pedido com o contexto embutido. Ao gerar, siga a estrutura e a
-REGRAS da skill ensino-cbta (competência primeiro, teor 75%,
-exemplo antes de teoria longa):
+`betterme notebook material resumo|faq|guia|flashcards [tema]` GERA
+o material com o cérebro do app (estruturas abaixo, regras da skill
+ensino-cbta) e SALVA em `<data>/notebook/materiais/` — nativo. Ao
+gerar pelo chat, siga as mesmas estruturas (competência primeiro,
+teor 75%, exemplo antes de teoria longa):
 
 - **resumo**: ideia central + até 5 blocos + 3 pontos de verificação
 - **faq**: 6–10 perguntas reais de quem estuda, resposta curta com [n]
@@ -36,5 +37,7 @@ exemplo antes de teoria longa):
 Imagens e PDFs escaneados viram texto no `add`: engine
 **unlimited-ocr** (baidu/Unlimited-OCR — PDF inteiro numa passada,
 multi-página com contexto cruzado) quando instalado; senão
-**tesseract** (leve, CPU). Sem nenhum, o `add` devolve as instruções
-exatas de instalação — repasse-as ao operador.
+**tesseract** (leve, CPU). Instalação NATIVA: `betterme ocr instalar
+tesseract` (detecta o gestor de pacotes e confirma) e
+`betterme ocr instalar unlimited` (avisa os ~2–6 GB antes). Sem
+nenhum engine, o `add` devolve as instruções — repasse ao operador.
