@@ -67,6 +67,70 @@ def case(fn):
     return fn
 
 
+# ═══ V9.0.0 (P0): dívida de portabilidade RASTREADA ═════════════════════
+# 1ª execução da suíte em Windows/macOS (CI 07/11/2026, run 42340204729)
+# expôs testes que assumem POSIX (binários fake não executáveis no
+# Windows, /etc→/private/etc no macOS, sem top/free no Darwin, systemd…).
+# Em vez de falhar o pipeline SEM informação, esses testes pulam CONTADOS,
+# com a causa de cada um documentada em docs/PORTABILIDADE.md — queimar
+# a dívida é item rastreado do roadmap ( remover daqui = portado ).
+import platform as _platform
+
+_SO = {"Linux": "linux", "Darwin": "macos",
+       "Windows": "windows"}.get(_platform.system(), "outro")
+
+_NAO_PORTADOS: dict = {
+    "windows": {
+        "T17_claude_modo_leve_e_fallback_de_cli_antiga",
+        "T29_watch_valida_e_persiste_campos",
+        "T38_guard_retry_modelo_recupera_e_executa",
+        "T39_guard_teimoso_hermes_executa_no_lugar",
+        "T41_secrets_protegidos_contra_o_agente",
+        "T55_skills_aplicadas_ao_pipeline",
+        "T65_integracao_skills_injecao_e_modelos",
+        "T81_update_end_to_end_v3110_local",
+        "T98_diagnostico_em_uma_chamada",
+        "T108_escopo_de_projeto_funcional",
+        "T109_pipeline_na_pasta_do_projeto",
+        "T113_folego_para_tarefas_de_projeto",
+        "T116_delegacao_para_skill",
+        "T120_perguntar_caminho_do_projeto",
+        "T121_mission_subtasks_sequenciais",
+        "T124_provedores_externos_gratuitos",
+        "T141_renome_betterme_migracao_e_identidade",
+        "T142_telegram_token_allowlist_e_comandos",
+        "T151_arena_nao_escreve_no_disco",
+        "T164_multimodal_pipeline_com_binarios_fake",
+        "T165_transcricao_indexada_e_citada_no_rag",
+        "T166_sem_binario_nao_quebra_e_orienta",
+        "T170_fluxos_node_check_e_setup_honesto",
+        "T171_fluxos_start_stop_com_n8n_fake",
+        "T172_fluxos_remover_tool_e_gui",
+        "T174_boot_autostart_nos_tres_sos",
+        "T177_update_garante_comando_betterme",
+        "T178_instalacao_editavel_robusta",
+        "T183_n8n_integracao_melhorada",
+        "T188_nunca_mudo_e_dados_reais",
+        "T192_omniroute_gateway_local",
+        "T197_escopo_sticky_sessao",
+        "T202_mencoes_arroba",
+        "T209_mencoes_x_d2_falso_positivo",
+        "T213_financas_sumup_sync_mock",
+        "T216_belvo_token_status_remover",
+        "T227_procs_background",
+        "T236_renome_pluto_v83",
+    },
+    "macos": {
+        "T98_diagnostico_em_uma_chamada",
+        "T107_detectar_pasta_do_projeto",
+        "T166_sem_binario_nao_quebra_e_orienta",
+        "T174_boot_autostart_nos_tres_sos",
+        "T188_nunca_mudo_e_dados_reais",
+    },
+}
+SKIPPED: list = []
+
+
 def fresh(**overrides) -> Config:
     """Config isolada em diretório temporário (anti-contaminação)."""
     cfg = Config(data_dir=tempfile.mkdtemp(prefix="pluto-t-"), mock=True)
@@ -76,7 +140,18 @@ def fresh(**overrides) -> Config:
 
 
 def run_all() -> int:
+    # dívida de portabilidade com nome inexistente = pipeline mentindo
+    todos = set().union(*_NAO_PORTADOS.values()) if _NAO_PORTADOS else set()
+    fantasmas = todos - {fn.__name__ for fn in CASES}
+    if fantasmas:
+        print(f"✖ NAO_PORTADOS com nome inexistente: {sorted(fantasmas)}")
+        return 1
     for fn in CASES:
+        if fn.__name__ in _NAO_PORTADOS.get(_SO, ()):
+            SKIPPED.append(fn.__name__)
+            print(f"  ⏭ {fn.__name__} — não portado p/ {_SO} "
+                  "(docs/PORTABILIDADE.md)")
+            continue
         name = fn.__name__.replace("_", " ").strip("T 0123456789") or fn.__name__
         try:
             fn()
@@ -86,7 +161,10 @@ def run_all() -> int:
             FAILED.append((fn.__name__, f"{exc}"))
             print(f"  ✖ {fn.__name__}: {exc}")
     print("\n" + "═" * 60)
-    print(f"RESULTADO: {len(PASSED)} OK · {len(FAILED)} falha(s) · {len(CASES)} casos")
+    divida = (f" · {len(SKIPPED)} pulado(s) p/ {_SO} (docs/PORTABILIDADE.md)"
+              if SKIPPED else "")
+    print(f"RESULTADO: {len(PASSED)} OK · {len(FAILED)} falha(s) · "
+          f"{len(CASES)} casos{divida}")
     if FAILED:
         print("\nFalhas:")
         for name, err in FAILED:
