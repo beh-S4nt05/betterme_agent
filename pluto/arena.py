@@ -41,7 +41,14 @@ _MOCK_LATENCIA = {"groq": 0.02, "gemini": 0.05, "llm7": 0.07}
 
 class _ContendenteMock:
     """Contendente fake determinístico (modo mock/demo): resposta e
-    latência fixas por provedor — ranking estável, zero rede."""
+    latência fixas por provedor — ranking estável, zero rede.
+
+    V9.0.0 (P0): ``tempo_ms_mock`` exporta a latência DECLARADA — o
+    cronômetro de rodar() continua medindo (realismo), mas o ranking
+    usa o valor fixo. Antes, num runner carregado o overshoot do
+    sleep invertia o ranking "determinístico" (CI macOS, run 42342047644:
+    T150 recebeu gemini>groq por empate de nota desempatado a relógio).
+    """
 
     is_external = True
     simulated = True
@@ -50,6 +57,8 @@ class _ContendenteMock:
         self.nome = nome
         self.model = _MOCK_MODELO.get(nome, "mock")
         self.prompts: list[str] = []       # gravado p/ testes (T149/T153)
+        self.tempo_ms_mock = round(
+            _MOCK_LATENCIA.get(self.nome, 0.04) * 1000.0, 1)
 
     def chat_stream(self, model, messages, **_kw):
         time.sleep(_MOCK_LATENCIA.get(self.nome, 0.04))
@@ -240,10 +249,14 @@ def rodar(cfg, tarefa: str, n: int = 1, _pool=None, _local=None) -> dict:
             tempos.append((time.perf_counter() - t0) * 1000.0)
         if tempos and not texto:
             erro = "resposta vazia"
+        # mock declara tempo fixo → ranking determinístico de verdade;
+        # cliente real continua sendo medido pelo cronômetro
+        fixo_ms = getattr(cli, "tempo_ms_mock", None)
         resultados.append({
             "provedor": nome, "modelo": modelo,
             "ok": bool(tempos) and bool(texto),
-            "tempo_ms": round(sum(tempos) / len(tempos), 1) if tempos else 0.0,
+            "tempo_ms": fixo_ms if fixo_ms is not None else
+                        (round(sum(tempos) / len(tempos), 1) if tempos else 0.0),
             "chars": len(texto or ""),
             "trecho": (texto or "")[:200],
             "erro": erro,
