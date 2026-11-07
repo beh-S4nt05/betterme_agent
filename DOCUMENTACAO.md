@@ -1,6 +1,6 @@
 # 📘 Pluto Agente — Documentação viva: uso, evolução e funções
 
-**Versão 8.5.0** · gerado em 07/11/2026 · este documento é extraído do
+**Versão 8.6.0** · gerado em 07/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -140,7 +140,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `pluto skills audit` (auditar o catálogo), `pluto config set/get`, `pluto server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v8.5.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v8.6.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -148,6 +148,7 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v8.6.0** | 🧩 MCP: PARIDADE GENKIT (SSE + RECURSOS + PROMPTS) |
 | **v8.5.0** | 🔌 CONTAS: VINCULAÇÕES EXTERNAS NUM LUGAR SÓ |
 | **v8.4.0** | 💰 GESTOR DE FINANÇAS COMPLETO (ABA NA GUI) |
 | **v8.3.0** | 🐕 PLUTO AGENTE (RENOME FINAL) |
@@ -621,6 +622,8 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `proc_stop(args, cfg)` | — |
 | `perguntar_operador(args, cfg)` | — |
 | `notebook_buscar(args, cfg)` | — |
+| `mcp_recurso(args, cfg)` | v8.6.0: recursos MCP — lista (sem uri) ou lê (com uri). |
+| `mcp_prompt(args, cfg)` | v8.6.0: prompts MCP — lista (sem nome) ou obtém (com nome). |
 | `agenda_criar(args, cfg)` | v8.5.0: cria evento no Google Calendar (conta vinculada). |
 | `execute_tool(name, arguments, cfg, source, agent)` | Executa uma ferramenta e devolve {'ok': bool, 'output': str}. v3.0: toda execução vai para a trilha de auditoria (data/… |
 | `tool_summary()` | — |
@@ -898,6 +901,10 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `stop` | — |
 | `alive` | — |
 | `list_tools` | — |
+| `list_resources` | resources/list — servidor sem suporte devolve [] (honesto). |
+| `read_resource` | resources/read → texto do recurso (blob vira aviso honesto). |
+| `list_prompts` | prompts/list — servidor sem suporte devolve [] (honesto). |
+| `get_prompt` | prompts/get → mensagens renderizadas como texto. |
 | `call_tool` | — |
 
 **classe `StdioServer`** — Servidor MCP como processo local, JSON-RPC por linhas no stdin/stdout.
@@ -926,6 +933,21 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `alive` | — |
 | `stop` | — |
 
+**classe `SSEServer`** — Servidor MCP via HTTP+SSE CLÁSSICO (v8.6.0, paridade Genkit MCP — protocolo aberto, implementação p…
+
+| Método | O que faz |
+|---|---|
+| `__init__` | — |
+| `start` | — |
+| `_ler` | — |
+| `_despacha` | — |
+| `_url_post` | — |
+| `_post` | — |
+| `_rpc` | — |
+| `_notify` | — |
+| `alive` | — |
+| `stop` | — |
+
 **classe `MCPManager`** — Gerencia todos os servidores MCP configurados (uma instância por data dir).
 
 | Método | O que faz |
@@ -941,6 +963,11 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `openai_tools` | — |
 | `handles` | — |
 | `call` | — |
+| `_vivos` | — |
+| `listar_recursos` | — |
+| `ler_recurso` | — |
+| `listar_prompts` | — |
+| `obter_prompt` | — |
 | `status` | — |
 
 | Função | O que faz |

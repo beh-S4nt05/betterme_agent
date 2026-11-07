@@ -25,6 +25,8 @@ import os
 import re
 import subprocess
 import threading
+import time
+import urllib.request
 from collections import deque
 from pathlib import Path
 
@@ -92,6 +94,47 @@ class BaseMCPServer:
     def list_tools(self) -> list[dict]:
         result = self._rpc("tools/list", {}, self.timeout)
         return result.get("tools") or []
+
+    # --------------------------- recursos e prompts (v8.6.0, Genkit parity)
+    def list_resources(self) -> list[dict]:
+        """resources/list — servidor sem suporte devolve [] (honesto)."""
+        try:
+            return self._rpc("resources/list", {}, self.timeout).get(
+                "resources") or []
+        except MCPError:
+            return []
+
+    def read_resource(self, uri: str) -> str:
+        """resources/read → texto do recurso (blob vira aviso honesto)."""
+        r = self._rpc("resources/read", {"uri": uri}, self.timeout)
+        partes = []
+        for c in r.get("contents") or []:
+            if c.get("text") is not None:
+                partes.append(str(c["text"]))
+            elif c.get("blob"):
+                partes.append("(conteúdo binário em base64)")
+        return "\n".join(partes) or "(recurso vazio)"
+
+    def list_prompts(self) -> list[dict]:
+        """prompts/list — servidor sem suporte devolve [] (honesto)."""
+        try:
+            return self._rpc("prompts/list", {}, self.timeout).get(
+                "prompts") or []
+        except MCPError:
+            return []
+
+    def get_prompt(self, name: str, args: dict | None = None) -> str:
+        """prompts/get → mensagens renderizadas como texto."""
+        r = self._rpc("prompts/get",
+                      {"name": name, "arguments": args or {}}, self.timeout)
+        linhas = []
+        for m in r.get("messages") or []:
+            c = m.get("content") or {}
+            if c.get("type") == "text":
+                linhas.append(f"{m.get('role', 'user')}: {c.get('text', '')}")
+            else:
+                linhas.append(f"{m.get('role', 'user')}: (conteúdo não-texto)")
+        return "\n".join(linhas) or "(prompt vazio)"
 
     def call_tool(self, tool: str, arguments: dict) -> str:
         result = self._rpc(
@@ -310,6 +353,147 @@ class HTTPServer(BaseMCPServer):
 
     def stop(self) -> None:
         self.started = False
+
+
+class SSEServer(BaseMCPServer):
+    """Servidor MCP via HTTP+SSE CLÁSSICO (v8.6.0, paridade Genkit MCP —
+    protocolo aberto, implementação própria em stdlib): GET <url> abre o
+    stream; o servidor envia `event: endpoint` com a URL de POST; as
+    respostas JSON-RPC voltam pelo stream. É o transporte usado pela
+    maioria dos servidores MCP remotos pré-Streamable-HTTP."""
+
+    def __init__(self, name, url, headers=None, timeout=60):
+        super().__init__(name, timeout=timeout)
+        self.url = url.rstrip("/")
+        self.headers = dict(headers or {})
+        self._endpoint: str | None = None
+        self._resp = None
+        self._thread = None
+        self._stop_evt = threading.Event()
+        self._pend: dict[int, dict] = {}
+        self._lk = threading.Lock()
+
+    def start(self) -> dict:
+        req = urllib.request.Request(
+            self.url, headers={"Accept": "text/event-stream",
+                               **self.headers})
+        try:
+            self._resp = urllib.request.urlopen(req, timeout=self.timeout)
+        except Exception as exc:  # noqa: BLE001 — conexão recusada etc.
+            raise MCPError(f"{self.name}: SSE {self.url}: {exc}") from exc
+        self._thread = threading.Thread(target=self._ler, daemon=True)
+        self._thread.start()
+        t0 = time.time()
+        while self._endpoint is None:
+            if time.time() - t0 > self.timeout:
+                raise MCPError(f"{self.name}: SSE não enviou 'endpoint'")
+            time.sleep(0.05)
+        result = super().start()               # initialize + initialized
+        self.started = True
+        return result
+
+    # ----------------------------------------------------------- stream SSE
+    def _ler(self) -> None:
+        evento, dados = "", []
+        try:
+            for bruto in self._resp:
+                if self._stop_evt.is_set():
+                    return
+                linha = bruto.decode("utf-8", "replace").rstrip("\r\n")
+                if linha.startswith("event:"):
+                    evento = linha[6:].strip()
+                elif linha.startswith("data:"):
+                    dados.append(linha[5:].strip())
+                elif not linha:
+                    if evento or dados:
+                        self._despacha(evento, "\n".join(dados))
+                    evento, dados = "", []
+        except Exception:  # noqa: BLE001 — stream caiu
+            with self._lk:
+                for item in self._pend.values():
+                    item["resp"] = {"error": {"message": "SSE caiu"}}
+                    item["ev"].set()
+
+    def _despacha(self, evento: str, dados: str) -> None:
+        if evento == "endpoint" and dados:
+            self._endpoint = dados.strip()
+            return
+        if evento not in ("message", ""):
+            return
+        try:
+            msg = json.loads(dados)
+        except (json.JSONDecodeError, ValueError):
+            return
+        rid = msg.get("id")
+        if rid is None:
+            return
+        with self._lk:
+            item = self._pend.pop(int(rid), None)
+        if item:
+            item["resp"] = msg
+            item["ev"].set()
+
+    # ------------------------------------------------------------- JSON-RPC
+    def _url_post(self) -> str:
+        ep = self._endpoint or ""
+        if ep.startswith(("http://", "https://")):
+            return ep
+        base = self.url
+        for sufixo in ("/sse", "/messages", "/message"):
+            if base.endswith(sufixo):
+                base = base[: -len(sufixo)]
+                break
+        return base.rstrip("/") + (ep if ep.startswith("/") else "/" + ep)
+
+    def _post(self, payload: dict, timeout: float) -> None:
+        req = urllib.request.Request(
+            self._url_post(), data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", **self.headers},
+            method="POST")
+        urllib.request.urlopen(req, timeout=timeout).read()
+
+    def _rpc(self, method, params, timeout):
+        with self._lk:
+            self._id += 1
+            rid = self._id
+            item = {"ev": threading.Event(), "resp": None}
+            self._pend[rid] = item
+        payload = {"jsonrpc": "2.0", "id": rid, "method": method}
+        if params is not None:
+            payload["params"] = params
+        try:
+            self._post(payload, timeout)
+        except Exception as exc:  # noqa: BLE001
+            with self._lk:
+                self._pend.pop(rid, None)
+            raise MCPError(f"{self.name}: POST {method}: {exc}") from exc
+        if not item["ev"].wait(timeout):
+            with self._lk:
+                self._pend.pop(rid, None)
+            raise MCPError(f"{self.name}: timeout ({timeout}s) em {method}")
+        resp = item["resp"] or {}
+        if "error" in resp:
+            err = resp["error"] or {}
+            raise MCPError(f"{self.name}: {err.get('message') or err}")
+        return resp.get("result") or {}
+
+    def _notify(self, obj) -> None:
+        try:
+            self._post(obj, self.timeout)
+        except Exception:  # noqa: BLE001 — notificação é melhor-esforço
+            pass
+
+    def alive(self) -> bool:
+        return bool(self._thread and self._thread.is_alive()
+                    and not self._stop_evt.is_set())
+
+    def stop(self) -> None:
+        self._stop_evt.set()
+        try:
+            if self._resp:
+                self._resp.close()
+        except Exception:  # noqa: BLE001
+            pass
         self.session_id = None
 
 
@@ -347,6 +531,8 @@ class MCPManager:
 
     def _make(self, e: dict) -> BaseMCPServer:
         timeout = float(e.get("timeout") or getattr(self.cfg, "mcp_timeout", 120))
+        if e.get("transport") == "sse":          # v8.6.0: HTTP+SSE clássico
+            return SSEServer(e["name"], e["url"], e.get("headers"), timeout)
         if e.get("url"):
             return HTTPServer(e["name"], e["url"], e.get("headers"), timeout)
         command = e.get("command")
@@ -522,6 +708,51 @@ class MCPManager:
                 return {"ok": False, "output": f"ERRO MCP ({sname}.{orig}): {exc}"}
 
     # ---------------------------------------------------------------- status
+    # ------------------------- recursos e prompts (v8.6.0, Genkit parity)
+    def _vivos(self) -> list[BaseMCPServer]:
+        try:
+            self.start_all()
+        except Exception:  # noqa: BLE001 — start_all já marca o estado
+            pass
+        return [srv for srv in self._servers.values() if srv.alive()]
+
+    def listar_recursos(self) -> list[dict]:
+        out = []
+        for srv in self._vivos():
+            for r in srv.list_resources():
+                out.append({"servidor": srv.name,
+                            "uri": r.get("uri", ""),
+                            "nome": r.get("name", ""),
+                            "descricao": (r.get("description") or "")[:120]})
+        return out
+
+    def ler_recurso(self, uri: str, servidor: str = "") -> str:
+        for srv in self._vivos():
+            if servidor and srv.name != servidor:
+                continue
+            if any(r.get("uri") == uri for r in srv.list_resources()):
+                return srv.read_resource(uri)
+        return ("✖ recurso não encontrado: " + uri
+                + (f" (servidor {servidor})" if servidor else ""))
+
+    def listar_prompts(self) -> list[dict]:
+        out = []
+        for srv in self._vivos():
+            for pr in srv.list_prompts():
+                out.append({"servidor": srv.name, "nome": pr.get("name", ""),
+                            "descricao": (pr.get("description") or "")[:120]})
+        return out
+
+    def obter_prompt(self, nome: str, args: dict | None = None,
+                     servidor: str = "") -> str:
+        for srv in self._vivos():
+            if servidor and srv.name != servidor:
+                continue
+            if any(pr.get("name") == nome for pr in srv.list_prompts()):
+                return srv.get_prompt(nome, args)
+        return ("✖ prompt não encontrado: " + nome
+                + (f" (servidor {servidor})" if servidor else ""))
+
     def status(self) -> list[dict]:
         out = []
         for e in self._entries():

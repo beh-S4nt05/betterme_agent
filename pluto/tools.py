@@ -115,6 +115,43 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "mcp_recurso",
+            "description": (
+                "Lê RECURSOS de servidores MCP conectados (v8.6.0). Sem "
+                "uri: lista os recursos disponíveis (servidor + uri + "
+                "nome). Com uri: devolve o CONTEÚDO do recurso."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"uri": {"type": "string"},
+                               "servidor": {"type": "string",
+                                            "description": "opcional"}},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "mcp_prompt",
+            "description": (
+                "Lista e obtém PROMPTS de servidores MCP (modelos de "
+                "mensagem prontos, v8.6.0). Sem nome: lista. Com nome: "
+                "devolve o prompt preenchido (args opcionais)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"nome": {"type": "string"},
+                               "args": {"type": "object"},
+                               "servidor": {"type": "string",
+                                            "description": "opcional"}},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "edit_file",
             "description": (
                 "Edita um arquivo de forma CIRÚRGICA: substitui o "
@@ -1448,6 +1485,42 @@ def notebook_buscar(args: dict, cfg) -> str:
     return notebook.perguntar(cfg, str(args.get("termo", "")))
 
 
+def mcp_recurso(args: dict, cfg) -> str:
+    """v8.6.0: recursos MCP — lista (sem uri) ou lê (com uri)."""
+    from .mcp_client import get_manager
+    mgr = get_manager(cfg)
+    uri = str(args.get("uri") or "").strip()
+    servidor = str(args.get("servidor") or "").strip()
+    if not uri:
+        recs = mgr.listar_recursos()
+        if not recs:
+            return ("ℹ nenhum recurso MCP disponível — servidores sem "
+                    "suporte a resources ou nenhum conectado")
+        return ("🗂 Recursos MCP:\n" + "\n".join(
+            f"  • [{r['servidor']}] {r['uri']} — {r['nome']}"
+            + (f" ({r['descricao']})" if r["descricao"] else "")
+            for r in recs))
+    return mgr.ler_recurso(uri, servidor)
+
+
+def mcp_prompt(args: dict, cfg) -> str:
+    """v8.6.0: prompts MCP — lista (sem nome) ou obtém (com nome)."""
+    from .mcp_client import get_manager
+    mgr = get_manager(cfg)
+    nome = str(args.get("nome") or "").strip()
+    servidor = str(args.get("servidor") or "").strip()
+    if not nome:
+        ps = mgr.listar_prompts()
+        if not ps:
+            return ("ℹ nenhum prompt MCP disponível — servidores sem "
+                    "suporte a prompts ou nenhum conectado")
+        return ("📋 Prompts MCP:\n" + "\n".join(
+            f"  • [{q['servidor']}] {q['nome']}"
+            + (f" — {q['descricao']}" if q["descricao"] else "")
+            for q in ps))
+    return mgr.obter_prompt(nome, args.get("args") or {}, servidor)
+
+
 def agenda_criar(args: dict, cfg) -> str:
     """v8.5.0: cria evento no Google Calendar (conta vinculada)."""
     from . import agendacfg
@@ -1470,6 +1543,8 @@ def agenda_criar(args: dict, cfg) -> str:
 
 EXECUTORS = {
     "notebook_buscar": notebook_buscar,
+    "mcp_recurso": mcp_recurso,
+    "mcp_prompt": mcp_prompt,
     "agenda_criar": agenda_criar,
     "edit_file": edit_file,
     "proc_start": proc_start,

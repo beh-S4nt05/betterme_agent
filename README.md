@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v8.5.0** · 240 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
+**v8.6.0** · 241 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
 
 ```
                         ┌─────────────────────────────┐
@@ -562,9 +562,19 @@ mcp_servers:
   - name: figma-demo
     command: python3
     args: ["mcp-servers/figma_demo_server.py"]
+
+  # Servidor REMOTO clássico (HTTP+SSE) — v8.6.0
+  - name: meu-remoto
+    url: https://exemplo.com/sse
+    transport: sse
 ```
 
-Transportes: **stdio** (`command`/`args`) e **Streamable HTTP** (`url`).
+Transportes: **stdio** (`command`/`args`), **Streamable HTTP** (`url`) e
+**HTTP+SSE clássico** (`url` + `transport: sse`, v8.6.0). Além de tools, o
+Pluto consome **recursos** (`resources/list/read`) e **prompts**
+(`prompts/list/get`) — as tools nativas `mcp_recurso` e `mcp_prompt` dão
+acesso ao agente. Paridade funcional com o Genkit MCP do Google, só que em
+Python stdlib nosso (protocolo aberto, zero dependência nova).
 Na GUI: Painel → *Servidores MCP* (ativar/reiniciar, ferramentas por servidor).
 Qualquer servidor MCP da comunidade funciona — veja
 [awesome-mcp-servers](https://github.com/wong2/awesome-mcp-servers).

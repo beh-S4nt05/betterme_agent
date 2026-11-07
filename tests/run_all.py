@@ -10403,6 +10403,203 @@ def T240_contas_api_gui_tool():
     assert "não encontrada" in out
 
 
+@case
+def T241_mcp_genkit_paridade():
+    """v8.6.0 (paridade Genkit MCP — protocolo ABERTO, implementação
+    própria em stdlib, nada copiado do plugin TS): transporte HTTP+SSE
+    clássico (GET stream → event endpoint → POST, respostas pelo
+    stream), resources (list/read) e prompts (list/get) valendo nas
+    TODAS as transportes (stdio/streamable/SSE), tools nativas
+    mcp_recurso e mcp_prompt, e degradação honesta (método não
+    suportado → lista vazia; porta morta → MCPError)."""
+    import threading
+    import uuid as _uuid
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from urllib.parse import parse_qs, urlparse
+
+    from pluto.mcp_client import MCPError, SSEServer, get_manager
+    from pluto.tools import EXECUTORS
+
+    class _Fake:
+        def __init__(self):
+            self.sessoes: dict = {}
+            self.lk = threading.Lock()
+            self.parar = threading.Event()
+            self.sem_recursos = False
+            outer = self
+
+            class H(BaseHTTPRequestHandler):
+                def log_message(*_a):
+                    pass
+
+                def do_GET(self):
+                    if self.path != "/sse":
+                        self.send_error(404)
+                        return
+                    sid = _uuid.uuid4().hex[:8]
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.send_header("Cache-Control", "no-cache")
+                    self.end_headers()
+                    self.wfile.write(
+                        f"event: endpoint\ndata: /msg?sid={sid}\n\n".encode())
+                    self.wfile.flush()
+                    with outer.lk:
+                        outer.sessoes[sid] = self
+                    while not outer.parar.wait(0.4):
+                        try:
+                            self.wfile.write(b": keepalive\n\n")
+                            self.wfile.flush()
+                        except Exception:  # noqa: BLE001
+                            return
+
+                def do_POST(self):
+                    n = int(self.headers.get("Content-Length", 0))
+                    body = json.loads(self.rfile.read(n) or b"{}")
+                    if self.path.startswith("/mcp"):
+                        r = outer.responder(body)
+                        out = json.dumps(r).encode() if r else b""
+                        self.send_response(200)
+                        self.send_header("Content-Type",
+                                         "application/json")
+                        self.send_header("mcp-session-id", "s1")
+                        self.end_headers()
+                        self.wfile.write(out)
+                        return
+                    sid = parse_qs(urlparse(self.path).query).get(
+                        "sid", [""])[0]
+                    r = outer.responder(body)
+                    if r is not None:
+                        with outer.lk:
+                            h = outer.sessoes.get(sid)
+                            if h:
+                                try:
+                                    h.wfile.write(
+                                        b"event: message\ndata: "
+                                        + json.dumps(r).encode() + b"\n\n")
+                                    h.wfile.flush()
+                                except Exception:  # noqa: BLE001
+                                    pass
+                    self.send_response(202)
+                    self.end_headers()
+
+            self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), H)
+            threading.Thread(target=self.httpd.serve_forever,
+                             daemon=True).start()
+            self.port = self.httpd.server_address[1]
+
+        def responder(self, body):
+            m, mid = body.get("method"), body.get("id")
+            args = body.get("params") or {}
+            if m == "initialize":
+                return {"jsonrpc": "2.0", "id": mid, "result": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {"tools": {}, "resources": {},
+                                     "prompts": {}},
+                    "serverInfo": {"name": "fake-sse", "version": "1"}}}
+            if m == "tools/list":
+                return {"jsonrpc": "2.0", "id": mid, "result": {"tools": [
+                    {"name": "eco", "description": "ecoa",
+                     "inputSchema": {"type": "object", "properties": {
+                         "texto": {"type": "string"}}}}]}}
+            if m == "tools/call":
+                return {"jsonrpc": "2.0", "id": mid, "result": {"content": [
+                    {"type": "text", "text": "eco: " + str(
+                        args.get("arguments", {}).get("texto", ""))}]}}
+            if m == "resources/list" and not self.sem_recursos:
+                return {"jsonrpc": "2.0", "id": mid, "result": {
+                    "resources": [{"uri": "pluto://demo", "name": "Demo",
+                                   "description": "teste"}]}}
+            if m == "resources/read":
+                return {"jsonrpc": "2.0", "id": mid, "result": {
+                    "contents": [{"uri": args.get("uri"),
+                                  "text": "conteúdo do recurso demo"}]}}
+            if m == "prompts/list":
+                return {"jsonrpc": "2.0", "id": mid, "result": {
+                    "prompts": [{"name": "resumir",
+                                 "description": "resume"}]}}
+            if m == "prompts/get":
+                return {"jsonrpc": "2.0", "id": mid, "result": {
+                    "messages": [{"role": "user", "content": {
+                        "type": "text",
+                        "text": "Resuma: " + str(
+                            args.get("arguments", {}).get("texto", ""))}}]}}
+            if mid is not None:
+                return {"jsonrpc": "2.0", "id": mid,
+                        "error": {"code": -32601,
+                                  "message": "método desconhecido"}}
+            return None
+
+    fk = _Fake()
+    try:
+        # ── transporte SSE clássico, direto
+        srv = SSEServer("fake", f"http://127.0.0.1:{fk.port}/sse",
+                        timeout=10)
+        assert srv.start()["serverInfo"]["name"] == "fake-sse"
+        assert srv.list_tools()[0]["name"] == "eco"
+        assert "eco: oi" in srv.call_tool("eco", {"texto": "oi"})
+        assert srv.list_resources()[0]["uri"] == "pluto://demo"
+        assert srv.read_resource("pluto://demo") == \
+            "conteúdo do recurso demo"
+        assert srv.list_prompts()[0]["name"] == "resumir"
+        assert "Resuma: abc" in srv.get_prompt("resumir", {"texto": "abc"})
+        srv.stop()
+        assert not srv.alive()
+
+        # ── degradação honesta: sem suporte a resources → []
+        fk.sem_recursos = True
+        srv2 = SSEServer("seco", f"http://127.0.0.1:{fk.port}/sse",
+                         timeout=10)
+        srv2.start()
+        assert srv2.list_resources() == []
+        assert srv2.list_prompts()          # prompts seguem funcionando
+        srv2.stop()
+        fk.sem_recursos = False
+
+        # ── porta morta → MCPError (nunca silêncio)
+        try:
+            SSEServer("morto", "http://127.0.0.1:1/sse", timeout=2).start()
+            raise AssertionError("devia falhar")
+        except MCPError:
+            pass
+
+        # ── manager: SSE + streamable no mesmo catálogo + helpers
+        cfg = fresh()
+        cfg.update({"mcp_servers": [
+            {"name": "remoto",
+             "url": f"http://127.0.0.1:{fk.port}/sse",
+             "transport": "sse"},
+            {"name": "stream",
+             "url": f"http://127.0.0.1:{fk.port}/mcp"}]})
+        mgr = get_manager(cfg)
+        nomes = [t["function"]["name"] for t in mgr.openai_tools()]
+        assert "mcp_remoto_eco" in nomes and "mcp_stream_eco" in nomes
+        assert "eco: pela manager" in mgr.call(
+            "mcp_remoto_eco", {"texto": "pela manager"})["output"]
+        assert "eco: stream" in mgr.call(
+            "mcp_stream_eco", {"texto": "stream"})["output"]
+        recs = mgr.listar_recursos()
+        assert {r["servidor"] for r in recs} == {"remoto", "stream"}
+        assert mgr.ler_recurso("pluto://demo").startswith("conteúdo")
+        assert "não encontrado" in mgr.ler_recurso("pluto://x")
+        assert {p["servidor"] for p in mgr.listar_prompts()} == {
+            "remoto", "stream"}
+        assert "Resuma: xyz" in mgr.obter_prompt("resumir",
+                                                 {"texto": "xyz"})
+
+        # ── tools nativas (o agente usa pelos mesmos contratos)
+        out = EXECUTORS["mcp_recurso"]({}, cfg)
+        assert "pluto://demo" in out and "[remoto]" in out
+        assert EXECUTORS["mcp_recurso"](
+            {"uri": "pluto://demo"}, cfg).startswith("conteúdo")
+        assert "resumir" in EXECUTORS["mcp_prompt"]({}, cfg)
+        assert "Resuma: q1" in EXECUTORS["mcp_prompt"](
+            {"nome": "resumir", "args": {"texto": "q1"}}, cfg)
+    finally:
+        fk.parar.set()
+        fk.httpd.shutdown()
+
+
 if __name__ == "__main__":
     print("◈ Pluto — suíte de testes\n")
     sys.exit(run_all())

@@ -1,5 +1,31 @@
 # Changelog
 
+## v8.6.0 — 🧩 MCP: PARIDADE GENKIT (SSE + RECURSOS + PROMPTS)
+
+Pedido do operador: "clona o Genkit MCP — só quero que ele tenha, caso
+seja necessário". Feito como tudo aqui: paridade FUNCIONAL do plugin
+@genkit-ai/mcp (Google, Apache-2.0), implementação PRÓPRIA do protocolo
+aberto em Python stdlib — zero código copiado, zero dependência nova.
+
+- **Transporte HTTP+SSE clássico** (`SSEServer`): GET abre o stream, o
+  servidor envia `event: endpoint`, os POSTs vão pra lá e as respostas
+  JSON-RPC voltam pelo stream (thread leitora + fila por id). É o
+  transporte da maioria dos servidores MCP remotos. Com isso o Pluto
+  fala os 3 transportes: stdio, Streamable HTTP e SSE clássico.
+- **Recursos** (`resources/list`/`resources/read`) e **prompts**
+  (`prompts/list`/`prompts/get`) em TODAS as transportes, com
+  degradação honesta (método não suportado → lista vazia; porta morta
+  → MCPError explícito, nunca silêncio).
+- **Manager** ganha `transport: sse` no config + helpers públicos
+  (`listar_recursos`, `ler_recurso`, `listar_prompts`, `obter_prompt`).
+- **Tools nativas `mcp_recurso` (32ª) e `mcp_prompt` (33ª)**: o agente
+  lista/lê recursos e obtém prompts de qualquer servidor MCP conectado.
+- O que ficou DE FORA (honesto): WebSocket (exigiria dependência ou
+  WS feito à mão; SSE + Streamable HTTP cobrem os servidores remotos
+  existentes).
+- T241 (fake SSE real em ThreadingHTTPServer: handshake, tools,
+  recursos, prompts, degradação, porta morta, manager com os 2
+  transportes HTTP e tools nativas).
 ## v8.5.0 — 🔌 CONTAS: VINCULAÇÕES EXTERNAS NUM LUGAR SÓ
 
 Pedido do operador: "vinculação com contas externas — Google,
