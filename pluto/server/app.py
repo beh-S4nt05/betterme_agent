@@ -2066,6 +2066,41 @@ self.addEventListener("fetch", (e) => {
                           "o SumUp; o hook Belvo entra quando houver token.",
             }})
 
+    # ── v8.5.0: CONTAS — vinculações externas num lugar só ────────
+    from .. import contas as CONTAS
+
+    @app.get("/contas")
+    def contas_page():
+        html = (TEMPLATE_DIR / "contas.html").read_text(encoding="utf-8")
+        resp = Response(html, mimetype="text/html")
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+        return resp
+
+    @app.get("/api/contas")
+    def contas_listar():
+        return jsonify({"contas": CONTAS.listar(cfg)})
+
+    @app.post("/api/contas/<vinculo>/conectar")
+    def contas_conectar(vinculo):
+        r = CONTAS.conectar(cfg, vinculo,
+                            request.get_json(silent=True) or {})
+        return (jsonify(r) if not r.get("erro")
+                else (jsonify(r), 400))
+
+    @app.get("/api/contas/<vinculo>/estado")
+    def contas_estado(vinculo):
+        return jsonify(CONTAS.estado(vinculo))
+
+    @app.post("/api/contas/<vinculo>/desconectar")
+    def contas_desconectar(vinculo):
+        r = CONTAS.desconectar(cfg, vinculo)
+        return (jsonify(r) if not r.get("erro")
+                else (jsonify(r), 400))
+
+    @app.post("/api/contas/<vinculo>/testar")
+    def contas_testar(vinculo):
+        return jsonify(CONTAS.testar(cfg, vinculo))
+
     return app
 
 

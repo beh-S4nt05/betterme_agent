@@ -263,10 +263,13 @@ def register_mcp(cfg) -> None:
 
 
 def oauth_device_flow(provider: str, client_id: str, client_secret: str = "",
-                      print_fn=print, scopes: str = "") -> dict:
+                      print_fn=print, scopes: str = "",
+                      on_code=None) -> dict:
     """Fluxo OAuth 'device code' (padrão usado por TVs/CLIs): mostramos um
     código, você abre o link, entra com o 2FA NORMAL do provedor e autoriza.
-    Nada de senha no terminal."""
+    Nada de senha no terminal. `on_code(url, user_code, expires_min)` é
+    chamado assim que o código nasce (v8.5.0: a GUI mostra sem parsear
+    print)."""
     p = OAUTH_PROVIDERS[provider]
     form = {"client_id": client_id, "scope": scopes or p["scopes"]}
     if client_secret:
@@ -282,6 +285,12 @@ def oauth_device_flow(provider: str, client_id: str, client_secret: str = "",
     print_fn(f"   2. código: {d.get('user_code', '?')}  (válido por "
              f"{int(d.get('expires_in', 900)) // 60} min)")
     print_fn("   3. entre com sua conta + 2FA e autorize o acesso\n")
+    if on_code is not None:
+        try:
+            on_code(url, d.get("user_code", "?"),
+                    int(d.get("expires_in", 900)) // 60)
+        except Exception:  # noqa: BLE001 — callback nunca quebra o fluxo
+            pass
     interval = max(2, int(d.get("interval", 5)))
     deadline = _time.time() + int(d.get("expires_in", 900))
     while _time.time() < deadline:
@@ -318,10 +327,12 @@ def oauth_device_flow(provider: str, client_id: str, client_secret: str = "",
 
 def add_oauth_account(cfg, user: str, provider: str, client_id: str,
                       client_secret: str = "", print_fn=print,
-                      readonly: bool = True) -> tuple[dict, str]:
+                      readonly: bool = True,
+                      on_code=None) -> tuple[dict, str]:
     """Cria conta via OAuth (device code), valida IMAP/SMTP e salva."""
     p = OAUTH_PROVIDERS[provider]
-    tok = oauth_device_flow(provider, client_id, client_secret, print_fn)
+    tok = oauth_device_flow(provider, client_id, client_secret, print_fn,
+                            on_code=on_code)
     acc = {
         "id": (user.split("@")[0].replace(".", "_") + "_" +
                user.rsplit("@", 1)[-1].split(".")[0]).lower()[:24],

@@ -1,5 +1,32 @@
 # Changelog
 
+## v8.5.0 — 🔌 CONTAS: VINCULAÇÕES EXTERNAS NUM LUGAR SÓ
+
+Pedido do operador: "vinculação com contas externas — Google,
+Calendário, etc…". O Pluto já tinha 9 vinculações espalhadas em
+comandos CLI; agora elas vivem na página **🔌 Contas** da GUI.
+
+- **Página 🔌 Contas** (`/contas`): cards por categoria (Google,
+  Mensageria, Financeiro, Inteligência, Integração, Memória) com
+  status honesto, contas vinculadas, **testar** (prova real onde é
+  barato) e **desconectar** (remove credenciais locais).
+- **Fluxos nativos de conexão**: OAuth device (Google Calendar e
+  Gmail/Microsoft — a GUI mostra o link + código, você autoriza no
+  SEU navegador com 2FA), token (Telegram, Belvo, n8n), API key
+  (SumUp, 8 provedores IA), caminho (vault). WhatsApp honesto: QR
+  Code só no terminal.
+- **Google Calendar com ESCRITA** (reversão documentada da decisão
+  somente-leitura, a pedido do operador): escopo `calendar.events`,
+  `criar_evento()` com fuso da MÁQUINA (nada de -03:00 chumbado),
+  dia inteiro e +1h padrão. Contas pré-v8.5.0 continuam readonly — a
+  tool orienta reconectar (novo consentimento).
+- **Tool nativa `agenda_criar` (31ª)**: o agente agenda por chat
+  ("agende médico sexta 15h") e confirma o resumo criado.
+- `oauth_device_flow` ganhou `on_code` (callback p/ GUI sem parsear
+  print); `add_oauth_account` repassa.
+- T239 (núcleo: 9 vinculações, OAuth mockado com código capturado,
+  escrita Calendar com fuso, desconectar respeita llm7 padrão) ·
+  T240 (API + página + tool).
 ## v8.4.0 — 💰 GESTOR DE FINANÇAS COMPLETO (ABA NA GUI)
 
 Pedido do operador: "clonar o app Belvo" — sem conseguir criar conta

@@ -10234,6 +10234,175 @@ def T238_gestor_financas_api_gui():
     assert "PF" in cx["open_finance_direto"]["motivo"]
 
 
+@case
+def T239_contas_vinculacoes_nucleo():
+    """v8.5.0: registro unificado de vinculações externas — 9 serviços
+    com status; conectar por token/chave/caminho; OAuth device com
+    on_code (a GUI mostra o código); desconectar remove credenciais
+    (llm7 segue de pé: chave pública padrão do REGISTRY); Calendar
+    ganha ESCRITA (reversão documentada da decisão somente-leitura) —
+    conta antiga readonly recusa com aviso honesto, conta nova cria
+    evento com fuso da MÁQUINA (nada de -03:00 chumbado)."""
+    import time as _time
+    from pluto import agendacfg as A
+    from pluto import contas as C
+
+    cfg = fresh()
+    L = C.listar(cfg)
+    assert len(L) == 9
+    assert {v["id"] for v in L} == {
+        "google_calendar", "gmail", "telegram", "whatsapp", "sumup",
+        "belvo", "ia", "n8n", "vault"}
+    # única que nasce ligada: ia (llm7 = chave pública padrão)
+    assert [v["id"] for v in L if v["ok"]] == ["ia"]
+
+    # ── conectar token/chave/caminho + validações
+    assert C.conectar(cfg, "telegram", {"token": "123:ABC"})["ok"]
+    assert C.listar(cfg)[2]["contas"] == ["bot"]
+    assert "token" in C.conectar(cfg, "telegram", {})["erro"]
+    assert C.conectar(cfg, "sumup", {"key": "sk"})["ok"]
+    assert C.conectar(cfg, "ia", {"provedor": "groq", "key": "gk"})["ok"]
+    assert "inválido" in C.conectar(
+        cfg, "ia", {"provedor": "xpto", "key": "k"})["erro"]
+    pasta = Path(tempfile.mkdtemp(prefix="t239-v-"))
+    assert C.conectar(cfg, "vault", {"caminho": str(pasta)})["ok"]
+    assert "não encontrada" in C.conectar(
+        cfg, "vault", {"caminho": "/nao/existe"})["erro"]
+    assert "QR" in C.conectar(cfg, "whatsapp", {})["erro"]   # honesto
+    assert "desconhecida" in C.conectar(cfg, "xpto", {})["erro"]
+
+    # ── OAuth device (Calendar): código capturado, conta salva RW
+    capturas = []
+
+    def _flow_fake(provider, client_id, client_secret="", print_fn=print,
+                   scopes="", on_code=None):
+        capturas.append((provider, scopes))
+        on_code and on_code("https://google.com/device", "ABCD-1234", 15)
+        return {"refresh_token": "rt1", "access_token": "at",
+                "expires_in": 3600}
+    A.oauth_device_flow = _flow_fake
+    A._api_get = lambda acc, path, params=None, api_base="": {
+        "summary": "Principal"}
+    assert C.conectar(cfg, "google_calendar", {
+        "user": "joao@gmail.com", "client_id": "cid",
+        "client_secret": "sec"})["pendente"]
+    _time.sleep(0.6)
+    est = C.estado("google_calendar")
+    assert est["done"] and est["ok"], est
+    assert est["user_code"] == "ABCD-1234"
+    assert "google.com/device" in est["url"]
+    assert capturas and "calendar.events" in capturas[0][1]  # escopo RW
+    cal = next(v for v in C.listar(cfg) if v["id"] == "google_calendar")
+    assert cal["contas"] == ["joao@gmail.com"]
+    assert "escrita" in cal["detalhe"]
+
+    # ── OAuth device (Gmail): mocka a validação IMAP/SMTP
+    from pluto import emailcfg as E
+    E.oauth_device_flow = _flow_fake
+    E._imap_login = lambda acc: (True, "ok")
+    E._smtp_login = lambda acc: (True, "ok")
+    assert C.conectar(cfg, "gmail", {"user": "joao@gmail.com",
+                                     "provedor": "google",
+                                     "client_id": "cid"})["pendente"]
+    _time.sleep(0.6)
+    assert C.estado("gmail")["done"] and C.estado("gmail")["ok"]
+    gm = next(v for v in C.listar(cfg) if v["id"] == "gmail")
+    assert gm["contas"] == ["joao@gmail.com"]
+
+    # ── Calendar ESCRITA: conta readonly antiga recusa; RW cria
+    A.save(cfg, {"accounts": [{"id": "old_gcal", "user": "old@gmail.com",
+                               "oauth_scopes": A.CAL_SCOPE}],
+                 "default": "old_gcal"})
+    r = A.criar_evento(cfg, "old@gmail.com", "x", "2026-11-10 15:00")
+    assert "somente leitura" in r["erro"] and "reconecte" in r["erro"]
+    enviados = {}
+
+    def _fake_send(acc, path, body):
+        enviados.update(body)
+        return {"id": "e1", "htmlLink": "https://c/e1",
+                "summary": body["summary"], "start": body["start"],
+                "end": body["end"]}
+    A._api_send = _fake_send
+    A.save(cfg, {"accounts": [{"id": "rw_gcal", "user": "rw@gmail.com",
+                               "oauth_scopes": A.CAL_SCOPE_RW}],
+                 "default": "rw_gcal"})
+    r = A.criar_evento(cfg, "rw_gcal", "Reunião", "2026-11-10 15:00")
+    import re as _re
+    assert r["ok"] and _re.match(
+        r"^\d{4}-\d{2}-\d{2}T15:00:00[+-]\d{2}:\d{2}$",
+        enviados["start"]["dateTime"]), enviados["start"]   # fuso da máquina
+    assert "T16:00" in enviados["end"]["dateTime"]      # +1h padrão
+    r = A.criar_evento(cfg, "rw_gcal", "Feriado", "2026-11-15")
+    assert enviados["start"]["date"] == "2026-11-15"
+    assert enviados["end"]["date"] == "2026-11-16"      # dia inteiro
+    assert "não encontrada" in A.criar_evento(
+        cfg, "zzz", "x", "2026-01-01")["erro"]
+
+    # ── desconectar tudo (llm7 padrão segue de pé)
+    for v in C.listar(cfg):
+        if v["ok"] and v["id"] != "ia":
+            assert C.desconectar(cfg, v["id"])["ok"]
+    assert [v["id"] for v in C.listar(cfg) if v["ok"]] == ["ia"]
+
+
+@case
+def T240_contas_api_gui_tool():
+    """v8.5.0: página 🔌 Contas na GUI + API REST (/api/contas/*:
+    listar, conectar, estado OAuth, desconectar, testar) + tool nativa
+    agenda_criar (31ª) que orienta vincular quando não há conta."""
+    cfg = fresh()
+    c = _app(cfg)
+
+    # ── página + nav
+    html = c.get("/contas").get_data(as_text=True)
+    assert c.get("/contas").status_code == 200
+    for marca in ("Contas", "vinculações com serviços externos",
+                  "vincular", "desconectar", "aguardando autorização"):
+        assert marca in html, marca
+    idx = Path("pluto/server/templates/index.html").read_text(
+        encoding="utf-8")
+    assert 'href="/contas"' in idx
+
+    # ── API: listar 9 · conectar/validar · estado · desconectar
+    d = c.get("/api/contas").get_json()
+    assert len(d["contas"]) == 9
+    assert c.post("/api/contas/telegram/conectar",
+                  json={"token": "123:ABC"}).status_code == 200
+    assert c.get("/api/contas").get_json()["contas"][2]["ok"]
+    assert c.post("/api/contas/telegram/conectar",
+                  json={}).status_code == 400
+    assert c.get("/api/contas/telegram/estado").get_json()[
+        "pendente"] is False
+    r = c.post("/api/contas/telegram/testar").get_json()
+    assert ("ok" in r) or ("erro" in r)          # sem rede no CI: honesto
+    assert c.post("/api/contas/telegram/desconectar").get_json()["ok"]
+    assert not c.get("/api/contas").get_json()["contas"][2]["ok"]
+    assert c.post("/api/contas/xpto/conectar", json={}).status_code == 400
+
+    # ── tool nativa agenda_criar (31ª)
+    from pluto.tools import EXECUTORS, TOOL_NAMES
+    assert "agenda_criar" in TOOL_NAMES and "agenda_criar" in EXECUTORS
+    out = EXECUTORS["agenda_criar"]({}, cfg)
+    assert "nenhuma conta Google Calendar vinculada" in out
+    from pluto import agendacfg as A
+    A.save(cfg, {"accounts": [{"id": "rw_gcal", "user": "rw@gmail.com",
+                               "oauth_scopes": A.CAL_SCOPE_RW}],
+                 "default": "rw_gcal"})
+
+    def _fake_send(acc, path, body):
+        return {"id": "e1", "htmlLink": "https://c/e1",
+                "summary": body["summary"], "start": body["start"],
+                "end": body["end"]}
+    A._api_send = _fake_send
+    out = EXECUTORS["agenda_criar"](
+        {"titulo": "Médico", "inicio": "2026-11-20 09:00"}, cfg)
+    assert out.startswith("✔ evento criado") and "Médico" in out
+    out = EXECUTORS["agenda_criar"](
+        {"titulo": "x", "inicio": "2026-11-20 09:00",
+         "conta": "nao@existe"}, cfg)
+    assert "não encontrada" in out
+
+
 if __name__ == "__main__":
     print("◈ Pluto — suíte de testes\n")
     sys.exit(run_all())

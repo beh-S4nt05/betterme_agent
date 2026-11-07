@@ -1,6 +1,6 @@
 # 📘 Pluto Agente — Documentação viva: uso, evolução e funções
 
-**Versão 8.4.0** · gerado em 06/11/2026 · este documento é extraído do
+**Versão 8.5.0** · gerado em 07/11/2026 · este documento é extraído do
 código-fonte (parser AST) e do CHANGELOG — funções, endpoints e versões
 refletem exatamente o que está instalado. O histórico detalhado, versão a
 versão, está no `CHANGELOG.md`; o manual completo de operação no `docs.md`.
@@ -140,7 +140,7 @@ sobrevivem a restart (v3.11). Máximo 2 tentativas automáticas.
 Subcomandos: `pluto skills audit` (auditar o catálogo), `pluto config set/get`, `pluto server --host/--port/--token`.
 
 
-## 3. Modificações — o que foi feito (v1.0.0 → v8.4.0)
+## 3. Modificações — o que foi feito (v1.0.0 → v8.5.0)
 
 40 releases. Tabela extraída do CHANGELOG (a versão detalhada de cada
 uma está lá):
@@ -148,6 +148,8 @@ uma está lá):
 | Versão | Marca |
 |---|---|
 
+| **v8.5.0** | 🔌 CONTAS: VINCULAÇÕES EXTERNAS NUM LUGAR SÓ |
+| **v8.4.0** | 💰 GESTOR DE FINANÇAS COMPLETO (ABA NA GUI) |
 | **v8.3.0** | 🐕 PLUTO AGENTE (RENOME FINAL) |
 | **v8.2.0** | 🧠 NOTEBOOK + OCR NATIVOS (O APP FAZ, NÃO INSTRUI) |
 | **v8.1.0** | 📚 NOTEBOOK (CLONE DO NOTEBOOKLM) + OCR SEM LIMITES |
@@ -401,7 +403,7 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 
 ### pluto/server/app.py — 🌐 a API REST + GUI web (Flask/waitress): todos os endpoints, streaming do chat, aprovações, painel e páginas
 
-**89 endpoints HTTP:**
+**95 endpoints HTTP:**
 
 | Método e rota | O que faz |
 |---|---|
@@ -494,6 +496,12 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `POST /api/mcp/add` | mcp_add |
 | `POST /api/mcp/test` | mcp_test |
 | `GET /financas` | financas_page |
+| `GET /contas` | contas_page |
+| `GET /api/contas` | contas_listar |
+| `POST /api/contas/<vinculo>/conectar` | contas_conectar |
+| `GET /api/contas/<vinculo>/estado` | contas_estado |
+| `POST /api/contas/<vinculo>/desconectar` | contas_desconectar |
+| `POST /api/contas/<vinculo>/testar` | contas_testar |
 
 ### app.py — helpers — 🌐 a API REST + GUI web (Flask/waitress): todos os endpoints, streaming do chat, aprovações, painel e páginas
 
@@ -613,6 +621,7 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `proc_stop(args, cfg)` | — |
 | `perguntar_operador(args, cfg)` | — |
 | `notebook_buscar(args, cfg)` | — |
+| `agenda_criar(args, cfg)` | v8.5.0: cria evento no Google Calendar (conta vinculada). |
 | `execute_tool(name, arguments, cfg, source, agent)` | Executa uma ferramenta e devolve {'ok': bool, 'output': str}. v3.0: toda execução vai para a trilha de auditoria (data/… |
 | `tool_summary()` | — |
 
@@ -964,8 +973,8 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `probe_account(user, password)` | Descobre (por tentativa) os servidores que aceitam o login. |
 | `add_account(cfg, user, password, account_id, readonly)` | Testa, salva (600) e registra a conta; devolve (conta, relatório). readonly=True (PADRÃO): a conta fica em modo SOMENTE… |
 | `register_mcp(cfg)` | Garante que o servidor MCP 'email' está no config (com caminho do arquivo de segredos passado por env — nada de senha n… |
-| `oauth_device_flow(provider, client_id, client_secret, print_fn, scopes)` | Fluxo OAuth 'device code' (padrão usado por TVs/CLIs): mostramos um código, você abre o link, entra com o 2FA NORMAL do… |
-| `add_oauth_account(cfg, user, provider, client_id, client_secret, print_fn, readonly)` | Cria conta via OAuth (device code), valida IMAP/SMTP e salva. |
+| `oauth_device_flow(provider, client_id, client_secret, print_fn, scopes, on_code)` | Fluxo OAuth 'device code' (padrão usado por TVs/CLIs): mostramos um código, você abre o link, entra com o 2FA NORMAL do… |
+| `add_oauth_account(cfg, user, provider, client_id, client_secret, print_fn, readonly, on_code)` | Cria conta via OAuth (device code), valida IMAP/SMTP e salva. |
 | `set_modo(cfg, conta, envio)` | Alterna o modo da conta: envio=True libera ENVIO (e exige SMTP válido); envio=False volta para SOMENTE LEITURA (visuali… |
 | `status(cfg)` | — |
 | `setup_interactive(cfg)` | `pluto email setup` — pergunta contas, testa, salva e registra. |
@@ -979,9 +988,12 @@ pluto server (Flask/waitress, porta 8080) ── CLI `pluto …`
 | `load(cfg)` | — |
 | `save(cfg, data)` | — |
 | `_api_get(acc, path, params, api_base)` | GET autenticado na API do Calendar (único verbo usado — leitura). |
+| `_api_send(acc, path, body)` | POST autenticado na API do Calendar (v8.5.0: criar evento). |
+| `_pode_escrever(acc)` | Conta com escopo de escrita? (readonly antigo → aviso honesto) |
+| `criar_evento(cfg, account, titulo, inicio, fim, descricao, local, convidados)` | v8.5.0: cria um evento no calendário primary da conta. inicio/fim: 'AAAA-MM-DD HH:MM' (horário) ou 'AAAA-MM-DD' (dia in… |
 | `fmt_event(ev)` | Uma linha legível: 📅 18/10 14:00–15:00 · Título — 📍 Local · 3 participantes. |
 | `list_events(cfg, account, dias, limit, a_partir_de_agora)` | Lista eventos (somente leitura) de uma conta da agenda. |
-| `add_account(cfg, user, client_id, client_secret, print_fn)` | Adiciona a agenda de uma conta Google via device code (2FA do provedor, sem senha) e valida o acesso somente leitura. |
+| `add_account(cfg, user, client_id, client_secret, print_fn, on_code)` | Adiciona a agenda de uma conta Google via device code (2FA do provedor, sem senha). v8.5.0: escopo calendar.events (lei… |
 | `register_mcp(cfg)` | Registra o servidor MCP 'agenda' (secrets via env — nada no config). |
 | `status(cfg)` | — |
 | `setup_interactive(cfg)` | `pluto agenda oauth` — assistente device code (uma vez por conta). |

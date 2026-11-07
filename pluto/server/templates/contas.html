@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🔌 Contas — Pluto Agente</title>
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#0e121b; --panel:#121826; --panel2:#161d2e;
+    --border:#1f2a3d; --border2:#2a3650;
+    --txt:#d7e0ee; --dim:#8fa0b8; --faint:#5b6b82;
+    --acc:#7c5cff; --acc2:#9d86ff;
+    --ok:#2bd576; --warn:#ffb454; --err:#ff5470;
+    --mono:ui-monospace,'JetBrains Mono','Fira Code','Cascadia Code',Consolas,'Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:14px;line-height:1.55;
+       background-image:radial-gradient(1200px 500px at 80% -10%,rgba(124,92,255,.13),transparent),
+       radial-gradient(900px 400px at -10% 110%,rgba(43,213,118,.06),transparent)}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 18px 80px}
+  header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:6px}
+  h1{font-size:20px;font-weight:600}
+  h1 b{color:var(--acc2)}
+  .sub{color:var(--faint);font-size:12px;margin-bottom:18px}
+  a.back{color:var(--dim);text-decoration:none;font-size:13px;border:1px solid var(--border);
+         padding:6px 12px;border-radius:10px;background:transparent}
+  a.back:hover{color:var(--txt);border-color:var(--acc)}
+  .cat{margin:22px 0 10px;color:var(--dim);font-size:12px;text-transform:uppercase;
+       letter-spacing:1px;border-bottom:1px solid var(--border);padding-bottom:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;
+        display:flex;flex-direction:column;gap:8px}
+  .card.on{border-color:rgba(43,213,118,.35)}
+  .card .topo{display:flex;align-items:center;gap:10px}
+  .card .ico{font-size:22px}
+  .card .nome{font-weight:600}
+  .tag{font-size:10px;border-radius:6px;padding:1px 7px;border:1px solid var(--border);color:var(--dim)}
+  .tag.on{color:var(--ok);border-color:rgba(43,213,118,.4)}
+  .tag.off{color:var(--faint)}
+  .card .det{color:var(--dim);font-size:12px;flex:1}
+  .card .contas-lig{color:var(--acc2);font-size:12px}
+  .card .nota{color:var(--faint);font-size:11px}
+  .acoes{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{background:linear-gradient(135deg,var(--acc),#4633b8);color:#fff;border:0;border-radius:10px;
+       padding:8px 14px;cursor:pointer;font-family:inherit;font-size:12px}
+  .btn:hover{filter:brightness(1.12)}
+  .btn.ghost{background:transparent;border:1px solid var(--border2);color:var(--dim)}
+  .btn.ghost:hover{color:var(--txt);border-color:var(--acc)}
+  .btn.mini{padding:4px 10px;font-size:11px;border-radius:8px}
+  .btn:disabled{opacity:.5;cursor:wait}
+  .modal{display:none;position:fixed;inset:0;background:rgba(4,6,10,.72);z-index:50;
+         align-items:center;justify-content:center;padding:16px}
+  .modal.show{display:flex}
+  .mbox{background:var(--panel);border:1px solid var(--border2);border-radius:16px;
+        padding:20px;width:100%;max-width:460px;max-height:92vh;overflow:auto}
+  .mbox h3{font-size:15px;margin-bottom:6px;color:var(--acc2)}
+  .mbox .desc{color:var(--faint);font-size:12px;margin-bottom:12px}
+  .mbox label{display:block;color:var(--dim);font-size:11px;margin:10px 0 3px;
+              text-transform:uppercase;letter-spacing:.6px}
+  .mbox input,.mbox select{width:100%;background:var(--bg2);border:1px solid var(--border);
+    color:var(--txt);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px}
+  .mbox input:focus,.mbox select:focus{outline:none;border-color:var(--acc)}
+  .err{color:var(--err);font-size:12px;margin-top:8px;display:none;white-space:pre-wrap}
+  .mrow{display:flex;gap:10px;margin-top:16px;justify-content:flex-end}
+  .oauth{display:none;text-align:center;padding:8px 0}
+  .oauth .codigo{font-size:26px;letter-spacing:3px;color:var(--ok);margin:10px 0;
+                 border:1px dashed var(--border2);border-radius:10px;padding:10px}
+  .oauth a{color:var(--acc2)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);
+        border-top-color:var(--acc);border-radius:50%;animation:g 1s linear infinite;
+        vertical-align:-2px;margin-right:6px}
+  @keyframes g{to{transform:rotate(360deg)}}
+  .flash{position:fixed;bottom:18px;right:18px;background:var(--panel2);border:1px solid var(--border2);
+         border-radius:12px;padding:10px 16px;font-size:13px;z-index:60;display:none;max-width:380px}
+  .flash.ok{border-color:rgba(43,213,118,.5)}
+  .flash.err{border-color:rgba(255,84,112,.5)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="/">← Pluto</a>
+    <h1>🔌 <b>Contas</b></h1>
+  </header>
+  <div class="sub">vinculações com serviços externos — credenciais ficam na sua máquina
+    (secrets/ 600), nunca no repo, nunca no modelo</div>
+  <div id="lista"></div>
+</div>
+
+<div class="modal" id="mForm"><div class="mbox">
+  <h3 id="fTitulo"></h3>
+  <div class="desc" id="fDesc"></div>
+  <div id="fCampos"></div>
+  <div class="oauth" id="fOauth">
+    <div class="spin"></div><span class="q">aguardando autorização…</span>
+    <div class="desc" style="margin-top:10px">1. abra o link no SEU navegador<br>2. digite o código<br>3. entre com a conta + 2FA e autorize</div>
+    <div class="q" style="margin:6px 0 2px;color:var(--faint);font-size:11px">link:</div>
+    <a id="oUrl" target="_blank" rel="noopener"></a>
+    <div class="q" style="margin:10px 0 2px;color:var(--faint);font-size:11px">código:</div>
+    <div class="codigo" id="oCode">…</div>
+  </div>
+  <div class="err" id="fErr"></div>
+  <div class="mrow"><button class="btn ghost" id="fCancel">fechar</button>
+    <button class="btn" id="fOk">conectar</button></div>
+</div></div>
+
+<div class="flash" id="flash"></div>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const api = (caminho, opts) => fetch(caminho, opts).then(async (r) => {
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.erro || ("HTTP " + r.status));
+  return d;
+});
+function flash(msg, ok = true) {
+  const f = $("#flash");
+  f.textContent = msg; f.className = "flash show " + (ok ? "ok" : "err");
+  setTimeout(() => (f.className = "flash"), 4200);
+}
+let CONTAS = [];
+function render() {
+  const cats = [...new Set(CONTAS.map((c) => c.categoria))];
+  $("#lista").innerHTML = cats.map((cat) => {
+    const cards = CONTAS.filter((c) => c.categoria === cat).map((c) => `
+      <div class="card ${c.ok ? "on" : ""}">
+        <div class="topo"><span class="ico">${c.icone}</span>
+          <span class="nome">${c.nome}</span>
+          <span class="tag ${c.ok ? "on" : "off"}" style="margin-left:auto">
+            ${c.ok ? "● conectado" : "○ desconectado"}</span></div>
+        ${c.ok && c.contas.length ? `<div class="contas-lig">🔑 ${c.contas.join(" · ")}</div>` : ""}
+        <div class="det">${c.detalhe}</div>
+        <div class="nota">${c.nota}</div>
+        <div class="acoes">
+          ${c.tipo !== "cli" ? `<button class="btn mini" onclick="abrir('${c.id}')">＋ vincular</button>` : ""}
+          ${c.ok ? `<button class="btn ghost mini" onclick="testar('${c.id}', this)">testar</button>
+            <button class="btn ghost mini" onclick="desconectar('${c.id}')">desconectar</button>` : ""}
+        </div>
+      </div>`).join("");
+    return `<div class="cat">${cat}</div><div class="grid">${cards}</div>`;
+  }).join("");
+}
+function carregar() {
+  return api("/api/contas").then((d) => { CONTAS = d.contas; render(); })
+    .catch((e) => flash("erro: " + e.message, false));
+}
+let ATUAL = null, POLL = null;
+function abrir(id) {
+  ATUAL = CONTAS.find((c) => c.id === id);
+  if (!ATUAL) return;
+  $("#fTitulo").textContent = `${ATUAL.icone} ${ATUAL.nome}`;
+  $("#fDesc").textContent = ATUAL.nota;
+  $("#fCampos").innerHTML = ATUAL.campos.map((c) =>
+    (c.chave === "provedor"
+      ? `<label>provedor</label><select id="c_${c.chave}">
+           <option value="google">google</option><option value="microsoft">microsoft</option></select>`
+      : `<label>${c.rotulo}</label><input id="c_${c.chave}"
+           ${c.chave.includes("secret") || c.chave === "key" || c.chave === "token"
+             ? 'type="password"' : 'type="text"'}>`)).join("");
+  $("#fOauth").style.display = "none";
+  $("#fErr").style.display = "none";
+  $("#fOk").style.display = "";
+  $("#mForm").classList.add("show");
+}
+window.abrir = abrir;
+$("#fCancel").onclick = () => {
+  if (POLL) { clearInterval(POLL); POLL = null; }
+  $("#mForm").classList.remove("show");
+};
+$("#fOk").onclick = () => {
+  const campos = {};
+  ATUAL.campos.forEach((c) => {
+    const el = $("#c_" + c.chave);
+    if (el && el.value.trim()) campos[c.chave] = el.value.trim();
+  });
+  $("#fErr").style.display = "none";
+  api(`/api/contas/${ATUAL.id}/conectar`, {method: "POST",
+    headers: {"Content-Type": "application/json"}, body: JSON.stringify(campos)})
+    .then((r) => {
+      if (r.pendente) {                       // OAuth device: mostra código
+        $("#fOauth").style.display = "block";
+        $("#fOk").style.display = "none";
+        POLL = setInterval(() => {
+          api(`/api/contas/${ATUAL.id}/estado`).then((est) => {
+            if (est.url) $("#oUrl").textContent = est.url;
+            if (est.url) $("#oUrl").href = est.url;
+            if (est.user_code) $("#oCode").textContent = est.user_code;
+            if (est.done) {
+              clearInterval(POLL); POLL = null;
+              if (est.ok) {
+                $("#mForm").classList.remove("show");
+                flash(`${ATUAL.nome} vinculado ✔`);
+                carregar();
+              } else {
+                $("#fOauth").style.display = "none";
+                $("#fOk").style.display = "";
+                $("#fErr").textContent = est.erro || "falha na autorização";
+                $("#fErr").style.display = "block";
+              }
+            }
+          }).catch(() => {});
+        }, 2500);
+      } else {
+        $("#mForm").classList.remove("show");
+        flash(r.msg || "vinculado ✔");
+        carregar();
+      }
+    })
+    .catch((e) => { $("#fErr").textContent = e.message; $("#fErr").style.display = "block"; });
+};
+window.desconectar = (id) => {
+  const v = CONTAS.find((c) => c.id === id);
+  if (!confirm(`desconectar ${v.nome}? (remove as credenciais locais)`)) return;
+  api(`/api/contas/${id}/desconectar`, {method: "POST"})
+    .then((r) => { flash(r.msg || "desconectado"); carregar(); })
+    .catch((e) => flash(e.message, false));
+};
+window.testar = (id, btn) => {
+  btn.disabled = true; btn.textContent = "testando…";
+  api(`/api/contas/${id}/testar`, {method: "POST"})
+    .then((r) => flash((r.ok ? "✔ " : "✖ ") + (r.msg || r.erro || ""), r.ok))
+    .catch((e) => flash(e.message, false))
+    .finally(() => { btn.disabled = false; btn.textContent = "testar"; });
+};
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !POLL) $("#mForm").classList.remove("show");
+});
+carregar();
+</script>
+</body>
+</html>

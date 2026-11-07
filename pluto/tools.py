@@ -86,6 +86,35 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "agenda_criar",
+            "description": (
+                "Cria um evento no Google Calendar do operador (v8.5.0, "
+                "conta vinculada na página Contas). Use quando o operador "
+                "pedir para agendar/marcar algo. inicio/fim no formato "
+                "AAAA-MM-DD HH:MM (ou só AAAA-MM-DD p/ dia inteiro). "
+                "SEM fim: dura 1h. Confirme o resumo criado."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "titulo": {"type": "string"},
+                    "inicio": {"type": "string",
+                               "description": "AAAA-MM-DD HH:MM ou AAAA-MM-DD"},
+                    "fim": {"type": "string",
+                            "description": "opcional — mesmo formato"},
+                    "descricao": {"type": "string"},
+                    "local": {"type": "string"},
+                    "conta": {"type": "string",
+                              "description": "opcional — e-mail da conta "
+                                             "vinculada (default: a primeira)"}
+                },
+                "required": ["titulo", "inicio"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "edit_file",
             "description": (
                 "Edita um arquivo de forma CIRÚRGICA: substitui o "
@@ -1419,8 +1448,29 @@ def notebook_buscar(args: dict, cfg) -> str:
     return notebook.perguntar(cfg, str(args.get("termo", "")))
 
 
+def agenda_criar(args: dict, cfg) -> str:
+    """v8.5.0: cria evento no Google Calendar (conta vinculada)."""
+    from . import agendacfg
+    data = agendacfg.load(cfg)
+    if not data.get("accounts"):
+        return ("✖ nenhuma conta Google Calendar vinculada — "
+                "conecte na página Contas (ou: pluto agenda oauth)")
+    conta = str(args.get("conta") or data.get("default")
+                or data["accounts"][0].get("user"))
+    r = agendacfg.criar_evento(
+        cfg, conta, str(args.get("titulo", "(sem título)")),
+        str(args.get("inicio", "")), fim=str(args.get("fim") or ""),
+        descricao=str(args.get("descricao") or ""),
+        local=str(args.get("local") or ""))
+    if r.get("erro"):
+        return f"✖ {r['erro']}"
+    return (f"✔ evento criado: {r['resumo']}"
+            + (f"\n🔗 {r['link']}" if r.get("link") else ""))
+
+
 EXECUTORS = {
     "notebook_buscar": notebook_buscar,
+    "agenda_criar": agenda_criar,
     "edit_file": edit_file,
     "proc_start": proc_start,
     "proc_logs": proc_logs,

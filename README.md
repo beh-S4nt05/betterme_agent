@@ -15,7 +15,7 @@ A **GUI web** liga/desliga agente e Ollama com um clique, mostra log ao vivo,
 chat com ferramentas visíveis na hora, tarefas agendadas, memória, skills,
 receitas, doctor e editor de automações n8n.
 
-**v8.4.0** · 238 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
+**v8.5.0** · 240 testes · CHANGELOG com todo o histórico. Limites calibráveis: POLITICAS.md.
 
 ```
                         ┌─────────────────────────────┐
@@ -214,6 +214,23 @@ pluto notebook listar|remover|status
   e só roda com confirmação [s/N]; `pluto ocr instalar unlimited`
   avisa os ~2–6 GB antes de clonar. Nunca nada silencioso.
 - Sem "áudio overview" do NotebookLM (fase futura: TTS local).
+
+## 🔌 Contas — vinculações externas (v8.5.0)
+
+Um lugar só para conectar o Pluto aos seus serviços — página **🔌
+Contas** na GUI (ou `pluto server` → nav):
+
+- **Google Calendar** — OAuth device (autoriza no SEU navegador com
+  2FA, sem senha no terminal). v8.5.0: leitura **e criação de
+  eventos** (tool `agenda_criar` — "agende médico sexta 15h").
+- **Gmail / e-mail** — OAuth device (Google/Microsoft) com validação
+  IMAP/SMTP real; leitura por padrão, envio você libera.
+- **Telegram · WhatsApp · SumUp · Belvo · provedores IA (8) · n8n ·
+  vault Obsidian** — token/chave/caminho, cada um com seu fluxo.
+- Status honesto por serviço (conectado? quais contas?), **testar**
+  (prova real: getMe do Telegram, calendário primário, probe Belvo) e
+  **desconectar** (remove credenciais locais).
+- Credenciais em `secrets/` (600) — nunca no repo, nunca no modelo.
 
 ## 💰 Gestor de finanças completo (v8.4.0)
 
