@@ -718,6 +718,46 @@ def cmd_varredura(args) -> None:
         raise SystemExit(code)
 
 
+def cmd_gates(args) -> None:
+    """V9.0.0 (T242): os portões de qualidade em 1 comando — ruff →
+    suíte → varredura. Espelho EXATO do pipeline do GitHub Actions
+    (.github/workflows/ci.yml): o que passa aqui, passa no CI."""
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    raiz = Path(__file__).resolve().parent.parent
+    passos = [
+        ("ruff (lint)",
+         [sys.executable, "-m", "ruff", "check", "--select",
+          "E9,F,B,PLE", "."]),
+        ("suíte (tests/run_all.py)", [sys.executable, "tests/run_all.py"]),
+        ("varredura (segredos/dados pessoais)",
+         [sys.executable, "-m", "pluto", "varredura", "--tudo"]),
+    ]
+    if getattr(args, "lista", False):
+        _p("◈ pluto gates — portões (modo --lista, nada é executado):")
+        for i, (nome, _) in enumerate(passos, 1):
+            _p(f"  {i}. {nome}")
+        _p("Sem --lista: roda os 3 na ordem e para no primeiro que falhar.")
+        return
+    _p("◈ pluto gates — espelho local do CI (GitHub Actions)\n")
+    for i, (nome, cmd) in enumerate(passos, 1):
+        _p(f"── Portão {i}/3: {nome} " + "─" * 10)
+        try:
+            r = subprocess.run(cmd, cwd=raiz)
+        except FileNotFoundError as exc:
+            raise SystemExit(
+                f"✖ portão {i}/3 ({nome}): {exc}") from exc
+        if r.returncode != 0:
+            raise SystemExit(
+                f"✖ portão {i}/3 FALHOU: {nome} (código {r.returncode}) "
+                "— o CI bloquearia exatamente aqui.")
+        _ok(f"portão {i}/3: {nome}")
+    _p("\n" + "═" * 33)
+    _ok("3/3 portões — pronto para commit/push/tag.")
+
+
 def cmd_init(args) -> None:
     """v4.0.0: cria HERMES.md de partida no projeto."""
     from . import project_context
@@ -967,6 +1007,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--raiz", default=None,
                    help="raiz do projeto (default: diretório atual)")
     p.set_defaults(fn=cmd_varredura)
+    p = sub.add_parser("gates",
+                       help="portões de qualidade em 1 comando (ruff → suíte → "
+                            "varredura) — espelho local do CI")
+    p.add_argument("--lista", action="store_true",
+                   help="só lista os portões; nada é executado")
+    p.set_defaults(fn=cmd_gates)
     p = sub.add_parser("init",
                        help="cria HERMES.md (instruções duráveis do projeto)")
     p.add_argument("caminho", nargs="?", default=None,

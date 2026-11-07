@@ -10600,6 +10600,50 @@ def T241_mcp_genkit_paridade():
         fk.httpd.shutdown()
 
 
+@case
+def T242_pipeline_ci_gates():
+    """V9.0.0 P0 (T242): pipeline CI/CD — workflows válidos + pluto gates."""
+    import subprocess
+
+    import yaml
+
+    wf = ROOT / ".github" / "workflows"
+    ci, rel = wf / "ci.yml", wf / "release.yml"
+    assert ci.is_file() and rel.is_file(), "workflows do CI ausentes"
+
+    def _on(doc):
+        # YAML 1.1 parseia a chave `on` como booleano True
+        return doc.get("on") if "on" in doc else doc.get(True)
+
+    doc_ci = yaml.safe_load(ci.read_text(encoding="utf-8"))
+    doc_rel = yaml.safe_load(rel.read_text(encoding="utf-8"))
+
+    # CI: dispara em push e PR; matriz Linux|Windows|macOS; 3 portões
+    on = _on(doc_ci)
+    assert "push" in on and "pull_request" in on, on
+    oss = set()
+    for job in doc_ci.get("jobs", {}).values():
+        oss |= set(job.get("strategy", {}).get("matrix", {}).get("os", []))
+    assert {"ubuntu-latest", "windows-latest", "macos-latest"} <= oss, oss
+    txt = ci.read_text(encoding="utf-8")
+    assert "ruff check" in txt and "tests/run_all.py" in txt
+    assert "varredura" in txt and "PYTHONUTF8" in txt  # PT-BR no Windows
+
+    # Release: só em tag v*; repete os portões; zip + GitHub Release
+    onr = _on(doc_rel)
+    assert onr and onr["push"]["tags"], onr
+    txr = rel.read_text(encoding="utf-8")
+    assert "contents: write" in txr and "git archive" in txr
+    assert "gh release create" in txr and "tests/run_all.py" in txr
+
+    # `pluto gates`: subcomando registrado e despachando (binário real)
+    r = subprocess.run(_pluto_bin() + ["gates", "--lista"], cwd=ROOT,
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-400:]
+    out = r.stdout + r.stderr
+    assert "ruff" in out and "suíte" in out and "varredura" in out, out
+
+
 if __name__ == "__main__":
     print("◈ Pluto — suíte de testes\n")
     sys.exit(run_all())
