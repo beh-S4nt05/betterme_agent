@@ -268,6 +268,7 @@ class SkillLoader:
             return cached[1]
 
         disabled = set(self.cfg.skills_disabled or [])
+        from .capacidades import NIVEIS_SKILL
         found: list[dict] = []
         seen: set[str] = set()
         for base, source in self.dirs:
@@ -283,6 +284,10 @@ class SkillLoader:
                 if not name or name in seen:
                     continue
                 seen.add(name)
+                # V9.0.0 (P7): skill GRADUADA por nível do cérebro —
+                # nunca recusada, graduada (Princípio 0). Sem nivel no
+                # frontmatter = leve = carrega em qualquer cérebro.
+                nivel = str(meta.get("nivel", "") or "").strip().lower()
                 found.append(
                     {
                         "name": name,
@@ -291,6 +296,7 @@ class SkillLoader:
                         "skill_md": str(skill_md),
                         "source": source,
                         "enabled": name not in disabled,
+                        "nivel": nivel if nivel in NIVEIS_SKILL else "leve",
                     }
                 )
         _CACHE[key] = (now, found)
@@ -304,6 +310,17 @@ class SkillLoader:
         skills = self.enabled()
         if not skills:
             return ""
+        # V9.0.0 (P7 · Princípio 0): o catálogo injetado no prompt é
+        # filtrado pelo NÍVEL do cérebro ATIVO — skill avançada não
+        # entra no prompt de um cérebro leve (ctx 8k) mas continua
+        # instalada/inventariada (enabled() não filtra: é gestão).
+        from .capacidades import NIVEIS_SKILL, capacidades
+        cap = capacidades(self.cfg)
+        visiveis = [s for s in skills
+                    if NIVEIS_SKILL.index(s.get("nivel", "leve"))
+                    <= NIVEIS_SKILL.index(cap.perfil)]
+        ocultas = len(skills) - len(visiveis)
+        skills = visiveis
         lines = [
             "Habilidades (skills) instaladas — quando a tarefa combinar com uma skill, "
             "PRIMEIRO leia o SKILL.md dela com a ferramenta read_file e siga as instruções:",
@@ -333,6 +350,9 @@ class SkillLoader:
         if outras > 0:
             lines.append(f"(+{outras} outras skills — catálogo completo: "
                          f"list_dir {self.dirs[0][0]})")
+        if ocultas > 0:
+            lines.append(f"(+{ocultas} skills avançadas além do perfil "
+                         f"{cap.perfil} do cérebro ativo — pluto capacidades)")
         return "\n".join(lines)
 
     def read_skill_md(self, path: str) -> str:

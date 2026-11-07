@@ -10722,6 +10722,120 @@ def T242_pipeline_ci_gates():
     assert "ruff" in out and "suíte" in out and "varredura" in out, out
 
 
+@case
+def T249_capacidades_perfis_e_portoes():
+    """V9.0.0 P7 (T249): PRINCÍPIO 0 — o modelo é a base, não o
+    limitador. capacidades(cfg) expõe perfil+portões do cérebro ATIVO;
+    trocar o cérebro no CONFIG muda o comportamento sem mexer em código
+    (prova do DoD item 7); skills graduadas por nível; escalada só com
+    aval do operador."""
+    from pluto.capacidades import (PORTOES, capacidades,
+                                   solicitar_escalada)
+    from pluto.skills import SkillLoader
+
+    # 1) piso de hoje: Ollama local 8b → leve, portões fechados
+    cap = capacidades(fresh())
+    assert cap.perfil == "leve" and cap.provedor == "local", repr(cap)
+    assert cap.modelo == "hermes3:8b" and cap.fonte == "ollama local"
+    assert set(cap.portoes) == set(PORTOES)
+    assert not any(cap.portoes.values()), cap.portoes
+    assert cap.nivel == 1
+
+    # 2) cérebro na nuvem rápido (groq, 8b-instant) → verificação liga
+    cap = capacidades(fresh(llm_provider="groq"))
+    assert cap.provedor == "groq" and cap.perfil == "rapido", repr(cap)
+    assert cap.modelo == "llama-3.1-8b-instant"
+    assert cap.portoes["verificacao_completa"] is True
+    assert cap.portoes["skills_avancadas"] is False
+    assert cap.portoes["autonomia_estendida"] is False
+
+    # 3) PROVA DoD-7: cérebro FORTE só trocando CONFIG → todos os portões
+    cfg = fresh(llm_provider="gemini", llm_model="gemini-2.5-pro",
+                num_ctx=131072)
+    cap = capacidades(cfg)
+    assert cap.perfil == "forte" and cap.provedor == "gemini"
+    assert all(cap.portoes[g] for g in PORTOES), cap.portoes
+    assert cap.aberto("ctx_longo") and cap.aberto("computer_use")
+
+    # 4) local grande é forte; override do config ganha de tudo
+    assert capacidades(fresh(model="llama3.3:70b")).perfil == "forte"
+    cap = capacidades(fresh(capacidades_perfil="forte"))
+    assert cap.perfil == "forte" and "override" in cap.fonte
+    # nome sem tamanho declarado → piso honesto
+    assert capacidades(fresh(model="llama3.2")).perfil == "leve"
+
+    # 5) determinístico (mesma config, mesma resposta — 2 chamadas)
+    c = fresh()
+    assert capacidades(c) == capacidades(c)
+
+    # 6) portão desconhecido é ERRO (contrato explícito, não silêncio)
+    try:
+        capacidades(fresh()).aberto("quadricóptero")
+        raise AssertionError("portão inventado foi aceito")
+    except KeyError:
+        pass
+
+    # 7) skills GRADUADAS: nivel no frontmatter filtra o catálogo pelo
+    #    perfil do cérebro ativo (instalada continua; só o prompt filtra)
+    cfg = fresh()
+    d = Path(cfg.data_dir) / "skills"
+    (d / "skill-avancada").mkdir(parents=True)
+    (d / "skill-avancada" / "SKILL.md").write_text(
+        "---\nname: skill-avancada\ndescription: teste de skill forte\n"
+        "nivel: forte\n---\ncorpo", encoding="utf-8")
+    (d / "skill-media").mkdir()
+    (d / "skill-media" / "SKILL.md").write_text(
+        "---\nname: skill-media\ndescription: teste de skill media\n"
+        "nivel: rapido\n---\ncorpo", encoding="utf-8")
+    (d / "skill-basica").mkdir()
+    (d / "skill-basica" / "SKILL.md").write_text(
+        "---\nname: skill-basica\ndescription: teste de skill leve\n---\ncorpo",
+        encoding="utf-8")
+    # nível inválido no frontmatter → degrada p/ leve (nunca quebra)
+    (d / "skill-exotica").mkdir()
+    (d / "skill-exotica" / "SKILL.md").write_text(
+        "---\nname: skill-exotica\ndescription: nivel invalido\n"
+        "nivel: intergalactico\n---\ncorpo", encoding="utf-8")
+    # escada: leve vê só a básica; rápido vê básica+média; forte vê tudo
+    cat = SkillLoader(cfg).catalog("teste de skill")
+    assert "skill-basica" in cat and "skill-avancada" not in cat, cat[:400]
+    assert "skill-media" not in cat and "além do perfil leve" in cat
+    cfg_medio = Config(data_dir=str(cfg.data_dir), mock=True)
+    cfg_medio.update({"capacidades_perfil": "rapido"})
+    cat_m = SkillLoader(cfg_medio).catalog("teste de skill")
+    assert "skill-media" in cat_m and "skill-avancada" not in cat_m
+    # inventário NÃO filtra (gestão honesta: está instalada)
+    nomes = {s["name"] for s in SkillLoader(cfg).scan()}
+    assert {"skill-basica", "skill-media", "skill-avancada"} <= nomes
+    scan = {s["name"]: s for s in SkillLoader(cfg).scan()}
+    assert scan["skill-exotica"]["nivel"] == "leve"
+    assert scan["skill-basica"]["nivel"] == "leve"    # default sem campo
+    # mesmo data_dir, override forte no config → TODAS entram no prompt
+    cfg2 = Config(data_dir=str(cfg.data_dir), mock=True)
+    cfg2.update({"capacidades_perfil": "forte"})
+    cat2 = SkillLoader(cfg2).catalog("teste de skill")
+    assert "skill-avancada" in cat2 and "skill-media" in cat2, cat2[:400]
+    assert "além do perfil forte" not in cat2
+
+    # 8) CLI expõe o Princípio 0 (dispatch real)
+    r = subprocess.run(_pluto_bin() + ["capacidades"], cwd=ROOT,
+                       capture_output=True, text=True, timeout=120)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-400:]
+    out = (r.stdout + r.stderr).lower()
+    assert "perfil" in out and "portões" in out, out
+    assert "verificacao_completa" in out and "leve" in out, out
+
+    # 9) escalada NUNCA silenciosa: pede aval, não muda cérebro
+    cfg = fresh()
+    antes = capacidades(cfg).perfil
+    pedido = solicitar_escalada(cfg, "tarefa crítica qualquer", "urgente")
+    assert pedido["ok"] and pedido["de"] == "leve" and pedido["para"] == "forte"
+    assert pedido["aprovado"] is None and "operador" in pedido["msg"].lower()
+    assert capacidades(cfg).perfil == antes          # nada mudou sozinho
+    neg = solicitar_escalada(fresh(capacidades_perfil="forte"), "x")
+    assert not neg["ok"]                              # já forte: não pede
+
+
 if __name__ == "__main__":
     print("◈ Pluto — suíte de testes\n")
     sys.exit(run_all())

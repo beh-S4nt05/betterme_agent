@@ -718,6 +718,23 @@ def cmd_varredura(args) -> None:
         raise SystemExit(code)
 
 
+def cmd_capacidades(args) -> None:
+    """V9.0.0 (P7 · T249): perfil e portões do cérebro ATIVO —
+    o Princípio 0 tornado visível (o modelo é a base, não o
+    limitador). Trocar o cérebro no config muda isto no próximo boot."""
+    from .capacidades import capacidades
+    cap = capacidades(_cfg(args))
+    _p("🧠 Pluto — capacidades do cérebro ativo\n")
+    _p(f"   cérebro : {cap.provedor} · {cap.modelo or '(modelo ?)'}")
+    _p(f"   fonte   : {cap.fonte}")
+    _p(f"   contexto: {cap.num_ctx} tokens · perfil: {cap.perfil}\n")
+    _p("   Portões (o perfil abre; a arquitetura não depende dele):")
+    for portao, aberto in cap.portoes.items():
+        _p(f"     {'✅' if aberto else '🔒'} {portao}")
+    _p("\n   Trocar o cérebro: pluto provider set <nome> · override: "
+        "capacidades_perfil no config.yaml — sem refatorar nada.")
+
+
 def cmd_gates(args) -> None:
     """V9.0.0 (T242): os portões de qualidade em 1 comando — ruff →
     suíte → varredura. Espelho EXATO do pipeline do GitHub Actions
@@ -1024,6 +1041,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("nivel", nargs="?", default=None,
                    help="novo nível (vazio = mostra o atual)")
     p.set_defaults(fn=cmd_autonomia)
+    p = sub.add_parser("capacidades",
+                       help="perfil e portões do cérebro ativo (Princípio 0: "
+                            "o modelo é a base, não o limitador)")
+    p.set_defaults(fn=cmd_capacidades)
     p = sub.add_parser("gerente",
                        help="gerente de código (Claude Code) — opt-in consciente")
     p.add_argument("acao", nargs="?", default="status",

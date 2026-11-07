@@ -31,6 +31,11 @@ DEFAULTS = {
     # openrouter|llm7|zai|cohere) com fallback local; memória NUNCA sai
     "llm_provider": "local",
     "llm_model": "",
+    # V9.0.0 (P7 · Princípio 0): override manual do perfil de capacidade
+    # do cérebro ativo — "" = automático (pelo provider/modelo declarado);
+    # leve|rapido|forte. Trocar aqui muda portões e skills no próximo
+    # boot, SEM refatorar código. Ver pluto/capacidades.py.
+    "capacidades_perfil": "",
     "sandbox_mode": "auto",
     "autonomia": "padrao",
     "gerente_codigo": "off",
